@@ -6,4 +6,51 @@
         <field name="model_id" ref="model_nti_edu_siswa_wali"/>
         <field name="domain_force">[('siswa_id.company_id', 'in', company_ids)]</field>
     </record>
+
+    <!-- Aturan multi-unit global: data unit sendiri, atau tingkat yayasan (induk) / tanpa unit.
+         Pola sama dengan base.res_partner_rule. -->
+    <record id="rule_jurusan_multi_unit" model="ir.rule">
+        <field name="name">Jurusan: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_jurusan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+    </record>
+
+    <record id="rule_hari_libur_multi_unit" model="ir.rule">
+        <field name="name">Hari libur: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_hari_libur"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+    </record>
+
+    <record id="rule_mapel_multi_unit" model="ir.rule">
+        <field name="name">Mata pelajaran: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_mapel"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+    </record>
+
+    <record id="rule_ruang_multi_unit" model="ir.rule">
+        <field name="name">Ruang: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_ruang"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+    </record>
+
+    <record id="rule_rombel_multi_unit" model="ir.rule">
+        <field name="name">Rombel: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_rombel"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+    </record>
+
+    <record id="rule_rombel_anggota_multi_unit" model="ir.rule">
+        <field name="name">Anggota rombel: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_rombel_anggota"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+    </record>
+
+    <!-- Mitra eksternal (DU/DI): siswa dan wali disembunyikan dari res.partner. Aturan grup, jadi
+         hanya membatasi anggota grup eksternal. -->
+    <record id="rule_partner_eksternal" model="ir.rule">
+        <field name="name">Eksternal: tanpa siswa dan wali</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="groups" eval="[(4, ref('nti_edu_base.group_base_eksternal'))]"/>
+        <field name="domain_force">[('nti_edu_is_siswa', '=', False), ('nti_edu_is_wali', '=', False)]</field>
+    </record>
 </odoo>

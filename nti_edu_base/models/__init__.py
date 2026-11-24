@@ -8,3 +8,4 @@ from . import siswa_wali
 from . import mapel
 from . import ruang
 from . import rombel
+from . import res_users

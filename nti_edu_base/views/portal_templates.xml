@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="portal_my_home_nti_edu" name="Portal Beranda: Anak Saya" inherit_id="portal.portal_my_home">
+        <xpath expr="//div[@id='portal_common_category']" position="inside">
+            <t t-set="nti_edu_siswa_sendiri" t-value="request.env.user.sudo().partner_id.nti_edu_is_siswa"/>
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/portal/static/src/img/portal-connection.svg'"/>
+                <t t-set="title" t-value="'Profil Saya' if nti_edu_siswa_sendiri else 'Anak Saya'"/>
+                <t t-set="text">Data siswa dan kelas</t>
+                <t t-set="url" t-value="'/my/anak'"/>
+                <t t-set="placeholder_count" t-value="'nti_edu_anak_count'"/>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="portal_my_anak" name="Portal: Daftar Anak">
+        <t t-call="portal.portal_layout">
+            <t t-set="my_details" t-value="True"/>
+            <div class="o_portal_my_home">
+                <h3 t-if="sendiri">Profil Saya</h3>
+                <h3 t-else="">Anak Saya</h3>
+                <p t-if="not anak_list" class="text-muted">Belum ada data siswa yang terhubung dengan akun ini.</p>
+                <div class="list-group" t-if="anak_list">
+                    <t t-foreach="anak_list" t-as="a">
+                        <div class="list-group-item d-flex justify-content-between align-items-center"
+                             t-att-data-anak-aktif="a.id if a == anak_aktif else None">
+                            <div>
+                                <a t-attf-href="/my/anak/#{a.id}"><strong t-out="a.name"/></a>
+                                <div class="text-muted small">
+                                    <span t-out="a.company_id.name"/>
+                                    <t t-if="a.nti_edu_rombel_aktif_id"> - <span t-out="a.nti_edu_rombel_aktif_id.name"/></t>
+                                </div>
+                            </div>
+                            <span t-if="a == anak_aktif" class="badge text-bg-primary">Dipilih</span>
+                            <a t-elif="len(anak_list) &gt; 1" t-attf-href="/my/anak/#{a.id}/pilih" class="btn btn-sm btn-outline-primary">Pilih</a>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="portal_my_anak_profil" name="Portal: Profil Anak">
+        <t t-call="portal.portal_layout">
+            <t t-set="my_details" t-value="True"/>
+            <div class="o_portal_my_home">
+                <h3 t-out="anak.name"/>
+                <dl class="row">
+                    <dt class="col-sm-3">NIS</dt>
+                    <dd class="col-sm-9" t-out="anak.nti_edu_nis"/>
+                    <dt class="col-sm-3">Unit</dt>
+                    <dd class="col-sm-9" t-out="anak.company_id.name"/>
+                    <dt class="col-sm-3">Rombel Aktif</dt>
+                    <dd class="col-sm-9" t-out="anak.nti_edu_rombel_aktif_id.name or '-'"/>
+                    <dt class="col-sm-3">Tahun Ajaran Aktif</dt>
+                    <dd class="col-sm-9" t-out="tahun_aktif.name or '-'"/>
+                </dl>
+                <a href="/my/anak" class="btn btn-secondary">Kembali</a>
+            </div>
+        </t>
+    </template>
+</odoo>

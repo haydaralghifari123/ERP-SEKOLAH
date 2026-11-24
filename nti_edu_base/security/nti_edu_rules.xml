@@ -7,42 +7,105 @@
         <field name="domain_force">[('siswa_id.company_id', 'in', company_ids)]</field>
     </record>
 
-    <!-- Aturan multi-unit global: data unit sendiri, atau tingkat yayasan (induk) / tanpa unit.
-         Pola sama dengan base.res_partner_rule. -->
+    <!-- Master bersama (jurusan, hari libur, mapel): baca = unit sendiri, yayasan induk, atau tanpa unit
+         (aturan global, hanya baca). Tulis lewat aturan grup: operator hanya data unit sendiri,
+         administrator boleh juga data tanpa unit. Data tingkat yayasan hanya bisa diubah oleh
+         pengguna yang unit diizinkannya mencakup yayasan. -->
     <record id="rule_jurusan_multi_unit" model="ir.rule">
-        <field name="name">Jurusan: multi-unit</field>
+        <field name="name">Jurusan: baca multi-unit</field>
         <field name="model_id" ref="model_nti_edu_jurusan"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="rule_jurusan_tulis_operator" model="ir.rule">
+        <field name="name">Jurusan: tulis operator (unit sendiri)</field>
+        <field name="model_id" ref="model_nti_edu_jurusan"/>
+        <field name="groups" eval="[(4, ref('nti_edu_base.group_base_operator'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+
+    <record id="rule_jurusan_tulis_admin" model="ir.rule">
+        <field name="name">Jurusan: tulis administrator (termasuk tanpa unit)</field>
+        <field name="model_id" ref="model_nti_edu_jurusan"/>
+        <field name="groups" eval="[(4, ref('nti_edu_base.group_base_admin'))]"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="False"/>
     </record>
 
     <record id="rule_hari_libur_multi_unit" model="ir.rule">
-        <field name="name">Hari libur: multi-unit</field>
+        <field name="name">Hari libur: baca multi-unit</field>
         <field name="model_id" ref="model_nti_edu_hari_libur"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="rule_hari_libur_tulis_operator" model="ir.rule">
+        <field name="name">Hari libur: tulis operator (unit sendiri)</field>
+        <field name="model_id" ref="model_nti_edu_hari_libur"/>
+        <field name="groups" eval="[(4, ref('nti_edu_base.group_base_operator'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+
+    <record id="rule_hari_libur_tulis_admin" model="ir.rule">
+        <field name="name">Hari libur: tulis administrator (termasuk tanpa unit)</field>
+        <field name="model_id" ref="model_nti_edu_hari_libur"/>
+        <field name="groups" eval="[(4, ref('nti_edu_base.group_base_admin'))]"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="False"/>
     </record>
 
     <record id="rule_mapel_multi_unit" model="ir.rule">
-        <field name="name">Mata pelajaran: multi-unit</field>
+        <field name="name">Mata pelajaran: baca multi-unit</field>
         <field name="model_id" ref="model_nti_edu_mapel"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
     </record>
 
-    <record id="rule_ruang_multi_unit" model="ir.rule">
-        <field name="name">Ruang: multi-unit</field>
-        <field name="model_id" ref="model_nti_edu_ruang"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+    <record id="rule_mapel_tulis_operator" model="ir.rule">
+        <field name="name">Mata pelajaran: tulis operator (unit sendiri)</field>
+        <field name="model_id" ref="model_nti_edu_mapel"/>
+        <field name="groups" eval="[(4, ref('nti_edu_base.group_base_operator'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="False"/>
     </record>
 
-    <record id="rule_rombel_multi_unit" model="ir.rule">
-        <field name="name">Rombel: multi-unit</field>
+    <record id="rule_mapel_tulis_admin" model="ir.rule">
+        <field name="name">Mata pelajaran: tulis administrator (termasuk tanpa unit)</field>
+        <field name="model_id" ref="model_nti_edu_mapel"/>
+        <field name="groups" eval="[(4, ref('nti_edu_base.group_base_admin'))]"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+
+    <!-- Model khusus unit: company wajib unit, tanpa tingkat yayasan -->
+    <record id="rule_rombel_unit" model="ir.rule">
+        <field name="name">Rombel: hanya unit sendiri</field>
         <field name="model_id" ref="model_nti_edu_rombel"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
-    <record id="rule_rombel_anggota_multi_unit" model="ir.rule">
-        <field name="name">Anggota rombel: multi-unit</field>
+    <record id="rule_rombel_anggota_unit" model="ir.rule">
+        <field name="name">Anggota rombel: hanya unit sendiri</field>
         <field name="model_id" ref="model_nti_edu_rombel_anggota"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_ruang_unit" model="ir.rule">
+        <field name="name">Ruang: hanya unit sendiri</field>
+        <field name="model_id" ref="model_nti_edu_ruang"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
     <!-- Mitra eksternal (DU/DI): siswa dan wali disembunyikan dari res.partner. Aturan grup, jadi

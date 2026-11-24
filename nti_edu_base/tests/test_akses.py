@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from datetime import date
 
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
+
+from odoo.tools import mute_logger
 
 from .common import NtiEduCommon
 
@@ -76,3 +78,68 @@ class TestAkses(NtiEduCommon):
     def test_eksternal_tanpa_akses_rombel(self):
         with self.assertRaises(AccessError):
             self.env['nti_edu.rombel'].with_user(self.user_eksternal).search([])
+
+    # --- Hak tulis data master bersama ---
+    def _libur(self, unit, tanggal=date(2026, 12, 1)):
+        return self.env['nti_edu.hari.libur'].create({
+            'name': 'Libur', 'tanggal_mulai': tanggal, 'company_id': unit.id if unit else False})
+
+    def test_operator_tidak_ubah_libur_yayasan(self):
+        libur = self._libur(self.yayasan)
+        libur_op = libur.with_user(self.user_operator_smp)
+        self.assertTrue(libur_op.read(['name']))
+        with self.assertRaises(AccessError):
+            libur_op.write({'name': 'Ubah'})
+        with self.assertRaises(AccessError):
+            libur_op.unlink()
+
+    def test_operator_tidak_hapus_libur_global(self):
+        libur = self._libur(False)
+        with self.assertRaises(AccessError):
+            libur.with_user(self.user_operator_smp).unlink()
+
+    def test_operator_tidak_buat_libur_yayasan(self):
+        with self.assertRaises(AccessError):
+            self.env['nti_edu.hari.libur'].with_user(self.user_operator_smp).create({
+                'name': 'X', 'tanggal_mulai': date(2026, 12, 2), 'company_id': self.yayasan.id})
+
+    def test_operator_kelola_libur_unit_sendiri(self):
+        libur = self.env['nti_edu.hari.libur'].with_user(self.user_operator_smp).create({
+            'name': 'Libur SMP', 'tanggal_mulai': date(2026, 12, 3), 'company_id': self.unit_smp.id})
+        libur.write({'name': 'Libur SMP 2'})
+        libur.unlink()
+
+    def test_admin_yayasan_buat_libur_tanpa_unit(self):
+        admin = self._buat_user('tes_admin_yys', 'nti_edu_base.group_base_admin', self.yayasan)
+        admin.company_ids = [(6, 0, (self.yayasan | self.unit_smp | self.unit_sma).ids)]
+        Libur = self.env['nti_edu.hari.libur'].with_user(admin)
+        libur = Libur.create({'name': 'Nasional', 'tanggal_mulai': date(2026, 12, 4)})
+        libur.write({'name': 'Nasional 2'})
+        libur_yys = Libur.create({
+            'name': 'Yys', 'tanggal_mulai': date(2026, 12, 5), 'company_id': self.yayasan.id})
+        libur_yys.unlink()
+
+    def test_libur_jurusan_lintas_unit_terbaca(self):
+        libur = self._libur(self.unit_sma)
+        jurusan = self.env['nti_edu.jurusan'].create({'name': 'IPA', 'company_id': self.unit_sma.id})
+        self.assertNotIn(libur, self.env['nti_edu.hari.libur'].with_user(self.user_guru_smp).search([]))
+        self.assertNotIn(jurusan, self.env['nti_edu.jurusan'].with_user(self.user_guru_smp).search([]))
+        self.assertIn(jurusan, self.env['nti_edu.jurusan'].with_user(self.user_guru_sma).search([]))
+
+    # --- Model khusus unit ---
+    def test_rombel_yayasan_ditolak(self):
+        with self.assertRaises(ValidationError), mute_logger('odoo.sql_db'):
+            self._rombel('Yys', self.env.ref('nti_edu_base.tingkat_smp_7'), self.yayasan)
+
+    def test_ruang_yayasan_ditolak(self):
+        with self.assertRaises(ValidationError):
+            self.env['nti_edu.ruang'].create({'name': 'R Yys', 'company_id': self.yayasan.id})
+
+    def test_ruang_dan_anggota_unit_lain_tak_terlihat(self):
+        ruang = self.env['nti_edu.ruang'].create({'name': 'R SMA', 'company_id': self.unit_sma.id})
+        anggota = self.env['nti_edu.rombel.anggota'].create(
+            {'rombel_id': self.rombel_sma.id, 'siswa_id': self.siswa_sma.id})
+        self.assertNotIn(ruang, self.env['nti_edu.ruang'].with_user(self.user_guru_smp).search([]))
+        self.assertNotIn(
+            anggota, self.env['nti_edu.rombel.anggota'].with_user(self.user_guru_smp).search([]))
+        self.assertIn(ruang, self.env['nti_edu.ruang'].with_user(self.user_guru_sma).search([]))

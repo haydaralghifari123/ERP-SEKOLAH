@@ -27,6 +27,12 @@ class Rombel(models.Model):
     ]
 
     @api.constrains('company_id')
+    def _check_company_unit(self):
+        for rec in self.sudo():
+            if rec.company_id.nti_edu_jenis != 'unit':
+                raise ValidationError(_('"%s" harus milik unit sekolah, bukan yayasan.', rec.display_name))
+
+    @api.constrains('company_id')
     def _check_unit_anggota(self):
         for rec in self.sudo():
             if rec.anggota_ids.filtered(

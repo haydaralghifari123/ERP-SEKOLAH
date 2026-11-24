@@ -20,6 +20,8 @@ class TahunAjaran(models.Model):
             if rec.tanggal_selesai <= rec.tanggal_mulai:
                 raise ValidationError(
                     _('Tanggal selesai tahun ajaran "%s" harus setelah tanggal mulai.', rec.name))
+        # Rentang baru tidak boleh membuat semester yang sudah ada keluar dari tahun ajaran.
+        self.semester_ids._cek_tanggal()
 
     @api.constrains('is_aktif')
     def _cek_satu_aktif(self):

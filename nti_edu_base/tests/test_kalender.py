@@ -119,3 +119,11 @@ class TestKalender(NtiEduCommon):
         with self.assertRaises(ValidationError):
             self.env['nti_edu.hari.libur'].create({
                 'name': 'X', 'tanggal_mulai': date(2026, 8, 20), 'tanggal_selesai': date(2026, 8, 19)})
+
+    def test_ubah_tahun_ajaran_mengecilkan_rentang_ditolak(self):
+        tahun = self._tahun()
+        self.env['nti_edu.semester'].create({
+            'tahun_ajaran_id': tahun.id, 'jenis': 'genap',
+            'tanggal_mulai': date(2027, 1, 4), 'tanggal_selesai': date(2027, 6, 30)})
+        with self.assertRaises(ValidationError):
+            tahun.tanggal_selesai = date(2027, 5, 31)

@@ -12,3 +12,11 @@ akses_semester_operator,nti_edu.semester operator,model_nti_edu_semester,nti_edu
 akses_hari_libur_pengguna,nti_edu.hari.libur pengguna,model_nti_edu_hari_libur,nti_edu_base.group_base_pengguna,1,0,0,0
 akses_hari_libur_operator,nti_edu.hari.libur operator,model_nti_edu_hari_libur,nti_edu_base.group_base_operator,1,1,1,1
 akses_siswa_wali_operator,nti_edu.siswa.wali operator,model_nti_edu_siswa_wali,nti_edu_base.group_base_operator,1,1,1,1
+akses_mapel_pengguna,nti_edu.mapel pengguna,model_nti_edu_mapel,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_mapel_admin,nti_edu.mapel admin,model_nti_edu_mapel,nti_edu_base.group_base_admin,1,1,1,1
+akses_ruang_pengguna,nti_edu.ruang pengguna,model_nti_edu_ruang,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_ruang_admin,nti_edu.ruang admin,model_nti_edu_ruang,nti_edu_base.group_base_admin,1,1,1,1
+akses_rombel_pengguna,nti_edu.rombel pengguna,model_nti_edu_rombel,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_rombel_operator,nti_edu.rombel operator,model_nti_edu_rombel,nti_edu_base.group_base_operator,1,1,1,1
+akses_rombel_anggota_pengguna,nti_edu.rombel.anggota pengguna,model_nti_edu_rombel_anggota,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_rombel_anggota_operator,nti_edu.rombel.anggota operator,model_nti_edu_rombel_anggota,nti_edu_base.group_base_operator,1,1,1,1

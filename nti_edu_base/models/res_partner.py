@@ -8,7 +8,8 @@ GRUP_OPERATOR = 'nti_edu_base.group_base_operator'
 FIELD_SISWA = {
     'nti_edu_is_siswa', 'nti_edu_nis', 'nti_edu_nisn', 'nti_edu_nik', 'nti_edu_jenis_kelamin',
     'nti_edu_tempat_lahir', 'nti_edu_tanggal_lahir', 'nti_edu_agama', 'nti_edu_status',
-    'nti_edu_tanggal_masuk', 'nti_edu_wali_ids', 'name', 'company_id',
+    'nti_edu_tanggal_masuk', 'nti_edu_wali_ids',
+    'nti_edu_anggota_ids', 'nti_edu_rombel_aktif_id', 'name', 'company_id',
     # Kontak/alamat/foto/arsip siswa: email & telepon kelak jadi kanal undangan portal.
     'email', 'phone', 'mobile', 'street', 'street2', 'zip', 'city', 'state_id', 'country_id',
     'image_1920', 'active',
@@ -38,6 +39,25 @@ class ResPartner(models.Model):
     nti_edu_wali_ids = fields.One2many('nti_edu.siswa.wali', 'siswa_id', string='Wali', groups=GRUP_OPERATOR)
     nti_edu_anak_ids = fields.One2many('nti_edu.siswa.wali', 'partner_id', string='Anak', groups=GRUP_OPERATOR)
     nti_edu_is_wali = fields.Boolean(string='Adalah Wali', compute='_compute_nti_edu_is_wali', store=True)
+
+    nti_edu_anggota_ids = fields.One2many('nti_edu.rombel.anggota', 'siswa_id', string='Riwayat Kelas')
+    nti_edu_rombel_aktif_id = fields.Many2one(
+        'nti_edu.rombel', string='Rombel Aktif', compute='_compute_nti_edu_rombel_aktif', store=True)
+
+    @api.depends('nti_edu_anggota_ids.rombel_id.tahun_ajaran_id.is_aktif', 'nti_edu_anggota_ids.tanggal_keluar')
+    def _compute_nti_edu_rombel_aktif(self):
+        for rec in self:
+            aktif = rec.nti_edu_anggota_ids.filtered(
+                lambda a: a.rombel_id.tahun_ajaran_id.is_aktif and not a.tanggal_keluar)[:1]
+            rec.nti_edu_rombel_aktif_id = aktif.rombel_id
+
+    def _nti_edu_rombel_pada(self, tanggal):
+        """Rombel siswa pada tanggal tertentu (kosong bila tidak ada); tanggal keluar dihitung masih anggota."""
+        self.ensure_one()
+        anggota = self.sudo().nti_edu_anggota_ids.filtered(
+            lambda a: a.tahun_ajaran_id.tanggal_mulai <= tanggal <= a.tahun_ajaran_id.tanggal_selesai
+            and (not a.tanggal_keluar or a.tanggal_keluar >= tanggal))[:1]
+        return anggota.rombel_id
 
     @api.depends('nti_edu_anak_ids')
     def _compute_nti_edu_is_wali(self):

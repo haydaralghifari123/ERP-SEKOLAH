@@ -5,3 +5,6 @@ from . import tahun_ajaran
 from . import hari_libur
 from . import res_partner
 from . import siswa_wali
+from . import mapel
+from . import ruang
+from . import rombel

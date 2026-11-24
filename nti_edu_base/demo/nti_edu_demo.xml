@@ -1,0 +1,724 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Data demo NTI Edu (nama dan data fiktif; domain email example.com). -->
+<odoo noupdate="1">
+    <!-- Entitas -->
+    <record id="demo_yayasan" model="res.company">
+        <field name="name">Yayasan Pendidikan Nusantara</field>
+        <field name="nti_edu_jenis">yayasan</field>
+    </record>
+    <record id="demo_unit_smp" model="res.company">
+        <field name="name">SMP Nusantara 1</field>
+        <field name="parent_id" ref="demo_yayasan"/>
+        <field name="nti_edu_jenis">unit</field>
+        <field name="nti_edu_jenjang_id" ref="jenjang_smp"/>
+        <field name="nti_edu_kode">smp1</field>
+        <field name="nti_edu_hari_sekolah">5</field>
+    </record>
+    <record id="demo_unit_sma" model="res.company">
+        <field name="name">SMA Nusantara 1</field>
+        <field name="parent_id" ref="demo_yayasan"/>
+        <field name="nti_edu_jenis">unit</field>
+        <field name="nti_edu_jenjang_id" ref="jenjang_sma"/>
+        <field name="nti_edu_kode">sma1</field>
+        <field name="nti_edu_hari_sekolah">6</field>
+    </record>
+
+    <!-- Kalender akademik -->
+    <record id="demo_tahun_2026" model="nti_edu.tahun.ajaran">
+        <field name="name">2026/2027</field>
+        <field name="tanggal_mulai">2026-07-13</field>
+        <field name="tanggal_selesai">2027-06-30</field>
+        <field name="is_aktif" eval="True"/>
+    </record>
+    <record id="demo_semester_ganjil" model="nti_edu.semester">
+        <field name="tahun_ajaran_id" ref="demo_tahun_2026"/>
+        <field name="jenis">ganjil</field>
+        <field name="tanggal_mulai">2026-07-13</field>
+        <field name="tanggal_selesai">2026-12-19</field>
+        <field name="is_aktif" eval="True"/>
+    </record>
+    <record id="demo_semester_genap" model="nti_edu.semester">
+        <field name="tahun_ajaran_id" ref="demo_tahun_2026"/>
+        <field name="jenis">genap</field>
+        <field name="tanggal_mulai">2027-01-04</field>
+        <field name="tanggal_selesai">2027-06-30</field>
+    </record>
+    <record id="demo_libur_kemerdekaan" model="nti_edu.hari.libur">
+        <field name="name">Hari Kemerdekaan RI</field>
+        <field name="tanggal_mulai">2026-08-17</field>
+        <field name="jenis">nasional</field>
+    </record>
+    <record id="demo_libur_natal" model="nti_edu.hari.libur">
+        <field name="name">Hari Raya Natal</field>
+        <field name="tanggal_mulai">2026-12-25</field>
+        <field name="jenis">nasional</field>
+    </record>
+    <record id="demo_libur_semester" model="nti_edu.hari.libur">
+        <field name="name">Libur Akhir Semester Ganjil</field>
+        <field name="tanggal_mulai">2026-12-21</field>
+        <field name="tanggal_selesai">2027-01-02</field>
+        <field name="company_id" ref="demo_yayasan"/>
+        <field name="jenis">sekolah</field>
+    </record>
+
+    <!-- Pengguna internal (password = login) -->
+    <record id="demo_user_operator" model="res.users">
+        <field name="name">Operator Demo</field>
+        <field name="login">operator.demo</field>
+        <field name="password">operator.demo</field>
+        <field name="email">operator.demo@example.com</field>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="company_ids" eval="[(6, 0, [ref('demo_unit_smp'), ref('demo_unit_sma')])]"/>
+        <field name="groups_id" eval="[(6, 0, [ref('group_base_operator')])]"/>
+    </record>
+    <record id="demo_user_guru1" model="res.users">
+        <field name="name">Guru Satu Demo</field>
+        <field name="login">guru1.demo</field>
+        <field name="password">guru1.demo</field>
+        <field name="email">guru1.demo@example.com</field>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="company_ids" eval="[(6, 0, [ref('demo_unit_smp')])]"/>
+        <field name="groups_id" eval="[(6, 0, [ref('group_base_pengguna')])]"/>
+    </record>
+    <record id="demo_user_guru2" model="res.users">
+        <field name="name">Guru Dua Demo</field>
+        <field name="login">guru2.demo</field>
+        <field name="password">guru2.demo</field>
+        <field name="email">guru2.demo@example.com</field>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="company_ids" eval="[(6, 0, [ref('demo_unit_smp')])]"/>
+        <field name="groups_id" eval="[(6, 0, [ref('group_base_pengguna')])]"/>
+    </record>
+    <record id="demo_user_guru3" model="res.users">
+        <field name="name">Guru Tiga Demo</field>
+        <field name="login">guru3.demo</field>
+        <field name="password">guru3.demo</field>
+        <field name="email">guru3.demo@example.com</field>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="company_ids" eval="[(6, 0, [ref('demo_unit_sma')])]"/>
+        <field name="groups_id" eval="[(6, 0, [ref('group_base_pengguna')])]"/>
+    </record>
+
+    <!-- Rombel -->
+    <record id="demo_rombel_7a" model="nti_edu.rombel">
+        <field name="name">VII-A</field>
+        <field name="tahun_ajaran_id" ref="demo_tahun_2026"/>
+        <field name="tingkat_id" ref="tingkat_smp_7"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="wali_kelas_id" ref="demo_user_guru1"/>
+    </record>
+    <record id="demo_rombel_8a" model="nti_edu.rombel">
+        <field name="name">VIII-A</field>
+        <field name="tahun_ajaran_id" ref="demo_tahun_2026"/>
+        <field name="tingkat_id" ref="tingkat_smp_8"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+    </record>
+    <record id="demo_rombel_10a" model="nti_edu.rombel">
+        <field name="name">X-A</field>
+        <field name="tahun_ajaran_id" ref="demo_tahun_2026"/>
+        <field name="tingkat_id" ref="tingkat_sma_10"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+    </record>
+    <record id="demo_rombel_11a" model="nti_edu.rombel">
+        <field name="name">XI-A</field>
+        <field name="tahun_ajaran_id" ref="demo_tahun_2026"/>
+        <field name="tingkat_id" ref="tingkat_sma_11"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+    </record>
+
+    <!-- Siswa, wali, dan keanggotaan rombel -->
+    <record id="demo_wali_bersaudara" model="res.partner">
+        <field name="name">Wali Bersaudara Demo</field>
+        <field name="email">wali.bersaudara@example.com</field>
+    </record>
+    <record id="demo_siswa_01" model="res.partner">
+        <field name="name">Aditya Bersaudara</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026001</field>
+        <field name="nti_edu_nisn">9900000001</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-02-11</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_01" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_7a"/>
+        <field name="siswa_id" ref="demo_siswa_01"/>
+        <field name="no_absen">1</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_02" model="res.partner">
+        <field name="name">Bella Safitri</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026002</field>
+        <field name="nti_edu_nisn">9900000002</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-03-12</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_02" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_7a"/>
+        <field name="siswa_id" ref="demo_siswa_02"/>
+        <field name="no_absen">2</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_03" model="res.partner">
+        <field name="name">Candra Wijaya</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026003</field>
+        <field name="nti_edu_nisn">9900000003</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-04-13</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_03" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_7a"/>
+        <field name="siswa_id" ref="demo_siswa_03"/>
+        <field name="no_absen">3</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_04" model="res.partner">
+        <field name="name">Dinda Maharani</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026004</field>
+        <field name="nti_edu_nisn">9900000004</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-05-14</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_04" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_7a"/>
+        <field name="siswa_id" ref="demo_siswa_04"/>
+        <field name="no_absen">4</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_05" model="res.partner">
+        <field name="name">Eko Saputra</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026005</field>
+        <field name="nti_edu_nisn">9900000005</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-06-15</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_05" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_7a"/>
+        <field name="siswa_id" ref="demo_siswa_05"/>
+        <field name="no_absen">5</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_06" model="res.partner">
+        <field name="name">Fitri Handayani</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026006</field>
+        <field name="nti_edu_nisn">9900000006</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-07-16</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_06" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_8a"/>
+        <field name="siswa_id" ref="demo_siswa_06"/>
+        <field name="no_absen">1</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_07" model="res.partner">
+        <field name="name">Galih Permana</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026007</field>
+        <field name="nti_edu_nisn">9900000007</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-08-17</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_07" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_8a"/>
+        <field name="siswa_id" ref="demo_siswa_07"/>
+        <field name="no_absen">2</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_08" model="res.partner">
+        <field name="name">Hana Larasati</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026008</field>
+        <field name="nti_edu_nisn">9900000008</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-09-18</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_08" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_8a"/>
+        <field name="siswa_id" ref="demo_siswa_08"/>
+        <field name="no_absen">3</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_09" model="res.partner">
+        <field name="name">Indra Kusuma</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026009</field>
+        <field name="nti_edu_nisn">9900000009</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-01-10</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_09" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_8a"/>
+        <field name="siswa_id" ref="demo_siswa_09"/>
+        <field name="no_absen">4</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_10" model="res.partner">
+        <field name="name">Jihan Anggraini</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="nti_edu_nis">2026010</field>
+        <field name="nti_edu_nisn">9900000010</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2011-02-11</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_10" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_8a"/>
+        <field name="siswa_id" ref="demo_siswa_10"/>
+        <field name="no_absen">5</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_11" model="res.partner">
+        <field name="name">Kevin Bersaudara</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025011</field>
+        <field name="nti_edu_nisn">9900000011</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-03-12</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_11" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_10a"/>
+        <field name="siswa_id" ref="demo_siswa_11"/>
+        <field name="no_absen">1</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_12" model="res.partner">
+        <field name="name">Laila Rahmawati</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025012</field>
+        <field name="nti_edu_nisn">9900000012</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-04-13</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_12" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_10a"/>
+        <field name="siswa_id" ref="demo_siswa_12"/>
+        <field name="no_absen">2</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_13" model="res.partner">
+        <field name="name">Mario Nugraha</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025013</field>
+        <field name="nti_edu_nisn">9900000013</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-05-14</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_13" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_10a"/>
+        <field name="siswa_id" ref="demo_siswa_13"/>
+        <field name="no_absen">3</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_14" model="res.partner">
+        <field name="name">Nadia Puspita</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025014</field>
+        <field name="nti_edu_nisn">9900000014</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-06-15</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_14" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_10a"/>
+        <field name="siswa_id" ref="demo_siswa_14"/>
+        <field name="no_absen">4</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_15" model="res.partner">
+        <field name="name">Oscar Firmansyah</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025015</field>
+        <field name="nti_edu_nisn">9900000015</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-07-16</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_15" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_10a"/>
+        <field name="siswa_id" ref="demo_siswa_15"/>
+        <field name="no_absen">5</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_16" model="res.partner">
+        <field name="name">Putri Ayuningtyas</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025016</field>
+        <field name="nti_edu_nisn">9900000016</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-08-17</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_16" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_11a"/>
+        <field name="siswa_id" ref="demo_siswa_16"/>
+        <field name="no_absen">1</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_17" model="res.partner">
+        <field name="name">Rizky Ramadhan</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025017</field>
+        <field name="nti_edu_nisn">9900000017</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-09-18</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_17" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_11a"/>
+        <field name="siswa_id" ref="demo_siswa_17"/>
+        <field name="no_absen">2</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_18" model="res.partner">
+        <field name="name">Salsa Kurniawati</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025018</field>
+        <field name="nti_edu_nisn">9900000018</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-01-10</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_18" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_11a"/>
+        <field name="siswa_id" ref="demo_siswa_18"/>
+        <field name="no_absen">3</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_19" model="res.partner">
+        <field name="name">Teguh Wibowo</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025019</field>
+        <field name="nti_edu_nisn">9900000019</field>
+        <field name="nti_edu_jenis_kelamin">l</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-02-11</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_19" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_11a"/>
+        <field name="siswa_id" ref="demo_siswa_19"/>
+        <field name="no_absen">4</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_20" model="res.partner">
+        <field name="name">Vina Oktaviani</field>
+        <field name="nti_edu_is_siswa" eval="True"/>
+        <field name="company_id" ref="demo_unit_sma"/>
+        <field name="nti_edu_nis">2025020</field>
+        <field name="nti_edu_nisn">9900000020</field>
+        <field name="nti_edu_jenis_kelamin">p</field>
+        <field name="nti_edu_tempat_lahir">Kota Demo</field>
+        <field name="nti_edu_tanggal_lahir">2008-03-12</field>
+        <field name="nti_edu_agama">islam</field>
+        <field name="nti_edu_tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_anggota_20" model="nti_edu.rombel.anggota">
+        <field name="rombel_id" ref="demo_rombel_11a"/>
+        <field name="siswa_id" ref="demo_siswa_20"/>
+        <field name="no_absen">5</field>
+        <field name="tanggal_masuk">2026-07-13</field>
+    </record>
+    <record id="demo_siswa_wali_01" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_01"/>
+        <field name="partner_id" ref="demo_wali_bersaudara"/>
+        <field name="hubungan">ibu</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_02" model="res.partner">
+        <field name="name">Wali Demo 02</field>
+        <field name="email">wali02.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_02" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_02"/>
+        <field name="partner_id" ref="demo_wali_02"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_03" model="res.partner">
+        <field name="name">Wali Demo 03</field>
+        <field name="email">wali03.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_03" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_03"/>
+        <field name="partner_id" ref="demo_wali_03"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_04" model="res.partner">
+        <field name="name">Wali Demo 04</field>
+        <field name="email">wali04.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_04" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_04"/>
+        <field name="partner_id" ref="demo_wali_04"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_05" model="res.partner">
+        <field name="name">Wali Demo 05</field>
+        <field name="email">wali05.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_05" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_05"/>
+        <field name="partner_id" ref="demo_wali_05"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_06" model="res.partner">
+        <field name="name">Wali Demo 06</field>
+        <field name="email">wali06.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_06" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_06"/>
+        <field name="partner_id" ref="demo_wali_06"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_07" model="res.partner">
+        <field name="name">Wali Demo 07</field>
+        <field name="email">wali07.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_07" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_07"/>
+        <field name="partner_id" ref="demo_wali_07"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_08" model="res.partner">
+        <field name="name">Wali Demo 08</field>
+        <field name="email">wali08.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_08" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_08"/>
+        <field name="partner_id" ref="demo_wali_08"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_09" model="res.partner">
+        <field name="name">Wali Demo 09</field>
+        <field name="email">wali09.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_09" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_09"/>
+        <field name="partner_id" ref="demo_wali_09"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_10" model="res.partner">
+        <field name="name">Wali Demo 10</field>
+        <field name="email">wali10.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_10" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_10"/>
+        <field name="partner_id" ref="demo_wali_10"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_siswa_wali_11" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_11"/>
+        <field name="partner_id" ref="demo_wali_bersaudara"/>
+        <field name="hubungan">ibu</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_12" model="res.partner">
+        <field name="name">Wali Demo 12</field>
+        <field name="email">wali12.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_12" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_12"/>
+        <field name="partner_id" ref="demo_wali_12"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_13" model="res.partner">
+        <field name="name">Wali Demo 13</field>
+        <field name="email">wali13.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_13" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_13"/>
+        <field name="partner_id" ref="demo_wali_13"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_14" model="res.partner">
+        <field name="name">Wali Demo 14</field>
+        <field name="email">wali14.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_14" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_14"/>
+        <field name="partner_id" ref="demo_wali_14"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_15" model="res.partner">
+        <field name="name">Wali Demo 15</field>
+        <field name="email">wali15.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_15" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_15"/>
+        <field name="partner_id" ref="demo_wali_15"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_16" model="res.partner">
+        <field name="name">Wali Demo 16</field>
+        <field name="email">wali16.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_16" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_16"/>
+        <field name="partner_id" ref="demo_wali_16"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_17" model="res.partner">
+        <field name="name">Wali Demo 17</field>
+        <field name="email">wali17.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_17" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_17"/>
+        <field name="partner_id" ref="demo_wali_17"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_18" model="res.partner">
+        <field name="name">Wali Demo 18</field>
+        <field name="email">wali18.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_18" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_18"/>
+        <field name="partner_id" ref="demo_wali_18"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_19" model="res.partner">
+        <field name="name">Wali Demo 19</field>
+        <field name="email">wali19.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_19" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_19"/>
+        <field name="partner_id" ref="demo_wali_19"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+    <record id="demo_wali_20" model="res.partner">
+        <field name="name">Wali Demo 20</field>
+        <field name="email">wali20.demo@example.com</field>
+    </record>
+    <record id="demo_siswa_wali_20" model="nti_edu.siswa.wali">
+        <field name="siswa_id" ref="demo_siswa_20"/>
+        <field name="partner_id" ref="demo_wali_20"/>
+        <field name="hubungan">ayah</field>
+        <field name="is_kontak_utama" eval="True"/>
+        <field name="is_penanggung_biaya" eval="True"/>
+    </record>
+
+    <!-- Pengguna portal (password = login) -->
+    <record id="demo_user_wali_bersaudara" model="res.users">
+        <field name="partner_id" ref="demo_wali_bersaudara"/>
+        <field name="login">wali.bersaudara@example.com</field>
+        <field name="password">wali.bersaudara@example.com</field>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="company_ids" eval="[(6, 0, [ref('demo_unit_smp'), ref('demo_unit_sma')])]"/>
+        <field name="groups_id" eval="[(6, 0, [ref('base.group_portal')])]"/>
+    </record>
+    <record id="demo_user_siswa" model="res.users">
+        <field name="partner_id" ref="demo_siswa_02"/>
+        <field name="login">siswa.demo</field>
+        <field name="password">siswa.demo</field>
+        <field name="company_id" ref="demo_unit_smp"/>
+        <field name="company_ids" eval="[(6, 0, [ref('demo_unit_smp')])]"/>
+        <field name="groups_id" eval="[(6, 0, [ref('base.group_portal')])]"/>
+    </record>
+</odoo>

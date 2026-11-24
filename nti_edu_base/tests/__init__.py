@@ -8,3 +8,4 @@ from . import test_akun_portal
 from . import test_portal
 from . import test_kenaikan
 from . import test_tampilan
+from . import test_demo

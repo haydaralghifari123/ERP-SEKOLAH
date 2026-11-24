@@ -8,6 +8,14 @@ Modul fondasi NTI Edu (data sekolah).
 - Unit sekolah, kalender akademik, dan rombongan belajar.
 - Data siswa dan wali.
 - Portal orang tua.
+
+Data demo (opsional) memuat Yayasan Pendidikan Nusantara dengan SMP dan SMA, 20 siswa, dan akun berikut
+(password sama dengan login):
+
+- Operator Data Sekolah: operator.demo
+- Guru (pengguna): guru1.demo (wali kelas VII-A), guru2.demo, guru3.demo
+- Portal wali (dua anak di SMP dan SMA): wali.bersaudara@example.com
+- Portal siswa: siswa.demo
     """,
     'author': 'Haydar Alghifari',
     'category': 'Education',
@@ -33,6 +41,9 @@ Modul fondasi NTI Edu (data sekolah).
         'views/siswa_views.xml',
         'views/wali_views.xml',
         'views/menu.xml',
+    ],
+    'demo': [
+        'demo/nti_edu_demo.xml',
     ],
     'installable': True,
     'application': True,

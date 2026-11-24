@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_wali_list" model="ir.ui.view">
+        <field name="name">nti_edu.wali.list</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <list string="Wali Murid" create="0">
+                <field name="name"/>
+                <field name="phone"/>
+                <field name="email"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_wali_form" model="ir.ui.view">
+        <field name="name">nti_edu.wali.form</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <form string="Wali Murid" create="0">
+                <header>
+                    <field name="user_ids" invisible="1"/>
+                    <button name="action_nti_edu_buat_akun_portal" type="object" string="Buat Akun Portal"
+                            class="btn-primary" groups="nti_edu_base.group_base_operator"
+                            invisible="user_ids"/>
+                </header>
+                <sheet>
+                    <h1><field name="name" placeholder="Nama wali"/></h1>
+                    <group>
+                        <group>
+                            <field name="phone"/>
+                            <field name="mobile"/>
+                            <field name="email"/>
+                        </group>
+                        <group>
+                            <field name="street"/>
+                            <field name="city"/>
+                        </group>
+                    </group>
+                    <separator string="Anak"/>
+                    <field name="nti_edu_anak_ids" groups="nti_edu_base.group_base_operator" readonly="1">
+                        <list>
+                            <field name="siswa_id"/>
+                            <field name="hubungan"/>
+                            <field name="is_kontak_utama"/>
+                            <field name="is_penanggung_biaya"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_wali" model="ir.actions.act_window">
+        <field name="name">Wali Murid</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('nti_edu_is_wali', '=', True)]</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_wali_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_wali_form')})]"/>
+    </record>
+</odoo>

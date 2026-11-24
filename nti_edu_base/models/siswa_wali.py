@@ -32,3 +32,8 @@ class SiswaWali(models.Model):
                 wali.with_env(self.env).check_access('write')
                 wali.company_id = False
         return baris
+
+    def action_buat_akun_portal(self):
+        """Tombol di daftar wali pada form siswa: buka wizard akun portal untuk wali (operator saja)."""
+        self.ensure_one()
+        return self.partner_id.action_nti_edu_buat_akun_portal()

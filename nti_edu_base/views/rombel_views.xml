@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_rombel_list" model="ir.ui.view">
+        <field name="name">nti_edu.rombel.list</field>
+        <field name="model">nti_edu.rombel</field>
+        <field name="arch" type="xml">
+            <list string="Rombel">
+                <field name="name"/>
+                <field name="tahun_ajaran_id"/>
+                <field name="tingkat_id"/>
+                <field name="jurusan_id" optional="show"/>
+                <field name="wali_kelas_id"/>
+                <field name="ruang_id" optional="hide"/>
+                <field name="jumlah_siswa"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_rombel_search" model="ir.ui.view">
+        <field name="name">nti_edu.rombel.search</field>
+        <field name="model">nti_edu.rombel</field>
+        <field name="arch" type="xml">
+            <search string="Rombel">
+                <field name="name"/>
+                <field name="wali_kelas_id"/>
+                <field name="tingkat_id"/>
+                <filter name="tahun_aktif" string="Tahun Ajaran Aktif"
+                        domain="[('tahun_ajaran_id.is_aktif', '=', True)]"/>
+                <group expand="0" string="Kelompokkan">
+                    <filter name="grp_tahun" string="Tahun Ajaran" context="{'group_by': 'tahun_ajaran_id'}"/>
+                    <filter name="grp_tingkat" string="Tingkat" context="{'group_by': 'tingkat_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_rombel_form" model="ir.ui.view">
+        <field name="name">nti_edu.rombel.form</field>
+        <field name="model">nti_edu.rombel</field>
+        <field name="arch" type="xml">
+            <form string="Rombel">
+                <header>
+                    <button name="%(nti_edu_base.action_kenaikan_kelas_wizard)d" type="action"
+                            string="Kenaikan Kelas" class="btn-primary"
+                            groups="nti_edu_base.group_base_operator"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="tahun_ajaran_id"/>
+                            <field name="tingkat_id"/>
+                            <field name="jurusan_id"/>
+                        </group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="wali_kelas_id"/>
+                            <field name="ruang_id"/>
+                            <field name="jumlah_siswa"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Anggota" name="page_anggota">
+                            <field name="anggota_ids">
+                                <list editable="bottom">
+                                    <field name="no_absen"/>
+                                    <field name="siswa_id" options="{'no_create': True}"/>
+                                    <field name="tanggal_masuk"/>
+                                    <field name="tanggal_keluar"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_rombel" model="ir.actions.act_window">
+        <field name="name">Rombel</field>
+        <field name="res_model">nti_edu.rombel</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_rombel_search"/>
+        <field name="context">{'search_default_tahun_aktif': 1}</field>
+    </record>
+</odoo>

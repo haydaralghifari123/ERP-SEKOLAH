@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_jurusan_list" model="ir.ui.view">
+        <field name="name">nti_edu.jurusan.list</field>
+        <field name="model">nti_edu.jurusan</field>
+        <field name="arch" type="xml">
+            <list string="Jurusan" editable="bottom">
+                <field name="name"/>
+                <field name="kode"/>
+                <field name="jenjang_id"/>
+                <field name="company_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_jurusan" model="ir.actions.act_window">
+        <field name="name">Jurusan</field>
+        <field name="res_model">nti_edu.jurusan</field>
+        <field name="view_mode">list</field>
+    </record>
+</odoo>

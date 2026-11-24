@@ -7,3 +7,4 @@ from . import test_akses
 from . import test_akun_portal
 from . import test_portal
 from . import test_kenaikan
+from . import test_tampilan

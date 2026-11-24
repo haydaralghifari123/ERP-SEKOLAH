@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_siswa_list" model="ir.ui.view">
+        <field name="name">nti_edu.siswa.list</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <list string="Siswa">
+                <field name="name"/>
+                <field name="nti_edu_nis"/>
+                <field name="nti_edu_jenis_kelamin" optional="show"/>
+                <field name="nti_edu_rombel_aktif_id"/>
+                <field name="nti_edu_status"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_siswa_kanban" model="ir.ui.view">
+        <field name="name">nti_edu.siswa.kanban</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <kanban string="Siswa">
+                <field name="id"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <img class="o_kanban_image rounded" alt="Foto"
+                                     t-att-src="kanban_image('res.partner', 'avatar_128', record.id.raw_value)"/>
+                            </div>
+                            <div>
+                                <field name="name" class="fw-bold fs-5"/>
+                                <div>NIS: <field name="nti_edu_nis"/></div>
+                                <div><field name="nti_edu_rombel_aktif_id"/></div>
+                                <field name="nti_edu_status" widget="badge"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_siswa_search" model="ir.ui.view">
+        <field name="name">nti_edu.siswa.search</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <search string="Siswa">
+                <field name="name" string="Nama / NIS"
+                       filter_domain="['|', ('name', 'ilike', self), ('nti_edu_nis', 'ilike', self)]"/>
+                <field name="nti_edu_rombel_aktif_id"/>
+                <filter name="aktif" string="Aktif" domain="[('nti_edu_status', '=', 'aktif')]"/>
+                <filter name="lulus" string="Lulus" domain="[('nti_edu_status', '=', 'lulus')]"/>
+                <filter name="pindah_keluar" string="Pindah / Keluar"
+                        domain="[('nti_edu_status', 'in', ('pindah', 'keluar'))]"/>
+                <group expand="0" string="Kelompokkan">
+                    <filter name="grp_rombel" string="Rombel Aktif" context="{'group_by': 'nti_edu_rombel_aktif_id'}"/>
+                    <filter name="grp_status" string="Status" context="{'group_by': 'nti_edu_status'}"/>
+                    <filter name="grp_unit" string="Unit" context="{'group_by': 'company_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_siswa_form" model="ir.ui.view">
+        <field name="name">nti_edu.siswa.form</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <form string="Siswa">
+                <header>
+                    <field name="user_ids" invisible="1"/>
+                    <field name="nti_edu_is_siswa" invisible="1"/>
+                    <button name="action_nti_edu_buat_akun_portal" type="object" string="Buat Akun Portal"
+                            class="btn-primary" groups="nti_edu_base.group_base_operator"
+                            invisible="user_ids"/>
+                </header>
+                <sheet>
+                    <field name="image_1920" widget="image" class="oe_avatar"
+                           options="{'preview_image': 'avatar_128'}"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Nama siswa" required="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="nti_edu_nis"/>
+                            <field name="nti_edu_status"/>
+                            <field name="nti_edu_rombel_aktif_id"/>
+                        </group>
+                        <group>
+                            <field name="company_id" string="Unit Sekolah" required="1"
+                                   options="{'no_create': True}"/>
+                            <field name="nti_edu_tanggal_masuk"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Data Pribadi" name="page_data_pribadi">
+                            <group>
+                                <group string="Identitas">
+                                    <field name="nti_edu_nisn"/>
+                                    <field name="nti_edu_nik"/>
+                                    <field name="nti_edu_jenis_kelamin"/>
+                                    <field name="nti_edu_tempat_lahir"/>
+                                    <field name="nti_edu_tanggal_lahir"/>
+                                    <field name="nti_edu_agama"/>
+                                </group>
+                                <group string="Kontak">
+                                    <field name="phone"/>
+                                    <field name="mobile"/>
+                                    <field name="email"/>
+                                    <field name="street" placeholder="Alamat"/>
+                                    <field name="street2" placeholder="Alamat 2"/>
+                                    <field name="city" placeholder="Kota"/>
+                                    <field name="zip" placeholder="Kode pos"/>
+                                    <field name="country_id" options="{'no_create': True}"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Wali" name="page_wali" groups="nti_edu_base.group_base_operator">
+                            <field name="nti_edu_wali_ids">
+                                <list editable="bottom">
+                                    <field name="partner_id"/>
+                                    <field name="hubungan"/>
+                                    <field name="is_kontak_utama"/>
+                                    <field name="is_penanggung_biaya"/>
+                                    <button name="action_buat_akun_portal" type="object"
+                                            string="Buat Akun Portal" icon="fa-user-plus"
+                                            invisible="not id"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Riwayat Kelas" name="page_riwayat_kelas">
+                            <field name="nti_edu_anggota_ids" readonly="1">
+                                <list>
+                                    <field name="tahun_ajaran_id"/>
+                                    <field name="rombel_id"/>
+                                    <field name="no_absen"/>
+                                    <field name="tanggal_masuk"/>
+                                    <field name="tanggal_keluar"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_siswa" model="ir.actions.act_window">
+        <field name="name">Siswa</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('nti_edu_is_siswa', '=', True)]</field>
+        <field name="context">{'default_nti_edu_is_siswa': True, 'search_default_aktif': 1}</field>
+        <field name="search_view_id" ref="view_siswa_search"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_siswa_kanban')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_siswa_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_siswa_form')})]"/>
+    </record>
+</odoo>

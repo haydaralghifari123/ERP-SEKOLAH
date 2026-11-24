@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_data_sekolah" name="Data Sekolah" sequence="40"
+              groups="nti_edu_base.group_base_pengguna"/>
+
+    <menuitem id="menu_siswa" name="Siswa" parent="menu_data_sekolah" action="action_siswa" sequence="10"/>
+    <menuitem id="menu_rombel" name="Rombel" parent="menu_data_sekolah" action="action_rombel" sequence="20"/>
+    <menuitem id="menu_wali" name="Wali Murid" parent="menu_data_sekolah" action="action_wali" sequence="30"/>
+
+    <menuitem id="menu_kalender" name="Kalender" parent="menu_data_sekolah" sequence="40"/>
+    <menuitem id="menu_tahun_ajaran" name="Tahun Ajaran &amp; Semester" parent="menu_kalender"
+              action="action_tahun_ajaran" sequence="10"/>
+    <menuitem id="menu_hari_libur" name="Hari Libur" parent="menu_kalender" action="action_hari_libur" sequence="20"/>
+
+    <menuitem id="menu_konfigurasi" name="Konfigurasi" parent="menu_data_sekolah" sequence="90"
+              groups="nti_edu_base.group_base_admin"/>
+    <menuitem id="menu_unit" name="Unit Sekolah" parent="menu_konfigurasi" action="action_unit" sequence="10"/>
+    <menuitem id="menu_jenjang" name="Jenjang &amp; Tingkat" parent="menu_konfigurasi"
+              action="action_jenjang" sequence="20"/>
+    <menuitem id="menu_jurusan" name="Jurusan" parent="menu_konfigurasi" action="action_jurusan" sequence="30"/>
+    <menuitem id="menu_mapel" name="Mata Pelajaran" parent="menu_konfigurasi" action="action_mapel" sequence="40"/>
+    <menuitem id="menu_ruang" name="Ruang" parent="menu_konfigurasi" action="action_ruang" sequence="50"/>
+</odoo>

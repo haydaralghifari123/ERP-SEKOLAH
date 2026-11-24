@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_unit_list" model="ir.ui.view">
+        <field name="name">nti_edu.unit.list</field>
+        <field name="model">res.company</field>
+        <field name="arch" type="xml">
+            <list string="Unit Sekolah">
+                <field name="name"/>
+                <field name="nti_edu_kode"/>
+                <field name="nti_edu_jenis"/>
+                <field name="nti_edu_jenjang_id"/>
+                <field name="parent_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_unit_form" model="ir.ui.view">
+        <field name="name">nti_edu.unit.form</field>
+        <field name="model">res.company</field>
+        <field name="arch" type="xml">
+            <form string="Unit Sekolah">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="parent_id" string="Yayasan Induk"/>
+                            <field name="nti_edu_jenis"/>
+                            <field name="nti_edu_kode"/>
+                        </group>
+                        <group>
+                            <field name="nti_edu_jenjang_id"/>
+                            <field name="nti_edu_npsn"/>
+                            <field name="nti_edu_kepala_id"/>
+                            <field name="nti_edu_hari_sekolah"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_unit" model="ir.actions.act_window">
+        <field name="name">Unit Sekolah</field>
+        <field name="res_model">res.company</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_unit_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_unit_form')})]"/>
+    </record>
+</odoo>

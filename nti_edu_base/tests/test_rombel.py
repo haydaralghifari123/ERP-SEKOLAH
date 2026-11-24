@@ -3,7 +3,7 @@ from datetime import date
 
 from psycopg2 import IntegrityError
 
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
 from odoo.tools import mute_logger
 
@@ -64,7 +64,7 @@ class TestRombel(NtiEduCommon):
             self._anggota(self.rombel_x)
 
     def test_hapus_tahun_ajaran_berrombel_ditolak(self):
-        with self.assertRaises(Exception), mute_logger('odoo.sql_db'), self.cr.savepoint():
+        with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.cr.savepoint():
             self.ta_baru.unlink()
         self.assertTrue(self.rombel_8a.exists())
 
@@ -80,5 +80,27 @@ class TestRombel(NtiEduCommon):
         # Operator mengubah keanggotaan: penghitungan ulang rombel aktif tidak boleh terhambat penjaga tulis.
         anggota.with_user(self.user_operator_smp).tanggal_keluar = date(2027, 1, 5)
         self.assertFalse(self.siswa.nti_edu_rombel_aktif_id)
-        with self.assertRaises(Exception):
+        with self.assertRaises(AccessError):
             self.siswa.with_user(self.user_guru_smp).write({'nti_edu_anggota_ids': [(5,)]})
+
+    def test_pindah_rombel_di_tengah_tahun(self):
+        lain = self._rombel('VIII B', self.ta_baru, self.env.ref('nti_edu_base.tingkat_smp_8'), self.unit_smp)
+        self._anggota(self.rombel_8a, tanggal_masuk=date(2026, 7, 13), tanggal_keluar=date(2026, 12, 1))
+        self._anggota(lain, tanggal_masuk=date(2026, 12, 1))
+        self.assertEqual(self.siswa._nti_edu_rombel_pada(date(2026, 11, 30)), self.rombel_8a)
+        self.assertEqual(self.siswa._nti_edu_rombel_pada(date(2026, 12, 1)), lain)
+        self.assertEqual(self.siswa._nti_edu_rombel_pada(date(2027, 2, 1)), lain)
+
+    def test_tanggal_keluar_sebelum_masuk_ditolak(self):
+        with self.assertRaises(ValidationError):
+            self._anggota(self.rombel_8a, tanggal_masuk=date(2026, 8, 1), tanggal_keluar=date(2026, 7, 1))
+
+    def test_ubah_unit_siswa_saat_masih_anggota_ditolak(self):
+        self._anggota(self.rombel_8a)
+        with self.assertRaises(ValidationError):
+            self.siswa.company_id = self.unit_sma
+
+    def test_ubah_unit_rombel_saat_berisi_anggota_ditolak(self):
+        self._anggota(self.rombel_8a)
+        with self.assertRaises(ValidationError):
+            self.rombel_8a.company_id = self.unit_sma

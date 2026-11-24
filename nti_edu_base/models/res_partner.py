@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from datetime import date
+
 from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
@@ -56,8 +58,20 @@ class ResPartner(models.Model):
         self.ensure_one()
         anggota = self.sudo().nti_edu_anggota_ids.filtered(
             lambda a: a.tahun_ajaran_id.tanggal_mulai <= tanggal <= a.tahun_ajaran_id.tanggal_selesai
-            and (not a.tanggal_keluar or a.tanggal_keluar >= tanggal))[:1]
+            and (not a.tanggal_masuk or a.tanggal_masuk <= tanggal)
+            and (not a.tanggal_keluar or a.tanggal_keluar > tanggal))
+        # Bila masih ada beberapa, pilih yang paling akhir masuk.
+        anggota = anggota.sorted(lambda a: (a.tanggal_masuk or date.min, a.id), reverse=True)[:1]
         return anggota.rombel_id
+
+    @api.constrains('company_id')
+    def _check_nti_edu_unit_keanggotaan(self):
+        for rec in self.sudo().filtered('nti_edu_is_siswa'):
+            if rec.nti_edu_anggota_ids.filtered(
+                    lambda a: not a.tanggal_keluar and a.company_id != rec.company_id):
+                raise ValidationError(_(
+                    'Siswa "%s" masih menjadi anggota rombel pada unit lain; keluarkan dahulu dari rombel tersebut.',
+                    rec.name))
 
     @api.depends('nti_edu_anak_ids')
     def _compute_nti_edu_is_wali(self):

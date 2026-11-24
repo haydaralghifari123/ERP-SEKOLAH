@@ -26,6 +26,14 @@ class Rombel(models.Model):
          'Nama rombel sudah dipakai pada tahun ajaran dan unit yang sama.'),
     ]
 
+    @api.constrains('company_id')
+    def _check_unit_anggota(self):
+        for rec in self.sudo():
+            if rec.anggota_ids.filtered(
+                    lambda a: not a.tanggal_keluar and a.siswa_id.company_id != rec.company_id):
+                raise ValidationError(_(
+                    'Rombel "%s" masih berisi siswa dari unit lain.', rec.name))
+
     @api.depends('anggota_ids.tanggal_keluar')
     def _compute_jumlah_siswa(self):
         for rec in self:
@@ -57,6 +65,12 @@ class RombelAnggota(models.Model):
                 raise ValidationError(_(
                     'Siswa "%(siswa)s" sudah menjadi anggota rombel lain pada tahun ajaran %(tahun)s.',
                     siswa=rec.siswa_id.name, tahun=rec.tahun_ajaran_id.name))
+
+    @api.constrains('tanggal_masuk', 'tanggal_keluar')
+    def _check_tanggal(self):
+        for rec in self:
+            if rec.tanggal_masuk and rec.tanggal_keluar and rec.tanggal_keluar < rec.tanggal_masuk:
+                raise ValidationError(_('Tanggal keluar tidak boleh sebelum tanggal masuk.'))
 
     @api.constrains('siswa_id', 'rombel_id')
     def _check_unit_siswa(self):

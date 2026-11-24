@@ -134,8 +134,9 @@ Beberapa varian bisa terpasang sekaligus; tiap unit (company) memilih satu. Leta
 atau tingkat) ditentukan di desain modul intinya masing-masing.
 
 ### I.5.3 Modul menambah tab ke data master
-Modul fitur memakai `_inherit` pada model master base (mis. `nti_edu.siswa`) untuk menambah One2many/field dan tab
-di form siswa. Field yang sensitif diberi `groups=` milik modul itu.
+Modul fitur memakai `_inherit` pada model master base (siswa = `res.partner`, rombel, dst.) untuk menambah
+One2many/field **baru** dan tab di form siswa. Field yang sensitif diberi `groups=` milik modul itu. Field yang sudah
+didefinisikan base tidak boleh didefinisikan ulang.
 
 ### I.5.4 Konfigurasi multi-unit
 - **Yayasan = company induk (root), unit = branch** (`res.company.parent_id`, fitur branch Odoo 18). Konsekuensi
@@ -323,29 +324,33 @@ Yang **tidak** masuk base: data pegawai lengkap (→ `nti_edu_pegawai`, butuh `h
 - **`nti_edu.ruang`** — name, kode, jenis (kelas/lab/aula/lapangan/lainnya), kapasitas, company_id.
 
 ### Siswa & wali
-- **`nti_edu.siswa`** — **model sendiri dengan delegasi ke kontak**: `_inherits = {'res.partner': 'partner_id'}`.
-  Di partner **hanya** nama, foto, email, telepon (yang memang dibutuhkan chatter, email, dan portal). Data pribadi
-  disimpan di model siswa: nis (unik per company), nisn (unik global bila diisi), nik, jenis_kelamin, tempat_lahir,
-  tanggal_lahir, agama, **alamat_lengkap** (text, bukan field alamat partner), company_id, status
-  (`aktif`/`lulus`/`pindah`/`keluar`), tanggal_masuk, rombel_aktif_id (compute stored dari keanggotaan di tahun
-  ajaran aktif), anggota_ids, wali_ids (o2m `nti_edu.siswa.wali`), user_id (akun portal siswa).
-- Partner siswa dan partner wali diberi penanda `nti_edu_is_siswa` / `nti_edu_is_wali` (boolean di `res.partner`)
-  supaya bisa disaring (lihat §II.5, Mitra DU/DI).
-- **`nti_edu.siswa.wali`** — siswa_id, partner_id (kontak ortu/wali), hubungan (`ayah`/`ibu`/`wali`), is_kontak_utama,
-  is_penanggung_biaya. Satu partner ortu bisa terhubung ke beberapa anak, termasuk lintas unit.
+- **Siswa = `res.partner` langsung** (keputusan pengguna, sama seperti `nti_edu_ekskul`/`nti_edu_bk` lama), ditandai
+  `nti_edu_is_siswa`. Field tambahan di `res.partner`:
+  nis (unik per company), nisn (unik global bila diisi), nik, jenis_kelamin, tempat_lahir, tanggal_lahir, agama,
+  nti_edu_status (`aktif`/`lulus`/`pindah`/`keluar`), tanggal_masuk, rombel_aktif_id (compute stored dari keanggotaan
+  di tahun ajaran aktif), anggota_ids, wali_ids (o2m `nti_edu.siswa.wali`). Alamat memakai field alamat standar partner.
+  `company_id` partner siswa = unit tempat ia bersekolah, sehingga rule multi-company bawaan (`res_partner_rule`)
+  otomatis memisahkan siswa antar unit. Akun login siswa = `res.users` yang memakai partner yang sama (`user_ids`).
+- Partner wali ditandai `nti_edu_is_wali` (compute stored dari baris wali), `company_id` **kosong** karena anaknya
+  bisa di beberapa unit.
+- **`nti_edu.siswa.wali`** — siswa_id (m2o `res.partner`, domain siswa), partner_id (kontak ortu/wali), hubungan
+  (`ayah`/`ibu`/`wali`), is_kontak_utama, is_penanggung_biaya. Satu partner ortu bisa terhubung ke beberapa anak,
+  termasuk lintas unit.
+- Modul lain merujuk siswa dengan `fields.Many2one('res.partner', domain=[('nti_edu_is_siswa', '=', True)])`.
 
-Alasan memilih model sendiri (bukan `res.partner` + penanda seperti ekskul/BK lama) — **keputusan Claude**:
-`res.partner` bisa dibaca semua internal user (`access_res_partner_group_user`; rule `res_partner_rule` hanya
-menyaring company). Karena itu data pribadi **tidak** ditaruh di partner sama sekali; partner hanya membawa nama,
-foto, email, telepon. Akses data pribadi diatur per model + `groups=` per field; partner tetap ada untuk email,
-chatter, portal, dan invoice (modul tagihan memakai `siswa.partner_id` / wali penanggung biaya).
+Konsekuensi yang diterima pengguna: `res.partner` bisa dibaca semua internal user (`access_res_partner_group_user`),
+jadi field sensitif dijaga **per field** dengan `groups=` (§II.5), modul lain membaca field sensitif lewat pola proxy
+seperti `nti_edu_bk`, dan setiap dropdown siswa wajib memakai domain `nti_edu_is_siswa`. Keuntungannya: sederhana,
+langsung dipakai invoice/chatter/portal, dan penyalinan ekskul/BK lebih mudah karena modul lama sudah berbasis partner.
+Field siswa **hanya didefinisikan di `nti_edu_base`**; modul lain tidak boleh mendefinisikan ulang field yang sama
+(sumber masalah atribut `groups` saling menimpa di ekskul/BK lama).
 
 ### Helper untuk modul lain (di model abstrak atau `res.company`)
 - `_nti_edu_tahun_ajaran_aktif()` → recordset tahun ajaran aktif (satu untuk seluruh yayasan).
 - `_nti_edu_semester_aktif()`.
 - `_nti_edu_hari_efektif(tanggal, company=None)` → bool (bukan Minggu/hari libur; hari kerja per unit
   diatur di field `nti_edu_hari_sekolah` pada company: 5 atau 6 hari).
-- Di `nti_edu.siswa`: `_rombel_pada(tanggal)`.
+- Di `res.partner` (siswa): `_nti_edu_rombel_pada(tanggal)`.
 - Di `res.users`: `_nti_edu_siswa_portal()` → siswa yang boleh dilihat user portal ini (dirinya bila siswa,
   anak-anaknya bila wali).
 
@@ -388,19 +393,20 @@ Kategori: **NTI Edu / Data Sekolah**.
 | `group_base_operator` (Operator/TU) | pengguna | Buat/ubah siswa, wali, rombel, keanggotaan, kalender. Lihat NIK. |
 | `group_base_admin` (Admin Data Sekolah) | operator | Konfigurasi unit, jenjang, tingkat, jurusan, mapel, ruang; hapus data. |
 
-- `group_base_pengguna` membaca **semua siswa di unit yang diizinkan** (field non-sensitif). Ini disengaja (§I.7).
-- Field sensitif (nik, tempat/tanggal_lahir, agama, alamat_lengkap) diberi `groups='nti_edu_base.group_base_operator'`
-  — modul lain yang perlu membacanya (mis. BK) memakai pola field proxy (`compute` + `sudo`, `groups=` grup modul itu)
-  seperti yang sudah dipakai `nti_edu_bk`.
-- Record rule multi-company (berbasis `company_ids`) **hanya untuk grup internal**, bukan rule global, supaya rule
-  wali→anak lintas unit tetap bekerja.
-- **Wali → anak** (portal *dan* internal): rule "siswa yang `wali_ids.partner_id` = partner user" dipasang di
-  `base.group_portal` **dan** `base.group_user` (pegawai yang juga ortu). Siswa portal: hanya dirinya.
-- Portal **tidak** diberi ACL ke `nti_edu.rombel`; nama rombel/tahun ajaran di halaman portal dibaca lewat `sudo()`
-  di controller setelah memastikan siswa memang milik user.
-- Internal user **tanpa** `group_base_pengguna` (mis. Mitra DU/DI, staf keuangan murni) tidak punya ACL ke
-  `nti_edu.siswa`. Untuk partner siswa/wali, `nti_edu_base` menyediakan **grup `group_base_eksternal`** dengan rule di
-  `res.partner`: `[('nti_edu_is_siswa','=',False), ('nti_edu_is_wali','=',False)]`. Grup Mitra DU/DI (paket SMK)
+- Data dasar siswa (nama, foto, NIS, rombel) terbaca semua internal user di unitnya — bawaan `res.partner` +
+  `res_partner_rule` multi-company. Ini sejalan dengan §I.7.
+- Field sensitif (nik, nisn, tempat/tanggal_lahir, agama, data wali) diberi `groups='nti_edu_base.group_base_operator'`.
+  Modul lain yang perlu membacanya (mis. BK) memakai pola field proxy (`compute` + `sudo`, `groups=` grup modul itu)
+  seperti `nti_edu_bk`. Alamat memakai field standar partner sehingga **tidak** bisa diberi `groups=` — diterima.
+- Penulisan data siswa dibatasi ke `group_base_operator` lewat override `write`/`create` di `res.partner` untuk record
+  `nti_edu_is_siswa` (ACL partner bawaan memberi tulis ke banyak grup).
+- **Wali → anak** (portal *dan* pegawai yang juga ortu): tidak lewat record rule partner (rule partner berdampak ke
+  seluruh sistem). Halaman "Anak Saya" membaca data anak dengan `sudo()` di controller setelah memastikan ada baris
+  `nti_edu.siswa.wali` yang menghubungkan partner user dengan siswa itu. Helper `_nti_edu_siswa_portal()` menjadi
+  satu-satunya pintu yang dipakai semua modul. Siswa portal: hanya dirinya.
+- Portal tidak diberi ACL tambahan ke model base; nama rombel/tahun ajaran di portal dibaca lewat `sudo()` yang sama.
+- Untuk internal user non-sekolah (Mitra DU/DI), `nti_edu_base` menyediakan **grup `group_base_eksternal`** dengan rule
+  di `res.partner`: `[('nti_edu_is_siswa','=',False), ('nti_edu_is_wali','=',False)]`. Grup Mitra DU/DI (paket SMK)
   meng-imply grup ini. Karena `base.group_user` tidak punya rule partner, rule ini benar-benar membatasi anggotanya.
   (Akses Mitra ke siswa PKL-nya sendiri diberikan oleh paket SMK lewat `sudo`/rule tambahan.)
 
@@ -413,7 +419,7 @@ Kategori: **NTI Edu / Data Sekolah**.
   selain itu `<kode_unit>.<nis>` (kode unit = field `nti_edu_kode` baru di `res.company`, mis. `smp1`). Login wali =
   email; bila tidak ada email, nomor HP.
 - Bila partner wali sudah punya user internal (pegawai yang juga ortu), tidak dibuat akun portal; akses "Anak Saya"
-  datang dari rule wali→anak di `base.group_user`.
+  datang dari helper `_nti_edu_siswa_portal()` (§II.5).
 - Satu ortu dengan beberapa anak = satu akun.
 - Portal `/my` mendapat kartu **"Anak Saya"** (untuk wali) / **"Profil Saya"** (untuk siswa): daftar anak, profil
   dasar, rombel aktif. Modul lain menambah kartu/halaman mereka sendiri dan memakai helper
@@ -430,18 +436,18 @@ Kategori: **NTI Edu / Data Sekolah**.
 
 - Constraint: tanggal tahun ajaran/semester, satu aktif, NIS unik per unit, satu rombel per siswa per tahun ajaran.
 - Login siswa: NISN dipakai bila ada; dua siswa beda unit dengan NIS sama tetap bisa dibuatkan akun.
-- Pegawai yang juga wali: melihat anaknya di unit lain lewat rule wali→anak.
+- Pegawai yang juga wali: melihat anaknya di unit lain lewat `_nti_edu_siswa_portal()`.
 - Mitra (grup `group_base_eksternal`): tidak menemukan partner siswa/wali di Kontak maupun dropdown.
 - Helper: tahun ajaran/semester aktif, hari efektif (hari libur, akhir pekan 5/6 hari), `_rombel_pada`.
 - Wizard kenaikan kelas: anggota baru tercipta, tingkat akhir jadi `lulus`, riwayat lama tetap.
-- Hak akses: pengguna tidak melihat NIK; operator bisa; internal user tanpa grup base tidak bisa membaca siswa;
-  user unit A tidak melihat siswa unit B; wali portal hanya melihat anaknya (termasuk anak lintas unit); siswa portal
-  hanya dirinya.
+- Hak akses: pengguna tidak melihat NIK; operator bisa; non-operator tidak bisa mengubah data siswa;
+  user unit A tidak melihat siswa unit B; wali portal hanya melihat anaknya lewat `_nti_edu_siswa_portal()`
+  (termasuk anak lintas unit); siswa portal hanya dirinya.
 - Uji pasang tunggal: `odoo-bin -d <db_kosong> -i nti_edu_base --test-enable --stop-after-init`.
 
 ## II.9 Keputusan Claude (silakan dicek pengguna)
 
-1. Siswa = model sendiri `_inherits res.partner`; data pribadi tidak disimpan di partner.
+1. *(Diputuskan pengguna)* Siswa = `res.partner` langsung; field sensitif dijaga per field.
 2. Semua staf di unit boleh melihat daftar siswa (data non-sensitif); pembatasan per penugasan hanya untuk data modul.
 3. Pegawai yang juga ortu didukung (akses "Anak Saya" dengan akun internalnya).
 4. Tahun ajaran & semester satu untuk seluruh yayasan; perbedaan per unit lewat hari libur.

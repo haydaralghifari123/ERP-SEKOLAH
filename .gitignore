@@ -1,0 +1,6 @@
+# Rahasia lokal (admin_passwd, db_password)
+odoo.conf
+
+__pycache__/
+*.py[cod]
+.superpowers/

@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Odoo (odoo2)",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": false,
+            "console": "integratedTerminal",
+            "python": "D:/Program Files/python/python.exe",
+            "program": "D:/Program Files/server/odoo-bin",
+            "args": [
+                "--config=D:/odoo2/odoo.conf",
+                "--database=odoo2",
+                "--log-level=info"
+            ]
+        }
+    ]
+}

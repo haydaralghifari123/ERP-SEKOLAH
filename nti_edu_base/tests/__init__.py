@@ -6,3 +6,4 @@ from . import test_rombel
 from . import test_akses
 from . import test_akun_portal
 from . import test_portal
+from . import test_kenaikan

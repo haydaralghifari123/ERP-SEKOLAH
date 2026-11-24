@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_kenaikan_kelas_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.kenaikan.kelas.wizard.form</field>
+        <field name="model">nti_edu.kenaikan.kelas.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Kenaikan Kelas">
+                <field name="state" invisible="1"/>
+                <group>
+                    <field name="rombel_asal_id" readonly="state == 'selesai'"/>
+                    <field name="rombel_tujuan_id" readonly="state == 'selesai'"/>
+                </group>
+                <field name="baris_ids" readonly="state == 'selesai'">
+                    <list editable="bottom" create="0">
+                        <field name="siswa_id" readonly="1"/>
+                        <field name="aksi"/>
+                        <field name="rombel_tujuan_id" required="aksi in ('naik', 'tinggal')"
+                               readonly="aksi == 'lulus'"/>
+                    </list>
+                </field>
+                <footer>
+                    <button string="Proses" name="action_proses" type="object" class="btn-primary"
+                            invisible="state == 'selesai'"/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_kenaikan_kelas_wizard" model="ir.actions.act_window">
+        <field name="name">Kenaikan Kelas</field>
+        <field name="res_model">nti_edu.kenaikan.kelas.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_rombel_asal_id': active_id}</field>
+    </record>
+</odoo>

@@ -21,3 +21,5 @@ akses_rombel_operator,nti_edu.rombel operator,model_nti_edu_rombel,nti_edu_base.
 akses_rombel_anggota_pengguna,nti_edu.rombel.anggota pengguna,model_nti_edu_rombel_anggota,nti_edu_base.group_base_pengguna,1,0,0,0
 akses_rombel_anggota_operator,nti_edu.rombel.anggota operator,model_nti_edu_rombel_anggota,nti_edu_base.group_base_operator,1,1,1,1
 akses_akun_portal_wizard_operator,nti_edu.akun.portal.wizard operator,model_nti_edu_akun_portal_wizard,nti_edu_base.group_base_operator,1,1,1,1
+akses_kenaikan_kelas_wizard_operator,nti_edu.kenaikan.kelas.wizard operator,model_nti_edu_kenaikan_kelas_wizard,nti_edu_base.group_base_operator,1,1,1,1
+akses_kenaikan_kelas_baris_operator,nti_edu.kenaikan.kelas.baris operator,model_nti_edu_kenaikan_kelas_baris,nti_edu_base.group_base_operator,1,1,1,1

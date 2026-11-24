@@ -20,6 +20,7 @@ Modul fondasi NTI Edu (data sekolah).
         'security/nti_edu_rules.xml',
         'data/jenjang_data.xml',
         'wizard/akun_portal_wizard_views.xml',
+        'wizard/kenaikan_kelas_wizard_views.xml',
         'views/portal_templates.xml',
     ],
     'installable': True,

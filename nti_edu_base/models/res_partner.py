@@ -126,7 +126,19 @@ class ResPartner(models.Model):
         if self and self._nti_edu_perlu_operator() and FIELD_SISWA & set(vals):
             if vals.get('nti_edu_is_siswa') or any(self.sudo().mapped('nti_edu_is_siswa')):
                 self._nti_edu_tolak()
-        return super().write(vals)
+        hasil = super().write(vals)
+        if vals.get('nti_edu_status') in ('pindah', 'keluar'):
+            self._nti_edu_tutup_keanggotaan()
+        return hasil
+
+    def _nti_edu_tutup_keanggotaan(self):
+        """Tutup keanggotaan rombel yang masih terbuka mulai hari ini (penjaga tulis sudah dilewati di write)."""
+        hari_ini = fields.Date.context_today(self)
+        anggota = self.sudo().filtered('nti_edu_is_siswa').nti_edu_anggota_ids.filtered(
+            lambda a: not a.tanggal_keluar)
+        for a in anggota:
+            # Tanggal keluar tidak boleh mendahului tanggal masuk (mis. masuk dijadwalkan di masa depan).
+            a.tanggal_keluar = max(hari_ini, a.tanggal_masuk or hari_ini)
 
     def unlink(self):
         if self and self._nti_edu_perlu_operator() and any(self.sudo().mapped('nti_edu_is_siswa')):

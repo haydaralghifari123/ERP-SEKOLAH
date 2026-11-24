@@ -23,3 +23,4 @@ akses_rombel_anggota_operator,nti_edu.rombel.anggota operator,model_nti_edu_romb
 akses_akun_portal_wizard_operator,nti_edu.akun.portal.wizard operator,model_nti_edu_akun_portal_wizard,nti_edu_base.group_base_operator,1,1,1,1
 akses_kenaikan_kelas_wizard_operator,nti_edu.kenaikan.kelas.wizard operator,model_nti_edu_kenaikan_kelas_wizard,nti_edu_base.group_base_operator,1,1,1,1
 akses_kenaikan_kelas_baris_operator,nti_edu.kenaikan.kelas.baris operator,model_nti_edu_kenaikan_kelas_baris,nti_edu_base.group_base_operator,1,1,1,1
+akses_res_company_admin,res.company admin data sekolah,base.model_res_company,nti_edu_base.group_base_admin,1,1,0,0

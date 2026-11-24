@@ -4,3 +4,6 @@ odoo.conf
 __pycache__/
 *.py[cod]
 .superpowers/
+
+# Konfigurasi turunan untuk uji (dibuat skrip, memuat rahasia)
+.odoo-test.conf

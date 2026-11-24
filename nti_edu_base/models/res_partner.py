@@ -9,6 +9,9 @@ FIELD_SISWA = {
     'nti_edu_is_siswa', 'nti_edu_nis', 'nti_edu_nisn', 'nti_edu_nik', 'nti_edu_jenis_kelamin',
     'nti_edu_tempat_lahir', 'nti_edu_tanggal_lahir', 'nti_edu_agama', 'nti_edu_status',
     'nti_edu_tanggal_masuk', 'nti_edu_wali_ids', 'name', 'company_id',
+    # Kontak/alamat/foto/arsip siswa: email & telepon kelak jadi kanal undangan portal.
+    'email', 'phone', 'mobile', 'street', 'street2', 'zip', 'city', 'state_id', 'country_id',
+    'image_1920', 'active',
 }
 
 
@@ -31,7 +34,7 @@ class ResPartner(models.Model):
     ], string='Status Siswa', default='aktif')
     nti_edu_tanggal_masuk = fields.Date(string='Tanggal Masuk')
     nti_edu_wali_ids = fields.One2many('nti_edu.siswa.wali', 'siswa_id', string='Wali', groups=GRUP_OPERATOR)
-    nti_edu_anak_ids = fields.One2many('nti_edu.siswa.wali', 'partner_id', string='Anak')
+    nti_edu_anak_ids = fields.One2many('nti_edu.siswa.wali', 'partner_id', string='Anak', groups=GRUP_OPERATOR)
     nti_edu_is_wali = fields.Boolean(string='Adalah Wali', compute='_compute_nti_edu_is_wali', store=True)
 
     @api.depends('nti_edu_anak_ids')

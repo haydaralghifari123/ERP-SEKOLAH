@@ -100,3 +100,33 @@ class TestSiswa(NtiEduCommon):
         siswa = self._buat_siswa('A', self.unit_smp, 'T001')
         with self.assertRaises(AccessError):
             siswa.with_user(self.user_pm).unlink()
+
+    def test_guru_tidak_bisa_ubah_kontak_siswa(self):
+        siswa = self._buat_siswa('A', self.unit_smp, 'T001')
+        biasa = self.env['res.partner'].create({'name': 'Biasa', 'company_id': self.unit_smp.id})
+        negara = self.env.ref('base.id')
+        for vals in (
+            {'email': 'x@contoh.id'}, {'phone': '0812'}, {'street': 'Jl. X'}, {'street2': 'Y'},
+            {'zip': '40000'}, {'city': 'Bandung'}, {'country_id': negara.id}, {'state_id': False},
+            {'image_1920': False}, {'active': False},
+        ):
+            with self.assertRaises(AccessError, msg=str(vals)):
+                siswa.with_user(self.user_pm).write(vals)
+        biasa.with_user(self.user_pm).write({'email': 'x@contoh.id', 'phone': '0812', 'street': 'Jl. X'})
+        biasa.with_user(self.user_pm).write({'active': False})
+        self.assertFalse(biasa.active)
+        siswa.with_user(self.user_operator_smp).write({'email': 'o@contoh.id'})
+        self.assertEqual(siswa.email, 'o@contoh.id')
+
+    def test_wali_partner_unit_lain_ditolak(self):
+        siswa = self._buat_siswa('A', self.unit_smp, 'T001')
+        asing = self.env['res.partner'].create({'name': 'Vendor SMA', 'company_id': self.unit_sma.id})
+        with self.assertRaises(AccessError):
+            self.env['nti_edu.siswa.wali'].with_user(self.user_operator_smp).create(
+                {'siswa_id': siswa.id, 'partner_id': asing.id, 'hubungan': 'wali'})
+        self.assertEqual(asing.company_id, self.unit_sma)
+
+    def test_acl_wali_hanya_operator_menulis(self):
+        akses = self.env['ir.model.access'].sudo().search([('model_id.model', '=', 'nti_edu.siswa.wali')])
+        for a in akses.filtered(lambda x: x.perm_create or x.perm_write or x.perm_unlink):
+            self.assertEqual(a.group_id, self.env.ref('nti_edu_base.group_base_operator'))

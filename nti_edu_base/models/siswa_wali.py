@@ -10,7 +10,9 @@ class SiswaWali(models.Model):
     siswa_id = fields.Many2one(
         'res.partner', string='Siswa', required=True, ondelete='cascade', index=True,
         domain=[('nti_edu_is_siswa', '=', True)])
-    partner_id = fields.Many2one('res.partner', string='Wali', required=True, ondelete='restrict', index=True)
+    partner_id = fields.Many2one(
+        'res.partner', string='Wali', required=True, ondelete='restrict', index=True,
+        domain=[('nti_edu_is_siswa', '=', False)])
     hubungan = fields.Selection(
         [('ayah', 'Ayah'), ('ibu', 'Ibu'), ('wali', 'Wali')], string='Hubungan', required=True, default='wali')
     is_kontak_utama = fields.Boolean(string='Kontak Utama')
@@ -26,5 +28,7 @@ class SiswaWali(models.Model):
         # Wali dipakai lintas unit: kosongkan company partner wali (bukan siswa, bukan user internal).
         for wali in baris.sudo().mapped('partner_id'):
             if wali.company_id and not wali.nti_edu_is_siswa and not any(not u.share for u in wali.user_ids):
+                # Pemanggil harus berhak menulis partner itu (aturan record / ACL), bukan sekadar sudo.
+                wali.with_env(self.env).check_access('write')
                 wali.company_id = False
         return baris

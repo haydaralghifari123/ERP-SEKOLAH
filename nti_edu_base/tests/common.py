@@ -30,3 +30,9 @@ class NtiEduCommon(TransactionCase):
         return new_test_user(
             cls.env, login=login, groups=grup,
             company_id=unit.id, company_ids=[(6, 0, unit.ids)])
+
+    @classmethod
+    def _buat_siswa(cls, nama, unit, nis, **vals):
+        """Buat siswa sebagai superuser (partner dengan nti_edu_is_siswa)."""
+        return cls.env['res.partner'].create(dict(
+            vals, name=nama, nti_edu_is_siswa=True, company_id=unit.id, nti_edu_nis=nis))

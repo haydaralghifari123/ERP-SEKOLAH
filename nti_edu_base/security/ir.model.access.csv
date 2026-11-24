@@ -11,3 +11,5 @@ akses_semester_pengguna,nti_edu.semester pengguna,model_nti_edu_semester,nti_edu
 akses_semester_operator,nti_edu.semester operator,model_nti_edu_semester,nti_edu_base.group_base_operator,1,1,1,1
 akses_hari_libur_pengguna,nti_edu.hari.libur pengguna,model_nti_edu_hari_libur,nti_edu_base.group_base_pengguna,1,0,0,0
 akses_hari_libur_operator,nti_edu.hari.libur operator,model_nti_edu_hari_libur,nti_edu_base.group_base_operator,1,1,1,1
+akses_siswa_wali_pengguna,nti_edu.siswa.wali pengguna,model_nti_edu_siswa_wali,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_siswa_wali_operator,nti_edu.siswa.wali operator,model_nti_edu_siswa_wali,nti_edu_base.group_base_operator,1,1,1,1

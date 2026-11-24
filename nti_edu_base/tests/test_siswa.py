@@ -130,3 +130,39 @@ class TestSiswa(NtiEduCommon):
         akses = self.env['ir.model.access'].sudo().search([('model_id.model', '=', 'nti_edu.siswa.wali')])
         for a in akses.filtered(lambda x: x.perm_create or x.perm_write or x.perm_unlink):
             self.assertEqual(a.group_id, self.env.ref('nti_edu_base.group_base_operator'))
+
+    def test_wali_baris_hanya_operator_dan_per_unit(self):
+        siswa_smp = self._buat_siswa('A', self.unit_smp, 'T001')
+        siswa_sma = self._buat_siswa('B', self.unit_sma, 'T002')
+        wali = self.env['res.partner'].create({'name': 'Wali X'})
+        Baris = self.env['nti_edu.siswa.wali']
+        b_smp = Baris.create({'siswa_id': siswa_smp.id, 'partner_id': wali.id, 'hubungan': 'ibu'})
+        b_sma = Baris.create({'siswa_id': siswa_sma.id, 'partner_id': wali.id, 'hubungan': 'ibu'})
+        with self.assertRaises(AccessError):
+            Baris.with_user(self.user_guru_sma).search([])
+        terlihat = Baris.with_user(self.user_operator_smp).search([])
+        self.assertIn(b_smp, terlihat)
+        self.assertNotIn(b_sma, terlihat)
+
+    def test_guru_tidak_bisa_pindah_alamat_via_parent(self):
+        siswa = self._buat_siswa('A', self.unit_smp, 'T001', street='Jl. Asli')
+        lain = self.env['res.partner'].create(
+            {'name': 'Lain', 'company_id': self.unit_smp.id, 'street': 'Jl. Lain', 'is_company': True})
+        with self.assertRaises(AccessError):
+            siswa.with_user(self.user_pm).write({'parent_id': lain.id})
+        with self.assertRaises(AccessError):
+            siswa.with_user(self.user_pm).update_address({'street': 'Jl. Suntik'})
+        self.assertEqual(siswa.street, 'Jl. Asli')
+
+    def test_guru_tidak_bisa_suntik_alamat_via_kontak_anak(self):
+        siswa = self._buat_siswa('A', self.unit_smp, 'T001')
+        with self.assertRaises(AccessError):
+            self.env['res.partner'].with_user(self.user_pm).create(
+                {'name': 'Anak Kontak', 'parent_id': siswa.id, 'street': 'Jl. Suntik',
+                 'company_id': self.unit_smp.id})
+        self.assertFalse(siswa.street)
+        # Operator boleh.
+        self.env['res.partner'].with_user(self.user_operator_smp).create(
+            {'name': 'Anak Kontak', 'parent_id': siswa.id, 'street': 'Jl. Sah',
+             'company_id': self.unit_smp.id})
+        self.assertEqual(siswa.street, 'Jl. Sah')

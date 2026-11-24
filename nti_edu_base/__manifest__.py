@@ -17,6 +17,7 @@ Modul fondasi NTI Edu (data sekolah).
     'data': [
         'security/nti_edu_security.xml',
         'security/ir.model.access.csv',
+        'security/nti_edu_rules.xml',
         'data/jenjang_data.xml',
     ],
     'installable': True,

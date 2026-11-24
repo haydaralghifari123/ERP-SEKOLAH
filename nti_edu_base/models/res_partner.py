@@ -12,6 +12,8 @@ FIELD_SISWA = {
     # Kontak/alamat/foto/arsip siswa: email & telepon kelak jadi kanal undangan portal.
     'email', 'phone', 'mobile', 'street', 'street2', 'zip', 'city', 'state_id', 'country_id',
     'image_1920', 'active',
+    # Lewat jalur relasi/sinkronisasi alamat induk-anak dan data komersial.
+    'parent_id', 'type', 'child_ids', 'vat', 'function', 'title', 'category_id', 'comment', 'lang',
 }
 
 
@@ -79,7 +81,10 @@ class ResPartner(models.Model):
     def create(self, vals_list):
         if self._nti_edu_perlu_operator():
             bawaan = self.env.context.get('default_nti_edu_is_siswa')
-            if any(vals.get('nti_edu_is_siswa', bawaan) for vals in vals_list):
+            Partner = self.env['res.partner'].sudo()
+            if any(vals.get('nti_edu_is_siswa', bawaan)
+                   or (vals.get('parent_id') and Partner.browse(vals['parent_id']).nti_edu_is_siswa)
+                   for vals in vals_list):
                 self._nti_edu_tolak()
         return super().create(vals_list)
 
@@ -93,3 +98,9 @@ class ResPartner(models.Model):
         if self and self._nti_edu_perlu_operator() and any(self.sudo().mapped('nti_edu_is_siswa')):
             self._nti_edu_tolak()
         return super().unlink()
+
+    def update_address(self, vals):
+        # Jalur sinkronisasi alamat bawaan memanggil write dasar (melewati penjaga di atas).
+        if self and self._nti_edu_perlu_operator() and any(self.sudo().mapped('nti_edu_is_siswa')):
+            self._nti_edu_tolak()
+        return super().update_address(vals)

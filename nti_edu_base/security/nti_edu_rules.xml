@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Baris wali mengikuti unit siswa; rule global (berlaku juga untuk Administrator) -->
+    <record id="rule_siswa_wali_unit" model="ir.rule">
+        <field name="name">Wali siswa: hanya unit sendiri</field>
+        <field name="model_id" ref="model_nti_edu_siswa_wali"/>
+        <field name="domain_force">[('siswa_id.company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

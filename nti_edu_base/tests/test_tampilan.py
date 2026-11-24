@@ -10,6 +10,8 @@ ACTIONS = [
     'action_unit', 'action_jenjang', 'action_jurusan', 'action_mapel', 'action_ruang',
 ]
 
+ACTIONS_ADMIN = ['action_unit', 'action_jenjang', 'action_jurusan', 'action_mapel', 'action_ruang']
+
 
 @tagged('post_install', '-at_install')
 class TestTampilan(NtiEduCommon):
@@ -22,21 +24,60 @@ class TestTampilan(NtiEduCommon):
             company_id=cls.unit_smp.id,
             company_ids=[(6, 0, (cls.yayasan | cls.unit_smp | cls.unit_sma).ids)])
 
+    def _leluhur(self, menu):
+        hasil = self.env['ir.ui.menu']
+        while menu.parent_id:
+            menu = menu.parent_id
+            hasil |= menu
+        return hasil
+
+    def _action_terlihat(self, user):
+        """Action dari menu yang terlihat oleh user (dengan akar menu data sekolah)."""
+        ids = self.env['ir.ui.menu'].with_user(user)._visible_menu_ids()
+        menus = self.env['ir.ui.menu'].browse(ids).filtered(
+            lambda m: all(p.id in ids for p in self._leluhur(m)) and m.action and m.action._name == 'ir.actions.act_window'
+            and m.action.get_external_id().get(m.action.id, '').startswith('nti_edu_base.action_'))
+        return menus.mapped('action')
+
+    def _view_untuk_mode(self, action, mode):
+        view = action.view_ids.filtered(lambda v: v.view_mode == mode).view_id
+        if not view and action.view_id and action.view_id.type == mode:
+            view = action.view_id
+        return view
+
     def test_semua_action_terbuka(self):
-        for user in (self.user_operator_smp, self.user_guru_smp, self.user_admin):
-            for xmlid in ACTIONS:
-                action = self.env.ref('nti_edu_base.' + xmlid)
+        diharapkan = {
+            self.user_operator_smp: set(ACTIONS) - set(ACTIONS_ADMIN),
+            self.user_guru_smp: set(ACTIONS) - set(ACTIONS_ADMIN),
+            self.user_admin: set(ACTIONS),
+        }
+        for user, nama in diharapkan.items():
+            ditemukan = self._action_terlihat(user)
+            xmlids = {a.get_external_id()[a.id].split('.', 1)[1] for a in ditemukan}
+            self.assertEqual(xmlids & set(ACTIONS), nama, user.login)
+            for action in ditemukan:
+                xmlid = action.get_external_id()[action.id]
                 model = self.env[action.res_model].with_user(user)
-                if not model.has_access('read'):
-                    continue
-                domain = safe_eval(action.domain or '[]', {'uid': user.id})
-                safe_eval(action.context or '{}', {'uid': user.id, 'active_id': False})
                 with self.subTest(user=user.login, action=xmlid):
+                    self.assertTrue(model.has_access('read'))
+                    domain = safe_eval(action.domain or '[]', {'uid': user.id})
+                    konteks = safe_eval(action.context or '{}', {'uid': user.id, 'active_id': False})
+                    self.assertIsInstance(konteks, dict)
                     model.search_read(domain, ['id'], limit=1)
                     for mode in action.view_mode.split(','):
-                        view = action.view_ids.filtered(lambda v: v.view_mode == mode).view_id
+                        view = self._view_untuk_mode(action, mode)
                         hasil = model.get_views([(view.id or False, mode)])
                         self.assertIn(mode, hasil['views'])
+
+    def test_tombol_ada_di_view(self):
+        aksi = self.env.ref('nti_edu_base.action_kenaikan_kelas_wizard')
+        arch = self.env['nti_edu.rombel'].with_user(self.user_operator_smp).get_views(
+            [(self.env.ref('nti_edu_base.view_rombel_form').id, 'form')])['views']['form']['arch']
+        self.assertIn('name="%d"' % aksi.id, arch)
+        self.assertIn('type="action"', arch)
+        arch = self.env['res.partner'].with_user(self.user_operator_smp).get_views(
+            [(self.env.ref('nti_edu_base.view_siswa_form').id, 'form')])['views']['form']['arch']
+        self.assertIn('name="action_buat_akun_portal"', arch)
 
     def test_admin_data_sekolah_ubah_unit(self):
         unit = self.unit_smp.with_user(self.user_admin)
@@ -57,6 +98,8 @@ class TestTampilan(NtiEduCommon):
         aksi = baris.with_user(self.user_operator_smp).action_buat_akun_portal()
         self.assertEqual(aksi['res_model'], 'nti_edu.akun.portal.wizard')
         self.assertEqual(aksi['context']['default_partner_id'], wali.id)
+        with self.assertRaisesRegex(AccessError, 'Operator Data Sekolah'):
+            wali.with_user(self.user_guru_smp).action_nti_edu_buat_akun_portal()
         with self.assertRaises(AccessError):
             baris.with_user(self.user_guru_smp).action_buat_akun_portal()
         with self.assertRaises(ValueError):

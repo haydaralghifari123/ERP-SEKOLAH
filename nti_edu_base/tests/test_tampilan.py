@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from lxml import etree
+
 from odoo.exceptions import AccessError
 from odoo.tests import Form, new_test_user, tagged
 from odoo.tools.safe_eval import safe_eval
@@ -73,11 +75,15 @@ class TestTampilan(NtiEduCommon):
         aksi = self.env.ref('nti_edu_base.action_kenaikan_kelas_wizard')
         arch = self.env['nti_edu.rombel'].with_user(self.user_operator_smp).get_views(
             [(self.env.ref('nti_edu_base.view_rombel_form').id, 'form')])['views']['form']['arch']
-        self.assertIn('name="%d"' % aksi.id, arch)
-        self.assertIn('type="action"', arch)
+        form = etree.fromstring(arch)
+        tombol = form.xpath('//button[@name=$n and @type="action"]', n=str(aksi.id))
+        self.assertEqual(len(tombol), 1)
         arch = self.env['res.partner'].with_user(self.user_operator_smp).get_views(
             [(self.env.ref('nti_edu_base.view_siswa_form').id, 'form')])['views']['form']['arch']
-        self.assertIn('name="action_buat_akun_portal"', arch)
+        form = etree.fromstring(arch)
+        tombol = form.xpath(
+            '//field[@name="nti_edu_wali_ids"]//list/button[@name="action_buat_akun_portal" and @type="object"]')
+        self.assertEqual(len(tombol), 1)
 
     def test_admin_data_sekolah_ubah_unit(self):
         unit = self.unit_smp.with_user(self.user_admin)
@@ -100,7 +106,9 @@ class TestTampilan(NtiEduCommon):
         self.assertEqual(aksi['context']['default_partner_id'], wali.id)
         with self.assertRaisesRegex(AccessError, 'Operator Data Sekolah'):
             wali.with_user(self.user_guru_smp).action_nti_edu_buat_akun_portal()
-        with self.assertRaises(AccessError):
+        # Lapisan yang menolak guru: cek operator di partner (partner_id sudah ada di cache, jadi ACL
+        # nti_edu.siswa.wali tidak sempat dipicu pada pembacaan field).
+        with self.assertRaisesRegex(AccessError, 'Operator Data Sekolah'):
             baris.with_user(self.user_guru_smp).action_buat_akun_portal()
         with self.assertRaises(ValueError):
             (baris | baris2).action_buat_akun_portal()

@@ -8,6 +8,8 @@ class NtiEduCommon(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # Data demo bisa memuat tahun ajaran aktif; nonaktifkan agar tidak bentrok dengan constraint "satu aktif".
+        cls.env['nti_edu.tahun.ajaran'].search([('is_aktif', '=', True)]).write({'is_aktif': False})
         Company = cls.env['res.company']
         cls.yayasan = Company.create({'name': 'Yayasan Tes', 'nti_edu_jenis': 'yayasan'})
         cls.unit_smp = Company.create({

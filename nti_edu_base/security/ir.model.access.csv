@@ -5,3 +5,9 @@ akses_tingkat_pengguna,nti_edu.tingkat pengguna,model_nti_edu_tingkat,nti_edu_ba
 akses_tingkat_admin,nti_edu.tingkat admin,model_nti_edu_tingkat,nti_edu_base.group_base_admin,1,1,1,1
 akses_jurusan_pengguna,nti_edu.jurusan pengguna,model_nti_edu_jurusan,nti_edu_base.group_base_pengguna,1,0,0,0
 akses_jurusan_admin,nti_edu.jurusan admin,model_nti_edu_jurusan,nti_edu_base.group_base_admin,1,1,1,1
+akses_tahun_ajaran_pengguna,nti_edu.tahun.ajaran pengguna,model_nti_edu_tahun_ajaran,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_tahun_ajaran_operator,nti_edu.tahun.ajaran operator,model_nti_edu_tahun_ajaran,nti_edu_base.group_base_operator,1,1,1,1
+akses_semester_pengguna,nti_edu.semester pengguna,model_nti_edu_semester,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_semester_operator,nti_edu.semester operator,model_nti_edu_semester,nti_edu_base.group_base_operator,1,1,1,1
+akses_hari_libur_pengguna,nti_edu.hari.libur pengguna,model_nti_edu_hari_libur,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_hari_libur_operator,nti_edu.hari.libur operator,model_nti_edu_hari_libur,nti_edu_base.group_base_operator,1,1,1,1

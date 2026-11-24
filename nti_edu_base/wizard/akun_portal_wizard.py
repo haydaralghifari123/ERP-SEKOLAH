@@ -10,6 +10,8 @@ GRUP_OPERATOR = 'nti_edu_base.group_base_operator'
 class AkunPortalWizard(models.TransientModel):
     _name = 'nti_edu.akun.portal.wizard'
     _description = 'Wizard Akun Portal Siswa/Wali'
+    # Baris memuat kata sandi awal: dibersihkan secepatnya (seperti change.password.wizard).
+    _transient_max_hours = 0.1
 
     partner_id = fields.Many2one('res.partner', string='Siswa/Wali', required=True)
     login = fields.Char(string='Login', compute='_compute_login', store=True, readonly=False)
@@ -41,16 +43,33 @@ class AkunPortalWizard(models.TransientModel):
         if pengguna:
             raise UserError(_("%s sudah punya akun portal.", partner.display_name))
 
+        partner_sudo = partner.sudo()
+        if not partner_sudo.active:
+            raise UserError(_("%s sudah diarsipkan; akun portal tidak bisa dibuat.", partner.display_name))
+        if not (partner_sudo.nti_edu_is_siswa or partner_sudo.nti_edu_is_wali):
+            raise UserError(_("%s bukan siswa atau wali siswa.", partner.display_name))
+        if partner_sudo.nti_edu_is_siswa:
+            if partner_sudo.nti_edu_status != 'aktif':
+                raise UserError(_("Siswa %s tidak berstatus aktif; akun portal tidak bisa dibuat.", partner.display_name))
+            unit_anak = partner_sudo.company_id
+        else:
+            unit_anak = partner_sudo.nti_edu_anak_ids.siswa_id.company_id
+            if not (unit_anak & self.env.user.company_ids):
+                raise AccessError(_(
+                    "Wali %s tidak punya anak pada unit Anda; akun portal tidak bisa dibuat.", partner.display_name))
+
         login = (self.login or '').strip() or partner._nti_edu_login_default()
         if Users.search_count([('login', '=', login)]):
             raise UserError(_("Login %s sudah dipakai pengguna lain; ubah login lalu coba lagi.", login))
 
-        perusahaan = partner.sudo().company_id or self.env.company
+        # Siswa: unitnya saja. Wali: semua unit anaknya; unit aktif operator dipilih bila termasuk.
+        perusahaan = unit_anak
+        utama = self.env.company if self.env.company in perusahaan else perusahaan[:1]
         user = Users.with_context(no_reset_password=True).create({
             'name': partner.name,
             'login': login,
             'partner_id': partner.id,
-            'company_id': perusahaan.id,
+            'company_id': utama.id,
             'company_ids': [(6, 0, perusahaan.ids)],
             'groups_id': [(6, 0, [self.env.ref('base.group_portal').id])],
         })

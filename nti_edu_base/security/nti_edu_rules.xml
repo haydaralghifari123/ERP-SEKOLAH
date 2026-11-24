@@ -117,6 +117,13 @@
         <field name="domain_force">[('nti_edu_is_siswa', '=', False), ('nti_edu_is_wali', '=', False)]</field>
     </record>
 
+    <!-- Wizard akun portal memuat kata sandi awal: hanya pembuatnya yang boleh membaca barisnya. -->
+    <record id="rule_akun_portal_wizard_pembuat" model="ir.rule">
+        <field name="name">Wizard akun portal: hanya pembuat</field>
+        <field name="model_id" ref="model_nti_edu_akun_portal_wizard"/>
+        <field name="domain_force">[('create_uid', '=', user.id)]</field>
+    </record>
+
     <!-- Mitra eksternal: akun portal siswa/wali tidak boleh ditemukan lewat res.users
          (aturan bawaan memperlihatkan pengguna share yang satu unit). -->
     <record id="rule_users_eksternal" model="ir.rule">

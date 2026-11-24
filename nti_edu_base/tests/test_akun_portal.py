@@ -108,3 +108,58 @@ class TestAkunPortal(NtiEduCommon):
         Users = self.env['res.users'].with_user(self.user_eksternal)
         self.assertFalse(Users.search([('id', '=', user.id)]))
         self.assertFalse(Users.name_search('Budi Rahasia'))
+
+    # --- Putaran perbaikan 1 ---
+
+    def test_wizard_tidak_terbaca_operator_lain(self):
+        siswa = self._buat_siswa('Anak Rahasia', self.unit_smp, 'T011')
+        wizard = self._wizard(siswa)
+        wizard.action_buat()
+        operator_sma = self._buat_user('tes_operator_sma2', 'nti_edu_base.group_base_operator', self.unit_sma)
+        operator_smp2 = self._buat_user('tes_operator_smp2', 'nti_edu_base.group_base_operator', self.unit_smp)
+        for lain in (operator_sma, operator_smp2):
+            Wizard = self.env['nti_edu.akun.portal.wizard'].with_user(lain)
+            self.assertFalse(Wizard.search([('id', '=', wizard.id)]))
+            with self.assertRaises(AccessError):
+                Wizard.browse(wizard.id).read(['login', 'password_awal'])
+
+    def test_partner_bukan_siswa_atau_wali_ditolak(self):
+        biasa = self.env['res.partner'].create({'name': 'Kontak Biasa', 'email': 'biasa@example.com'})
+        with self.assertRaises(UserError):
+            self._wizard(biasa).action_buat()
+        self.assertFalse(biasa.user_ids)
+
+    def test_wali_unit_lain_ditolak(self):
+        siswa_sma = self._buat_siswa('Anak Hanya SMA', self.unit_sma, 'T012')
+        wali = self._wali(siswa_sma, email='wali.sma@example.com')
+        with self.assertRaises(UserError):
+            self._wizard(wali).action_buat()
+        self.assertFalse(wali.user_ids)
+
+    def test_partner_arsip_ditolak(self):
+        siswa = self._buat_siswa('Anak Arsip', self.unit_smp, 'T013')
+        siswa.active = False
+        with self.assertRaises(UserError):
+            self._wizard(siswa).action_buat()
+
+    def test_siswa_tidak_aktif_ditolak(self):
+        siswa = self._buat_siswa('Anak Lulus', self.unit_smp, 'T014', nti_edu_status='lulus')
+        with self.assertRaises(UserError):
+            self._wizard(siswa).action_buat()
+        self.assertFalse(siswa.user_ids)
+
+    def test_wali_banyak_unit_company_ids(self):
+        anak_smp = self._buat_siswa('Anak Satu', self.unit_smp, 'T015')
+        anak_sma = self._buat_siswa('Anak Dua', self.unit_sma, 'T016')
+        wali = self._wali(anak_smp, email='wali.dua@example.com')
+        self.env['nti_edu.siswa.wali'].create({'siswa_id': anak_sma.id, 'partner_id': wali.id, 'hubungan': 'ayah'})
+        self._wizard(wali).action_buat()
+        user = wali.user_ids
+        self.assertEqual(user.company_ids, self.unit_smp | self.unit_sma)
+        self.assertEqual(user.company_id, self.unit_smp)
+
+    def test_siswa_company_hanya_unit_sendiri(self):
+        siswa = self._buat_siswa('Anak Unit', self.unit_smp, 'T017')
+        self._wizard(siswa).action_buat()
+        self.assertEqual(siswa.user_ids.company_ids, self.unit_smp)
+        self.assertEqual(siswa.user_ids.company_id, self.unit_smp)

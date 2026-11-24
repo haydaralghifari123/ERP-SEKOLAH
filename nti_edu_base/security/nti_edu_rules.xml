@@ -116,4 +116,17 @@
         <field name="groups" eval="[(4, ref('nti_edu_base.group_base_eksternal'))]"/>
         <field name="domain_force">[('nti_edu_is_siswa', '=', False), ('nti_edu_is_wali', '=', False)]</field>
     </record>
+
+    <!-- Mitra eksternal: akun portal siswa/wali tidak boleh ditemukan lewat res.users
+         (aturan bawaan memperlihatkan pengguna share yang satu unit). -->
+    <record id="rule_users_eksternal" model="ir.rule">
+        <field name="name">Eksternal: tanpa akun portal siswa dan wali</field>
+        <field name="model_id" ref="base.model_res_users"/>
+        <field name="groups" eval="[(4, ref('nti_edu_base.group_base_eksternal'))]"/>
+        <field name="domain_force">['|', ('share', '=', False), '&amp;', ('partner_id.nti_edu_is_siswa', '=', False), ('partner_id.nti_edu_is_wali', '=', False)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
 </odoo>

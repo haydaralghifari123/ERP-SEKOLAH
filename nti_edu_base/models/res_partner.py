@@ -2,7 +2,7 @@
 from datetime import date
 
 from odoo import _, api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 GRUP_OPERATOR = 'nti_edu_base.group_base_operator'
 
@@ -138,3 +138,36 @@ class ResPartner(models.Model):
         if self and self._nti_edu_perlu_operator() and any(self.sudo().mapped('nti_edu_is_siswa')):
             self._nti_edu_tolak()
         return super().update_address(vals)
+
+    # --- Akun portal ---
+
+    def _nti_edu_login_default(self):
+        """Login bawaan akun portal: siswa = NISN atau "<kode unit>.<NIS>"; wali = email atau telepon."""
+        self.ensure_one()
+        if self.nti_edu_is_siswa:
+            nisn = (self.nti_edu_nisn or '').strip()
+            if nisn:
+                return nisn
+            kode = (self.company_id.nti_edu_kode or '').strip()
+            nis = (self.nti_edu_nis or '').strip()
+            if not kode or not nis:
+                raise UserError(_(
+                    "Login siswa %s tidak bisa dibuat: isi NISN, atau kode unit dan NIS.", self.display_name))
+            return f"{kode}.{nis}"
+        login = (self.email or '').strip() or (self.phone or '').strip()
+        if not login:
+            raise UserError(_("%s belum punya email atau telepon untuk dijadikan login.", self.display_name))
+        return login
+
+    def action_nti_edu_buat_akun_portal(self):
+        self.ensure_one()
+        if not self.env.user.has_group(GRUP_OPERATOR):
+            raise AccessError(_("Hanya Operator Data Sekolah yang boleh membuat akun portal."))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Buat Akun Portal"),
+            'res_model': 'nti_edu.akun.portal.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_partner_id': self.id},
+        }

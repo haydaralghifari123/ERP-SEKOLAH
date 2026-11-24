@@ -20,3 +20,4 @@ akses_rombel_pengguna,nti_edu.rombel pengguna,model_nti_edu_rombel,nti_edu_base.
 akses_rombel_operator,nti_edu.rombel operator,model_nti_edu_rombel,nti_edu_base.group_base_operator,1,1,1,1
 akses_rombel_anggota_pengguna,nti_edu.rombel.anggota pengguna,model_nti_edu_rombel_anggota,nti_edu_base.group_base_pengguna,1,0,0,0
 akses_rombel_anggota_operator,nti_edu.rombel.anggota operator,model_nti_edu_rombel_anggota,nti_edu_base.group_base_operator,1,1,1,1
+akses_akun_portal_wizard_operator,nti_edu.akun.portal.wizard operator,model_nti_edu_akun_portal_wizard,nti_edu_base.group_base_operator,1,1,1,1

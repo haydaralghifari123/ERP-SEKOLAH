@@ -55,8 +55,20 @@ class TestDemo(TransactionCase):
         self.assertEqual(user.company_ids, anak.mapped('company_id'))
 
     def test_user_demo(self):
+        smp = self.env.ref('nti_edu_base.demo_unit_smp')
+        sma = self.env.ref('nti_edu_base.demo_unit_sma')
         for xmlid in ('demo_user_operator', 'demo_user_guru1', 'demo_user_guru2', 'demo_user_guru3',
                       'demo_user_wali_bersaudara', 'demo_user_siswa'):
             self.assertTrue(self.env.ref('nti_edu_base.' + xmlid).login)
+        operator = self.env.ref('nti_edu_base.demo_user_operator')
+        self.assertTrue(operator.has_group('nti_edu_base.group_base_operator'))
+        self.assertEqual(operator.company_ids, smp | sma)
+        guru1 = self.env.ref('nti_edu_base.demo_user_guru1')
+        self.assertEqual(self.env.ref('nti_edu_base.demo_rombel_7a').wali_kelas_id, guru1)
         siswa = self.env.ref('nti_edu_base.demo_user_siswa')
         self.assertEqual(len(siswa._nti_edu_siswa_portal()), 1)
+
+    def test_admin_odoo_melihat_unit_demo(self):
+        admin = self.env.ref('base.user_admin')
+        for xmlid in ('demo_yayasan', 'demo_unit_smp', 'demo_unit_sma'):
+            self.assertIn(self.env.ref('nti_edu_base.' + xmlid), admin.company_ids)

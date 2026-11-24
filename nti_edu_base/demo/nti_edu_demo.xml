@@ -23,6 +23,11 @@
         <field name="nti_edu_hari_sekolah">6</field>
     </record>
 
+    <!-- Admin Odoo boleh melihat entitas demo (res.company.create hanya menautkan superuser saat instalasi) -->
+    <record id="base.user_admin" model="res.users">
+        <field name="company_ids" eval="[(4, ref('demo_yayasan')), (4, ref('demo_unit_smp')), (4, ref('demo_unit_sma'))]"/>
+    </record>
+
     <!-- Kalender akademik -->
     <record id="demo_tahun_2026" model="nti_edu.tahun.ajaran">
         <field name="name">2026/2027</field>

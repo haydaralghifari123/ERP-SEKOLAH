@@ -13,6 +13,9 @@ class TestStruktur(NtiEduCommon):
         self.assertTrue(self.user_operator_smp.has_group('base.group_partner_manager'))
         self.assertFalse(self.user_guru_smp.has_group('nti_edu_base.group_base_operator'))
 
+    def test_admin_odoo_di_grup_admin(self):
+        self.assertTrue(self.env.ref('base.user_admin').has_group('nti_edu_base.group_base_admin'))
+
     def test_data_jenjang(self):
         sma = self.env.ref('nti_edu_base.jenjang_sma')
         self.assertEqual(sma.tingkat_ids.mapped('urutan'), [10, 11, 12])

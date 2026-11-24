@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="jenjang_tk" model="nti_edu.jenjang">
+        <field name="name">TK</field>
+        <field name="kode">TK</field>
+        <field name="urutan">10</field>
+    </record>
+    <record id="jenjang_sd" model="nti_edu.jenjang">
+        <field name="name">SD</field>
+        <field name="kode">SD</field>
+        <field name="urutan">20</field>
+    </record>
+    <record id="jenjang_smp" model="nti_edu.jenjang">
+        <field name="name">SMP</field>
+        <field name="kode">SMP</field>
+        <field name="urutan">30</field>
+    </record>
+    <record id="jenjang_sma" model="nti_edu.jenjang">
+        <field name="name">SMA</field>
+        <field name="kode">SMA</field>
+        <field name="urutan">40</field>
+    </record>
+    <record id="jenjang_smk" model="nti_edu.jenjang">
+        <field name="name">SMK</field>
+        <field name="kode">SMK</field>
+        <field name="urutan">50</field>
+    </record>
+    <record id="tingkat_tk_a" model="nti_edu.tingkat">
+        <field name="name">TK A</field>
+        <field name="jenjang_id" ref="jenjang_tk"/>
+        <field name="urutan">1</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_tk_b" model="nti_edu.tingkat">
+        <field name="name">TK B</field>
+        <field name="jenjang_id" ref="jenjang_tk"/>
+        <field name="urutan">2</field>
+        <field name="is_akhir" eval="True"/>
+    </record>
+    <record id="tingkat_sd_1" model="nti_edu.tingkat">
+        <field name="name">Kelas 1</field>
+        <field name="jenjang_id" ref="jenjang_sd"/>
+        <field name="urutan">1</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_sd_2" model="nti_edu.tingkat">
+        <field name="name">Kelas 2</field>
+        <field name="jenjang_id" ref="jenjang_sd"/>
+        <field name="urutan">2</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_sd_3" model="nti_edu.tingkat">
+        <field name="name">Kelas 3</field>
+        <field name="jenjang_id" ref="jenjang_sd"/>
+        <field name="urutan">3</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_sd_4" model="nti_edu.tingkat">
+        <field name="name">Kelas 4</field>
+        <field name="jenjang_id" ref="jenjang_sd"/>
+        <field name="urutan">4</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_sd_5" model="nti_edu.tingkat">
+        <field name="name">Kelas 5</field>
+        <field name="jenjang_id" ref="jenjang_sd"/>
+        <field name="urutan">5</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_sd_6" model="nti_edu.tingkat">
+        <field name="name">Kelas 6</field>
+        <field name="jenjang_id" ref="jenjang_sd"/>
+        <field name="urutan">6</field>
+        <field name="is_akhir" eval="True"/>
+    </record>
+    <record id="tingkat_smp_7" model="nti_edu.tingkat">
+        <field name="name">Kelas VII</field>
+        <field name="jenjang_id" ref="jenjang_smp"/>
+        <field name="urutan">7</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_smp_8" model="nti_edu.tingkat">
+        <field name="name">Kelas VIII</field>
+        <field name="jenjang_id" ref="jenjang_smp"/>
+        <field name="urutan">8</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_smp_9" model="nti_edu.tingkat">
+        <field name="name">Kelas IX</field>
+        <field name="jenjang_id" ref="jenjang_smp"/>
+        <field name="urutan">9</field>
+        <field name="is_akhir" eval="True"/>
+    </record>
+    <record id="tingkat_sma_10" model="nti_edu.tingkat">
+        <field name="name">Kelas X</field>
+        <field name="jenjang_id" ref="jenjang_sma"/>
+        <field name="urutan">10</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_sma_11" model="nti_edu.tingkat">
+        <field name="name">Kelas XI</field>
+        <field name="jenjang_id" ref="jenjang_sma"/>
+        <field name="urutan">11</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_sma_12" model="nti_edu.tingkat">
+        <field name="name">Kelas XII</field>
+        <field name="jenjang_id" ref="jenjang_sma"/>
+        <field name="urutan">12</field>
+        <field name="is_akhir" eval="True"/>
+    </record>
+    <record id="tingkat_smk_10" model="nti_edu.tingkat">
+        <field name="name">Kelas X</field>
+        <field name="jenjang_id" ref="jenjang_smk"/>
+        <field name="urutan">10</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_smk_11" model="nti_edu.tingkat">
+        <field name="name">Kelas XI</field>
+        <field name="jenjang_id" ref="jenjang_smk"/>
+        <field name="urutan">11</field>
+        <field name="is_akhir" eval="False"/>
+    </record>
+    <record id="tingkat_smk_12" model="nti_edu.tingkat">
+        <field name="name">Kelas XII</field>
+        <field name="jenjang_id" ref="jenjang_smk"/>
+        <field name="urutan">12</field>
+        <field name="is_akhir" eval="True"/>
+    </record>
+</odoo>

@@ -14,7 +14,11 @@ Modul fondasi NTI Edu (data sekolah).
     'version': '18.0.1.0.0',
     'license': 'LGPL-3',
     'depends': ['base', 'mail', 'portal'],
-    'data': [],
+    'data': [
+        'security/nti_edu_security.xml',
+        'security/ir.model.access.csv',
+        'data/jenjang_data.xml',
+    ],
     'installable': True,
     'application': True,
 }

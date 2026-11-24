@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+akses_jenjang_pengguna,nti_edu.jenjang pengguna,model_nti_edu_jenjang,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_jenjang_admin,nti_edu.jenjang admin,model_nti_edu_jenjang,nti_edu_base.group_base_admin,1,1,1,1
+akses_tingkat_pengguna,nti_edu.tingkat pengguna,model_nti_edu_tingkat,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_tingkat_admin,nti_edu.tingkat admin,model_nti_edu_tingkat,nti_edu_base.group_base_admin,1,1,1,1
+akses_jurusan_pengguna,nti_edu.jurusan pengguna,model_nti_edu_jurusan,nti_edu_base.group_base_pengguna,1,0,0,0
+akses_jurusan_admin,nti_edu.jurusan admin,model_nti_edu_jurusan,nti_edu_base.group_base_admin,1,1,1,1

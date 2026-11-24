@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import _, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 
 from .res_partner import FIELD_SISWA
 
@@ -25,7 +25,13 @@ class ResUsers(models.Model):
 
     def write(self, vals):
         # Jalur "preferensi saya" menulis lewat sudo dan akan melewati penjaga tulis siswa di res.partner.
-        if (len(self) == 1 and self == self.env.user and not self.env.su
-                and FIELD_USER_PARTNER_SISWA & set(vals) and self.sudo().partner_id.nti_edu_is_siswa):
+        if (not self.env.su and self.env.uid in self.ids
+                and FIELD_USER_PARTNER_SISWA & set(vals) and self.env.user.sudo().partner_id.nti_edu_is_siswa):
             raise AccessError(_("Data siswa hanya dapat diubah oleh Operator Data Sekolah."))
         return super().write(vals)
+
+    def _deactivate_portal_user(self, **post):
+        # Jalur "hapus akun saya" mengarsipkan partner lewat sudo (melewati penjaga tulis siswa).
+        if self.sudo().partner_id.filtered('nti_edu_is_siswa'):
+            raise UserError(_("Akun siswa hanya bisa dinonaktifkan oleh Operator Data Sekolah."))
+        return super()._deactivate_portal_user(**post)

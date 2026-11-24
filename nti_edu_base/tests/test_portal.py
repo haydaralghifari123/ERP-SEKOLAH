@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import http
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import HttpCase, tagged
 from odoo.tests.common import new_test_user
 
@@ -227,3 +227,43 @@ class TestUsersSiswaGuard(NtiEduCommon):
             company_id=self.unit_smp.id, company_ids=[(6, 0, self.unit_smp.ids)])
         user.with_user(user).write({'name': 'Nama Baru'})
         self.assertEqual(user.partner_id.name, 'Nama Baru')
+
+    def test_id_ganda_tidak_melewati_penjaga(self):
+        user = new_test_user(
+            self.env, login='tes_siswa_dup', groups='base.group_portal',
+            company_id=self.unit_smp.id, company_ids=[(6, 0, self.unit_smp.ids)])
+        user.partner_id.write({'nti_edu_is_siswa': True, 'company_id': self.unit_smp.id, 'nti_edu_nis': '556'})
+        ganda = self.env['res.users'].with_user(user).browse([user.id, user.id])
+        with self.assertRaises(AccessError):
+            ganda.write({'name': 'DUP BYPASS', 'email': 'evil@x.com'})
+        self.assertNotEqual(user.partner_id.name, 'DUP BYPASS')
+
+    def test_siswa_tidak_bisa_nonaktifkan_akun(self):
+        user = new_test_user(
+            self.env, login='tes_siswa_nonaktif', groups='base.group_portal',
+            company_id=self.unit_smp.id, company_ids=[(6, 0, self.unit_smp.ids)])
+        user.partner_id.write({'nti_edu_is_siswa': True, 'company_id': self.unit_smp.id, 'nti_edu_nis': '557'})
+        with self.assertRaises(UserError):
+            user.sudo()._deactivate_portal_user()
+        self.assertTrue(user.active)
+        self.assertTrue(user.partner_id.active)
+
+
+@tagged('post_install', '-at_install')
+class TestNonaktifAkunHttp(HttpCase):
+
+    def test_post_deactivate_account_siswa(self):
+        unit = self.env['res.company'].create({
+            'name': 'Unit Nonaktif', 'nti_edu_jenis': 'unit', 'nti_edu_kode': 'unn'})
+        user = new_test_user(
+            self.env, login='siswa_nonaktif', groups='base.group_portal', password='siswa_nonaktif',
+            company_id=unit.id, company_ids=[(6, 0, unit.ids)])
+        user.partner_id.write({'nti_edu_is_siswa': True, 'company_id': unit.id, 'nti_edu_nis': '900'})
+        self.authenticate('siswa_nonaktif', 'siswa_nonaktif')
+        self.url_open('/my/deactivate_account', data={
+            'csrf_token': http.Request.csrf_token(self), 'validation': 'siswa_nonaktif',
+            'password': 'siswa_nonaktif'})
+        user.invalidate_recordset()
+        self.assertTrue(user.active)
+        self.assertTrue(user.partner_id.active)
+        self.assertEqual(user.login, 'siswa_nonaktif')

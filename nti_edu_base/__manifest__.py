@@ -46,6 +46,9 @@ Data demo (opsional) memuat Yayasan Pendidikan Nusantara dengan SMP dan SMA, 20 
     'demo': [
         'demo/nti_edu_demo.xml',
     ],
+    'assets': {
+        'web.assets_tests': ['nti_edu_base/static/tests/tours/**/*'],
+    },
     'installable': True,
     'application': True,
 }

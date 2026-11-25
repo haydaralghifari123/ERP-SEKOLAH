@@ -11,3 +11,4 @@ from . import test_tambah_rombel
 from . import test_tampilan
 from . import test_demo
 from . import test_company_admin
+from . import test_ui

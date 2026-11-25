@@ -12,7 +12,7 @@ class HariLibur(models.Model):
     tanggal_mulai = fields.Date(string='Tanggal Mulai', required=True)
     tanggal_selesai = fields.Date(string='Tanggal Selesai', help='Kosong = libur satu hari.')
     company_id = fields.Many2one(
-        'res.company', string='Unit / Yayasan', help='Kosong = berlaku untuk semua unit.')
+        'res.company', string='Unit / Yayasan', ondelete='cascade', help='Kosong = berlaku untuk semua unit.')
     jenis = fields.Selection(
         [('nasional', 'Libur Nasional'), ('sekolah', 'Libur Sekolah'),
          ('ujian', 'Masa Ujian'), ('lainnya', 'Lainnya')],

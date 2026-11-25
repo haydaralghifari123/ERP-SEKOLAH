@@ -3,7 +3,7 @@ from datetime import date
 
 from psycopg2 import IntegrityError
 
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import tagged
 from odoo.tools import mute_logger
 
@@ -32,6 +32,29 @@ class TestRombel(NtiEduCommon):
     def _rombel(cls, nama, tahun, tingkat, unit):
         return cls.env['nti_edu.rombel'].create({
             'name': nama, 'tahun_ajaran_id': tahun.id, 'tingkat_id': tingkat.id, 'company_id': unit.id})
+
+    def _jurusan(self, nama, company=None):
+        return self.env['nti_edu.jurusan'].create({'name': nama, 'company_id': company.id if company else False})
+
+    def test_jurusan_yayasan_dipakai_rombel_unit(self):
+        jurusan = self._jurusan('IPA Yayasan', self.yayasan)
+        self.rombel_x.jurusan_id = jurusan
+        self.assertEqual(self.rombel_x.jurusan_id, jurusan)
+
+    def test_jurusan_unit_lain_ditolak(self):
+        jurusan = self._jurusan('IPA SMP', self.unit_smp)
+        with self.assertRaises(UserError):
+            self.rombel_x.jurusan_id = jurusan
+
+    def test_domain_jurusan_rombel(self):
+        global_ = self._jurusan('Global')
+        yay = self._jurusan('Yayasan', self.yayasan)
+        sma = self._jurusan('SMA', self.unit_sma)
+        smp = self._jurusan('SMP', self.unit_smp)
+        domain = self.env['nti_edu.jurusan']._check_company_domain(self.unit_sma)
+        hasil = self.env['nti_edu.jurusan'].search(domain)
+        self.assertEqual((global_ | yay | sma) - hasil, self.env['nti_edu.jurusan'])
+        self.assertNotIn(smp, hasil)
 
     def _anggota(self, rombel, siswa=None, **vals):
         return self.env['nti_edu.rombel.anggota'].create(dict(

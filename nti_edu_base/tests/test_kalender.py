@@ -130,6 +130,13 @@ class TestKalender(NtiEduCommon):
         self.assertFalse(self.unit_smp._nti_edu_hari_efektif(date(2026, 8, 18)))
         self.assertTrue(self.unit_sma._nti_edu_hari_efektif(date(2026, 8, 18)))
 
+    def test_libur_ikut_terhapus_bersama_unit(self):
+        unit = self.env['res.company'].create({'name': 'Unit Sementara', 'parent_id': self.yayasan.id})
+        libur = self.env['nti_edu.hari.libur'].create({
+            'name': 'Libur Unit', 'tanggal_mulai': date(2026, 8, 18), 'company_id': unit.id})
+        unit.unlink()
+        self.assertFalse(libur.exists())
+
     def test_libur_rentang(self):
         self.env['nti_edu.hari.libur'].create({
             'name': 'Ujian', 'tanggal_mulai': date(2026, 12, 7),

@@ -137,3 +137,15 @@ class HrEmployee(models.Model):
         if self._nti_edu_perlu_hrd():
             raise AccessError(_("Pegawai hanya boleh dihapus oleh HRD. Arsipkan pegawai ini bila sudah tidak aktif."))
         return super().unlink()
+
+    def action_nti_edu_buat_akun_login(self):
+        """Buka wizard Buat Akun Login untuk pegawai ini."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Buat Akun Login"),
+            'res_model': 'nti_edu.pegawai.akun.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_employee_id': self.id},
+        }

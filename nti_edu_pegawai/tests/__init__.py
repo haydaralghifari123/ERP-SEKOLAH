@@ -6,3 +6,4 @@ from . import test_penempatan
 from . import test_keluar
 from . import test_demo
 from . import test_ui
+from . import test_review_akhir

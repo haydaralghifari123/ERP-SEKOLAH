@@ -69,6 +69,21 @@
                         invisible="user_id" groups="nti_edu_pegawai.group_pegawai_operator"/>
                 <button name="action_nti_edu_tempatkan" type="object" string="Tempatkan di Unit Lain"
                         invisible="not id" groups="nti_edu_pegawai.group_pegawai_operator"/>
+                <field name="nti_edu_akun_nonaktif" invisible="1" groups="nti_edu_pegawai.group_pegawai_hrd"/>
+                <button name="action_nti_edu_aktifkan_akun_login" type="object" string="Aktifkan Akun Login"
+                        invisible="not nti_edu_akun_nonaktif" groups="nti_edu_pegawai.group_pegawai_hrd"
+                        confirm="Aktifkan kembali akun login pegawai ini? Unit akunnya disesuaikan dengan unit penempatan aktifnya."/>
+            </xpath>
+            <!-- Akun login hanya boleh ditautkan HRD (lihat penjaga di model): TU melihatnya tanpa bisa mengubah. -->
+            <xpath expr="//page[@name='hr_settings']//field[@name='user_id']" position="attributes">
+                <attribute name="readonly">1</attribute>
+                <attribute name="groups">!nti_edu_pegawai.group_pegawai_hrd</attribute>
+            </xpath>
+            <xpath expr="//page[@name='hr_settings']//field[@name='user_id']" position="after">
+                <field name="user_id" string="Related User" help=""
+                       domain="[('company_ids', 'in', company_id), ('share', '=', False)]"
+                       context="{'default_create_employee_id': id}"
+                       widget="many2one_avatar_user" groups="nti_edu_pegawai.group_pegawai_hrd"/>
             </xpath>
             <xpath expr="//notebook" position="inside">
                 <page name="page_kepegawaian" string="Kepegawaian" groups="nti_edu_pegawai.group_pegawai_operator">

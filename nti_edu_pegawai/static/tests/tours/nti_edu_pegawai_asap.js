@@ -61,6 +61,11 @@ registry.category("web_tour.tours").add("nti_edu_pegawai_asap", {
             content: "Baris sertifikasi bertahan setelah simpan",
             trigger: "[name=nti_edu_sertifikasi_ids] .o_data_row:not(.o_selected_row):contains('SERT-TOUR-1')",
         },
+        {
+            // Hapus sertifikasi hanya HRD: TU tidak melihat ikon hapus pada baris.
+            content: "Tanpa ikon hapus sertifikasi bagi TU",
+            trigger: "[name=nti_edu_sertifikasi_ids] .o_data_row:contains('SERT-TOUR-1'):not(:has(.o_list_record_remove))",
+        },
         // Wizard Buat Akun Login: buka lalu tutup tanpa membuat akun.
         {
             content: "Klik Buat Akun Login",

@@ -73,9 +73,14 @@ class PenempatanWizard(models.TransientModel):
             elif not asal <= pemanggil.company_ids:
                 raise AccessError(_("Penempatan hanya boleh oleh HRD atau TU yang memegang unit asal."))
 
+        # Kontak siswa tidak pernah jadi kontak kerja (ditolak saat menautkan); jangan sampai dilepas dari unitnya.
+        if kontak.nti_edu_is_siswa:
+            raise UserError(_("Kontak siswa tidak boleh dipakai sebagai kontak kerja pegawai."))
         if semua.filtered(lambda p: p.active and p.company_id == tujuan):
             raise UserError(_("%s sudah aktif di unit tujuan.", pegawai.name))
 
+        # Akses akun diatur di bawah dengan hak pemanggil, bukan otomatis oleh tulis sudo ini.
+        Pegawai = Pegawai.with_context(nti_edu_tanpa_sinkron_akun=True)
         nilai = {}
         if self.nti_edu_jenis_ptk:
             nilai['nti_edu_jenis_ptk'] = self.nti_edu_jenis_ptk
@@ -84,7 +89,7 @@ class PenempatanWizard(models.TransientModel):
         user = semua.user_id[:1]
         arsip = semua.filtered(lambda p: p.company_id == tujuan and not p.active)
         if arsip:
-            hasil = arsip[0]
+            hasil = arsip[0].with_env(Pegawai.env)
             nilai['active'] = True
             if user and not hasil.user_id:
                 nilai['user_id'] = user.id
@@ -95,8 +100,9 @@ class PenempatanWizard(models.TransientModel):
                 nilai['user_id'] = user.id
             hasil = Pegawai.create(nilai)
         user = hasil.user_id
-        if user and tujuan not in user.company_ids:
-            user.sudo().write({'company_ids': [(4, tujuan.id)]})
+        if user and user.active:
+            # Aturan wewenang yang sama dengan arsip/aktif lagi (akun HRD hanya oleh HRD, admin tidak disentuh).
+            self.env['hr.employee']._nti_edu_atur_akses_akun(user, tambah=tujuan)
         # Kontak dipakai bersama: dilepas dari satu unit agar terbaca di semua unit.
         if kontak.company_id:
             kontak.write({'company_id': False})

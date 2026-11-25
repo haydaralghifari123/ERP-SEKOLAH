@@ -163,3 +163,12 @@ class TestAkunPortal(NtiEduCommon):
         self._wizard(siswa).action_buat()
         self.assertEqual(siswa.user_ids.company_ids, self.unit_smp)
         self.assertEqual(siswa.user_ids.company_id, self.unit_smp)
+
+    def test_login_wizard_tidak_bocorkan_siswa_unit_lain(self):
+        sma = self._buat_siswa('Anak SMA Rahasia', self.unit_sma, 'R001', nti_edu_nisn='9988776655')
+        wizard = self._wizard(sma)  # operator SMP, siswa SMA
+        self.assertFalse(wizard.login)
+        self.assertNotIn(wizard.login, ('9988776655', 'smat.R001'))
+        with self.assertRaises(AccessError):
+            wizard.action_buat()
+        self.assertFalse(sma.user_ids)

@@ -14,12 +14,15 @@ class KenaikanKelasWizard(models.TransientModel):
         'nti_edu.rombel', string='Rombel Tujuan', help='Dipakai sebagai tujuan bawaan semua baris.')
     baris_ids = fields.One2many(
         'nti_edu.kenaikan.kelas.baris', 'wizard_id', string='Siswa',
-        compute='_compute_baris_ids', store=True, readonly=False)
+        compute='_compute_baris_ids', store=True, readonly=False, compute_sudo=False)
     state = fields.Selection([('draft', 'Draf'), ('selesai', 'Selesai')], default='draft')
 
     @api.depends('rombel_asal_id', 'rombel_tujuan_id')
     def _compute_baris_ids(self):
         for rec in self:
+            if rec.rombel_asal_id and not rec.rombel_asal_id.has_access('read'):
+                rec.baris_ids = [(5, 0, 0)]
+                continue
             aksi = 'lulus' if rec.rombel_asal_id.tingkat_id.is_akhir else 'naik'
             anggota = rec.rombel_asal_id.anggota_ids.filtered(lambda a: not a.tanggal_keluar)
             rec.baris_ids = [(5, 0, 0)] + [(0, 0, {

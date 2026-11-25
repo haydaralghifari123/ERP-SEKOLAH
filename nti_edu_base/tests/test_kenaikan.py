@@ -150,3 +150,11 @@ class TestKenaikan(NtiEduCommon):
         for siswa in self.siswa_ids:
             self.assertEqual(siswa.nti_edu_rombel_aktif_id, self.rombel_8a)
             self.assertEqual(len(siswa.nti_edu_anggota_ids), 2)
+
+    def test_baris_tidak_bocorkan_anggota_unit_lain(self):
+        siswa_sma = self._buat_siswa('Siswa SMA', self.unit_sma, 'S001')
+        self.env['nti_edu.rombel.anggota'].create({'rombel_id': self.rombel_x.id, 'siswa_id': siswa_sma.id})
+        wizard = self._wizard(self.rombel_x, user=self.user_operator_smp)  # operator SMP, rombel SMA
+        self.assertFalse(wizard.baris_ids)
+        # Pembanding: superuser tetap melihat anggota.
+        self.assertEqual(len(self._wizard(self.rombel_x).baris_ids), 1)

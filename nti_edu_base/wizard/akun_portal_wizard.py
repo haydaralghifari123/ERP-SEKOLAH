@@ -14,7 +14,9 @@ class AkunPortalWizard(models.TransientModel):
     _transient_max_hours = 0.1
 
     partner_id = fields.Many2one('res.partner', string='Siswa/Wali', required=True)
-    login = fields.Char(string='Login', compute='_compute_login', store=True, readonly=False)
+    # compute_sudo=False: nilai bawaan hanya dihitung bila pemanggil berhak atas partner (hindari bocor NISN/NIS).
+    login = fields.Char(
+        string='Login', compute='_compute_login', store=True, readonly=False, compute_sudo=False)
     password_awal = fields.Char(string='Kata Sandi Awal', readonly=True)
     state = fields.Selection([('isi', 'Isi'), ('selesai', 'Selesai')], string='Status', default='isi')
 
@@ -22,7 +24,10 @@ class AkunPortalWizard(models.TransientModel):
     def _compute_login(self):
         for rec in self:
             try:
-                rec.login = rec.partner_id._nti_edu_login_default() if rec.partner_id else False
+                if rec.partner_id and rec.partner_id.has_access('write'):
+                    rec.login = rec.partner_id._nti_edu_login_default()
+                else:
+                    rec.login = False
             except UserError:
                 # Pesan jelasnya muncul saat tombol dijalankan; di form login boleh diisi manual.
                 rec.login = False

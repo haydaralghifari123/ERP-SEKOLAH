@@ -51,7 +51,7 @@ class RombelAnggota(models.Model):
     _description = 'Keanggotaan Rombel'
     _order = 'rombel_id, no_absen, id'
 
-    rombel_id = fields.Many2one('nti_edu.rombel', string='Rombel', required=True, ondelete='cascade')
+    rombel_id = fields.Many2one('nti_edu.rombel', string='Rombel', required=True, ondelete='restrict')
     siswa_id = fields.Many2one(
         'res.partner', string='Siswa', required=True, domain=[('nti_edu_is_siswa', '=', True)])
     tahun_ajaran_id = fields.Many2one(

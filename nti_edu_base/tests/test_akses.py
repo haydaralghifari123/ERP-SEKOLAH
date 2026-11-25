@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from datetime import date
 
+from psycopg2 import IntegrityError
+
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
 
@@ -107,7 +109,12 @@ class TestAkses(NtiEduCommon):
         libur = self.env['nti_edu.hari.libur'].with_user(self.user_operator_smp).create({
             'name': 'Libur SMP', 'tanggal_mulai': date(2026, 12, 3), 'company_id': self.unit_smp.id})
         libur.write({'name': 'Libur SMP 2'})
-        libur.unlink()
+        # Hapus data hanya hak Admin Data Sekolah.
+        with self.assertRaises(AccessError):
+            libur.unlink()
+        admin = self._buat_user('tes_admin_libur', 'nti_edu_base.group_base_admin', self.unit_smp)
+        libur.with_user(admin).unlink()
+        self.assertFalse(libur.exists())
 
     def test_admin_yayasan_buat_libur_tanpa_unit(self):
         admin = self._buat_user('tes_admin_yys', 'nti_edu_base.group_base_admin', self.yayasan)
@@ -143,3 +150,47 @@ class TestAkses(NtiEduCommon):
         self.assertNotIn(
             anggota, self.env['nti_edu.rombel.anggota'].with_user(self.user_guru_smp).search([]))
         self.assertIn(ruang, self.env['nti_edu.ruang'].with_user(self.user_guru_sma).search([]))
+
+    # --- Hak hapus: hanya admin (spec II.5); operator tidak boleh menghapus ---
+    def _anggota_smp(self):
+        return self.env['nti_edu.rombel.anggota'].create({
+            'rombel_id': self.rombel_smp.id, 'siswa_id': self.siswa_smp.id})
+
+    def test_operator_tidak_hapus_rombel_anggota_tahun(self):
+        anggota = self._anggota_smp()
+        operator = self.user_operator_smp
+        with self.assertRaises(AccessError):
+            self.rombel_smp.with_user(operator).unlink()
+        with self.assertRaises(AccessError):
+            anggota.with_user(operator).unlink()
+        with self.assertRaises(AccessError):
+            self.ta.with_user(operator).unlink()
+        semester = self.env['nti_edu.semester'].create({
+            'tahun_ajaran_id': self.ta.id, 'jenis': 'ganjil',
+            'tanggal_mulai': date(2026, 7, 13), 'tanggal_selesai': date(2026, 12, 20)})
+        with self.assertRaises(AccessError):
+            semester.with_user(operator).unlink()
+        libur = self._libur(self.unit_smp, date(2026, 12, 9))
+        with self.assertRaises(AccessError):
+            libur.with_user(operator).unlink()
+
+    def test_operator_tetap_hapus_baris_wali(self):
+        ibu = self.env['res.partner'].create({'name': 'Ibu SMP'})
+        baris = self.env['nti_edu.siswa.wali'].create(
+            {'siswa_id': self.siswa_smp.id, 'partner_id': ibu.id, 'hubungan': 'ibu'})
+        baris.with_user(self.user_operator_smp).unlink()
+        self.assertFalse(baris.exists())
+
+    def test_admin_tidak_hapus_rombel_berisi_anggota(self):
+        self._anggota_smp()
+        admin = self._buat_user('tes_admin_hapus', 'nti_edu_base.group_base_admin', self.unit_smp)
+        with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.cr.savepoint():
+            self.rombel_smp.with_user(admin).unlink()
+        self.assertTrue(self.rombel_smp.exists())
+        self.assertEqual(len(self.siswa_smp.nti_edu_anggota_ids), 1)
+
+    def test_admin_hapus_rombel_kosong(self):
+        admin = self._buat_user('tes_admin_hapus2', 'nti_edu_base.group_base_admin', self.unit_smp)
+        kosong = self._rombel('VII Z', self.env.ref('nti_edu_base.tingkat_smp_7'), self.unit_smp)
+        kosong.with_user(admin).unlink()
+        self.assertFalse(kosong.exists())

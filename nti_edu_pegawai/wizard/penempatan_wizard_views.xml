@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_penempatan_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.pegawai.penempatan.wizard.form</field>
+        <field name="model">nti_edu.pegawai.penempatan.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tempatkan di Unit Lain">
+                <field name="company_ids_diizinkan" invisible="1"/>
+                <group>
+                    <field name="employee_id" readonly="1"/>
+                    <field name="company_id" options="{'no_create': True, 'no_open': True}"
+                           domain="[('id', 'in', company_ids_diizinkan)]"/>
+                    <field name="nti_edu_jenis_ptk"/>
+                    <field name="nti_edu_tmt"/>
+                </group>
+                <footer>
+                    <button string="Tempatkan" name="action_tempatkan" type="object" class="btn-primary"/>
+                    <button string="Batal" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

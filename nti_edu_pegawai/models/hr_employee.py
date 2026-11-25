@@ -149,3 +149,15 @@ class HrEmployee(models.Model):
             'target': 'new',
             'context': {'default_employee_id': self.id},
         }
+
+    def action_nti_edu_tempatkan(self):
+        """Buka wizard Tempatkan di Unit Lain untuk pegawai ini."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Tempatkan di Unit Lain"),
+            'res_model': 'nti_edu.pegawai.penempatan.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_employee_id': self.id},
+        }

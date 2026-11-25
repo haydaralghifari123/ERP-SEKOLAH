@@ -2,3 +2,4 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 akses_pegawai_sertifikasi_operator,nti_edu.pegawai.sertifikasi operator,model_nti_edu_pegawai_sertifikasi,nti_edu_pegawai.group_pegawai_operator,1,1,1,0
 akses_pegawai_sertifikasi_hrd,nti_edu.pegawai.sertifikasi hrd,model_nti_edu_pegawai_sertifikasi,nti_edu_pegawai.group_pegawai_hrd,1,1,1,1
 akses_akun_login_wizard_operator,nti_edu.pegawai.akun.wizard operator,model_nti_edu_pegawai_akun_wizard,nti_edu_pegawai.group_pegawai_operator,1,1,1,1
+akses_penempatan_wizard_operator,nti_edu.pegawai.penempatan.wizard operator,model_nti_edu_pegawai_penempatan_wizard,nti_edu_pegawai.group_pegawai_operator,1,1,1,1

@@ -20,6 +20,7 @@ Data kepegawaian guru dan tenaga kependidikan NTI Edu.
         'views/sertifikasi_views.xml',
         'views/hr_employee_views.xml',
         'wizard/akun_login_wizard_views.xml',
+        'wizard/penempatan_wizard_views.xml',
         'views/menu.xml',
     ],
     'application': False,

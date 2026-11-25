@@ -67,6 +67,8 @@
             <xpath expr="//header" position="inside">
                 <button name="action_nti_edu_buat_akun_login" type="object" string="Buat Akun Login"
                         invisible="user_id" groups="nti_edu_pegawai.group_pegawai_operator"/>
+                <button name="action_nti_edu_tempatkan" type="object" string="Tempatkan di Unit Lain"
+                        invisible="not id" groups="nti_edu_pegawai.group_pegawai_operator"/>
             </xpath>
             <xpath expr="//notebook" position="inside">
                 <page name="page_kepegawaian" string="Kepegawaian" groups="nti_edu_pegawai.group_pegawai_operator">

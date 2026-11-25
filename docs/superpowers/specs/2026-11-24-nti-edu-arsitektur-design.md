@@ -370,7 +370,7 @@ Field siswa **hanya didefinisikan di `nti_edu_base`**; modul lain tidak boleh me
 Data Sekolah
 ├─ Siswa            (kanban/list/form; tab Data Pribadi, Wali, Riwayat Kelas, + tab dari modul lain)
 ├─ Rombel           (list/form; tab Anggota)
-├─ Wali Murid       (kontak yang terhubung sebagai wali)
+├─ Wali Murid       (kontak yang terhubung sebagai wali; hanya Operator, terbatas unit anaknya — data wali sensitif §II.5)
 ├─ Kalender
 │   ├─ Tahun Ajaran & Semester
 │   └─ Hari Libur
@@ -390,7 +390,7 @@ Kategori: **NTI Edu / Data Sekolah**.
 | Grup | Implies | Hak |
 |---|---|---|
 | `group_base_pengguna` (Pengguna Data Sekolah) | `base.group_user` | Baca master & data siswa **unit yang diizinkan**, tanpa NIK/data sensitif. Semua modul fitur meng-imply grup ini ke grup staf mereka. |
-| `group_base_operator` (Operator/TU) | pengguna | Buat/ubah siswa, wali, rombel, keanggotaan, kalender. Lihat NIK. |
+| `group_base_operator` (Operator/TU) | pengguna | Buat/ubah siswa, wali, rombel, keanggotaan, kalender, tanpa hapus; hapus data hanya Admin. Lihat NIK. |
 | `group_base_admin` (Admin Data Sekolah) | operator | Konfigurasi unit, jenjang, tingkat, jurusan, mapel, ruang; hapus data. |
 
 - Data dasar siswa (nama, foto, NIS, rombel) terbaca semua internal user di unitnya — bawaan `res.partner` +

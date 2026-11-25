@@ -87,3 +87,25 @@
 - [ ] **Step 3: Implementasi:** Tambah ke Rombel — di `action_tambah`, bila `active_model == 'res.partner'`, bandingkan `active_ids` dengan `self.siswa_ids.ids`; id yang hilang → masuk daftar masalah dengan alasan `_('tidak dapat diakses atau bukan siswa')` (tampilkan jumlahnya, bukan nama — nama tidak terbaca). Kenaikan — di validasi `naik`/`tinggal`: `tujuan.tahun_ajaran_id.tanggal_mulai > asal.tahun_ajaran_id.tanggal_mulai`, dan untuk `naik` `tujuan.tingkat_id.urutan > asal.tingkat_id.urutan`; pesan `_()` menyebut nama siswa/rombel. Akun portal — `action_tutup` + tombol footer.
 - [ ] **Step 4: Suite penuh + `uji_tunggal.ps1`** → `0 failed, 0 error(s)`.
 - [ ] **Step 5: Commit** `nti_edu_base: wizard menolak id tak terbaca, kenaikan ke tahun/tingkat salah, dan hapus kata sandi saat ditutup`
+
+### Task 4: Kunci kontak wali (keputusan pengguna 2026-11-25)
+
+Email wali adalah login dan kanal reset kata sandi akun portalnya; data wali sensitif (§II.5). Saat ini operator unit mana pun (dan siapa pun dengan `base.group_partner_manager`) bisa mengubah email wali dari unit lain lalu meminta reset kata sandi.
+
+**Files:**
+- Modify: `nti_edu_base/models/res_partner.py` (penjaga di `write`)
+- Test: `nti_edu_base/tests/test_siswa.py`
+
+**Interfaces:**
+- Produces: `FIELD_KONTAK_WALI = {'email', 'phone', 'mobile'}` di `res_partner.py`; `res.partner._nti_edu_boleh_ubah_kontak_wali(self) -> bool` (self = satu partner wali, dievaluasi untuk `self.env.user`).
+
+- [ ] **Step 1: Tes gagal** di `TestSiswa` (wali `w` dengan anak di SMP; buat juga `user_operator_sma` = operator SMA saja):
+  - `test_operator_unit_anak_ubah_email_wali`: `user_operator_smp` menulis `email` wali → berhasil.
+  - `test_operator_unit_lain_tidak_ubah_email_wali`: `user_operator_sma` menulis `email`/`phone`/`mobile` wali → `AccessError`; nilai tidak berubah.
+  - `test_pengelola_kontak_non_sekolah_tidak_ubah_email_wali`: user internal dengan `base.group_partner_manager` saja → `AccessError`.
+  - `test_wali_ubah_kontak_sendiri`: user portal milik wali menulis `email` partner-nya sendiri (lewat `with_user(portal).partner_id.write` dengan izin yang ada, atau `res.users` preferensi) → berhasil.
+  - `test_field_lain_wali_tetap_bebas`: `user_operator_sma` menulis `comment` wali → berhasil (hanya kontak yang dikunci).
+- [ ] **Step 2: Jalankan** `TestSiswa` → tes penolakan gagal.
+- [ ] **Step 3: Implementasi:** di `write`, bila `FIELD_KONTAK_WALI & set(vals)` dan bukan `env.su`, untuk setiap record dengan `nti_edu_is_wali` (baca lewat `sudo()`) wajib `_nti_edu_boleh_ubah_kontak_wali()`: benar bila `self.env.user.partner_id == partner`, atau user punya `GRUP_OPERATOR` dan ada anak (`nti_edu_anak_ids.siswa_id`, baca sudo) dengan `company_id in self.env.user.company_ids`. Selain itu `AccessError(_("Kontak wali hanya boleh diubah oleh walinya sendiri atau Operator Data Sekolah di unit anaknya."))`.
+- [ ] **Step 4: Suite penuh + `uji_tunggal.ps1`** → `0 failed, 0 error(s)`.
+- [ ] **Step 5: Commit** `nti_edu_base: kontak wali hanya diubah wali sendiri atau operator unit anaknya`

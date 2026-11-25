@@ -88,6 +88,7 @@
                         </group>
                         <group>
                             <field name="company_id" string="Unit Sekolah" required="1"
+                                   domain="[('nti_edu_jenis', '=', 'unit')]"
                                    options="{'no_create': True}"/>
                             <field name="nti_edu_tanggal_masuk"/>
                         </group>

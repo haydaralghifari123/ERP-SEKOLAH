@@ -88,6 +88,8 @@ class ResPartner(models.Model):
         for rec in self:
             if rec.nti_edu_is_siswa and not rec.company_id:
                 raise ValidationError(_("Siswa harus terdaftar pada satu unit sekolah."))
+            if rec.nti_edu_is_siswa and rec.company_id.nti_edu_jenis != 'unit':
+                raise ValidationError(_("Siswa harus terdaftar pada unit sekolah, bukan yayasan."))
 
     @api.constrains('nti_edu_nis', 'company_id')
     def _check_nti_edu_nis_unik(self):

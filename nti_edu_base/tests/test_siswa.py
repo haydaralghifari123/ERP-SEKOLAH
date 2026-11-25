@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from lxml import etree
+
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests.common import new_test_user, tagged
 
@@ -38,6 +40,22 @@ class TestSiswa(NtiEduCommon):
     def test_siswa_wajib_unit(self):
         with self.assertRaises(ValidationError):
             self.env['res.partner'].create({'name': 'Tanpa Unit', 'nti_edu_is_siswa': True})
+
+    def test_siswa_di_yayasan_ditolak(self):
+        with self.assertRaises(ValidationError):
+            self._buat_siswa('X', self.yayasan, 'Y001')
+
+    def test_siswa_sekolah_mandiri_boleh(self):
+        mandiri = self.env['res.company'].create({'name': 'Sekolah Mandiri', 'nti_edu_jenis': 'unit'})
+        self.assertFalse(mandiri.parent_id)
+        siswa = self._buat_siswa('Anak Mandiri', mandiri, 'M001')
+        self.assertEqual(siswa.company_id, mandiri)
+
+    def test_form_siswa_domain_unit(self):
+        arch = self.env['res.partner'].get_views(
+            [(self.env.ref('nti_edu_base.view_siswa_form').id, 'form')])['views']['form']['arch']
+        field = etree.fromstring(arch).xpath('//field[@name="company_id"]')[0]
+        self.assertIn('nti_edu_jenis', field.get('domain', ''))
 
     def test_wali_ditandai(self):
         siswa = self._buat_siswa('A', self.unit_smp, 'T001')

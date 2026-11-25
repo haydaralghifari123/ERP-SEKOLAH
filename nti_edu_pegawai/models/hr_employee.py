@@ -9,6 +9,11 @@ PROFIL_TERKAIT = (
     'nti_edu_nik', 'nti_edu_nuptk', 'nti_edu_nip', 'nti_edu_status_kepegawaian',
     'nti_edu_pendidikan_terakhir', 'nti_edu_bidang_studi',
 )
+# Akun dengan grup ini tidak boleh diubah email/HP-nya lewat jalur sudo pegawai (lihat _inverse_work_contact_details).
+GRUP_AKUN_BERHAK = (
+    GRUP_OPERATOR, GRUP_HRD, 'nti_edu_base.group_base_operator', 'nti_edu_base.group_base_admin',
+    'base.group_erp_manager', 'base.group_system',
+)
 
 
 class HrEmployee(models.Model):
@@ -92,7 +97,8 @@ class HrEmployee(models.Model):
     def _inverse_work_contact_details(self):
         """Email/HP kerja milik hr ditulis ke kontak kerja bersama (juga login dan kanal reset kata sandi akunnya).
         hr menulisnya dengan sudo bila pegawai tanpa akun (tanpa cek unit), atau dengan hak pemanggil bila berakun
-        (TU tidak punya hak tulis kontak). Untuk grup pegawai: penjaga dicek dengan hak pemanggil, lalu sudo."""
+        (TU tidak punya hak tulis kontak). Untuk grup pegawai: penjaga dicek dengan hak pemanggil, lalu sudo hanya
+        bila akun pada kontak itu boleh (_nti_edu_boleh_sudo_kontak_kerja); selain itu dengan hak pemanggil."""
         if self.env.su or not self.env.user.has_group(GRUP_OPERATOR):
             return super()._inverse_work_contact_details()
         tanpa_kontak = self.browse()
@@ -109,14 +115,19 @@ class HrEmployee(models.Model):
             if not ubah:
                 continue
             rec._nti_edu_cek_ubah_kontak_kerja(kontak)
-            kontak.write(ubah)
+            if rec._nti_edu_boleh_sudo_kontak_kerja(kontak):
+                kontak.write(ubah)
+            else:
+                # Perilaku asli hr untuk pegawai berakun: dengan hak pemanggil sendiri (TU/HRD tanpa hak tulis
+                # kontak ditolak; administrator dengan hak kontak tetap bisa).
+                self.env['res.partner'].browse(kontak.id).write(ubah)
         if tanpa_kontak:
             # Pegawai baru tanpa kontak: hr membuat kontaknya dengan sudo (tidak menyentuh data orang lain).
             super(HrEmployee, tanpa_kontak)._inverse_work_contact_details()
 
     def _nti_edu_cek_ubah_kontak_kerja(self, kontak):
-        """Penjaga ubah email/HP kontak kerja (dicek dengan hak pemanggil): penjaga profil lintas unit, kunci kontak
-        wali milik base, dan wewenang atas akun login yang memakai kontak itu."""
+        """Penjaga ubah email/HP kontak kerja (dicek dengan hak pemanggil): penjaga profil lintas unit dan kunci
+        kontak wali milik base."""
         partner = self.env['res.partner'].browse(kontak.id)
         if not partner._nti_edu_boleh_ubah_profil_pegawai():
             partner._nti_edu_tolak_profil()
@@ -124,9 +135,26 @@ class HrEmployee(models.Model):
             raise AccessError(_(
                 "Kontak wali hanya boleh diubah oleh walinya sendiri "
                 "atau Operator Data Sekolah yang memegang semua unit anaknya."))
-        for akun in kontak.with_context(active_test=False).user_ids:
-            if akun.id != self.env.uid and not self._nti_edu_wewenang_akun(akun):
-                raise AccessError(_("Email/HP kerja pemilik akun ini hanya boleh diubah oleh HRD."))
+
+    def _nti_edu_boleh_sudo_kontak_kerja(self, kontak):
+        """Email kontak berakun = login dan kanal reset kata sandi akun itu. Sudo hanya bila setiap akun pada kontak
+        (selain akun pemanggil sendiri) tidak punya grup ber-hak, dan pemanggil HRD atau memegang semua perusahaan
+        akun itu. Selain itu tidak boleh lewat sudo (mencegah pengambilalihan akun ber-hak lewat reset kata sandi)."""
+        if self.env.su:
+            return True
+        berhak = self.env['res.groups']
+        for xmlid in GRUP_AKUN_BERHAK:
+            berhak |= self.env.ref(xmlid)
+        pemanggil = self.env.user
+        pemanggil_hrd = pemanggil.has_group(GRUP_HRD)
+        for akun in kontak.sudo().with_context(active_test=False).user_ids:
+            if akun.id == self.env.uid:
+                continue
+            if akun.groups_id & berhak:
+                return False
+            if not pemanggil_hrd and not akun.company_ids <= pemanggil.sudo().company_ids:
+                return False
+        return True
 
     # --- Penjaga: akun login, tautan kontak, dan hapus ---
 
@@ -272,9 +300,12 @@ class HrEmployee(models.Model):
                 raise UserError(_("Anda tidak dapat mengarsipkan data pegawai terakhir milik akun Anda sendiri."))
         pool = (user.company_ids | tambah) - cabut
         if not pool:
-            # Akun wajib punya satu perusahaan: perusahaan terakhir dipertahankan.
-            cabut = Company
-            pool = user.company_ids | tambah
+            # Akun wajib punya satu perusahaan: satu dipertahankan (perusahaan utamanya bila ikut dicabut),
+            # sisanya tetap dicabut.
+            semua = user.company_ids | tambah
+            tetap = user.company_id if user.company_id in semua else semua[:1]
+            cabut -= tetap
+            pool = tetap
         nilai = {}
         if tambah or cabut:
             nilai['company_ids'] = [(4, c.id) for c in tambah] + [(3, c.id) for c in cabut]

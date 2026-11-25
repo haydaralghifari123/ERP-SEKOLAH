@@ -222,6 +222,59 @@ class TestEmailKerja(_DasarReview):
             self._sebagai(pegawai, self.tu_dua).write({'work_email': 'lain@contoh.id'})
         self.assertEqual(wali.email, 'guruwali@contoh.id')
 
+    # --- Akun ber-hak atau dengan unit di luar pegangan pemanggil: tidak lewat sudo ---
+
+    def _pegawai_berakun(self, nama, unit, units, grup):
+        """Pegawai di `unit` dengan akun ber-`grup` yang memegang `units`."""
+        login = nama.lower().replace(' ', '_')
+        pegawai = self._buat_pegawai(nama, unit, work_email=login + '@contoh.id')
+        user = self._akun(pegawai, login, units, grup=grup)
+        return pegawai, user
+
+    def _ditolak(self, pegawai, pemanggil, user):
+        email = user.email
+        with self.assertRaises(AccessError):
+            self._sebagai(pegawai, pemanggil).write({'work_email': 'penyerang@contoh.id'})
+        self.assertEqual(user.email, email)
+
+    def test_tu_tak_ubah_email_tu_lain(self):
+        # Rekan TU dengan akun SMP+SMA tetapi data pegawai hanya di SMP; pemanggil hanya memegang SMP.
+        pegawai, user = self._pegawai_berakun(
+            'TU Rekan', self.unit_smp, self.unit_smp | self.unit_sma, 'nti_edu_pegawai.group_pegawai_operator')
+        self._ditolak(pegawai, self.tu_smp, user)
+
+    def test_tu_tak_ubah_email_operator_data_sekolah(self):
+        pegawai, user = self._pegawai_berakun(
+            'Operator Data', self.unit_smp, self.unit_smp, 'nti_edu_base.group_base_operator')
+        self._ditolak(pegawai, self.tu_smp, user)
+
+    def test_hrd_tak_ubah_email_tu(self):
+        pegawai, user = self._pegawai_berakun(
+            'TU Lain', self.unit_smp, self.unit_smp, 'nti_edu_pegawai.group_pegawai_operator')
+        self._ditolak(pegawai, self.hrd, user)
+
+    def test_tu_tak_ubah_email_akun_dengan_unit_di_luar_pegangannya(self):
+        smk = self.env['res.company'].create({
+            'name': 'SMK Email Tes', 'parent_id': self.yayasan.id, 'nti_edu_jenis': 'unit',
+            'nti_edu_jenjang_id': self.env.ref('nti_edu_base.jenjang_sma').id, 'nti_edu_kode': 'pgeml'})
+        pegawai, user = self._pegawai_berakun(
+            'Guru Luar', self.unit_smp, self.unit_smp | smk, 'nti_edu_base.group_base_pengguna')
+        self._ditolak(pegawai, self.tu_dua, user)
+        # HRD boleh untuk akun guru biasa, di unit mana pun.
+        self._sebagai(pegawai, self.hrd).write({'work_email': 'guru.luar.baru@contoh.id'})
+        self.assertEqual(user.email, 'guru.luar.baru@contoh.id')
+
+    def test_tu_semua_unit_ubah_email_guru_biasa(self):
+        pegawai, user = self._pegawai_berakun(
+            'Guru Biasa', self.unit_smp, self.unit_smp, 'nti_edu_base.group_base_pengguna')
+        self._sebagai(pegawai, self.tu_smp).write({'work_email': 'guru.biasa.baru@contoh.id'})
+        self.assertEqual(user.email, 'guru.biasa.baru@contoh.id')
+
+    def test_hrd_ubah_email_guru_biasa(self):
+        smp, sma, user = self._dua_unit_berakun()
+        self._sebagai(sma, self.hrd).write({'work_email': 'oleh.hrd@contoh.id'})
+        self.assertEqual(user.email, 'oleh.hrd@contoh.id')
+
 
 @tagged('post_install', '-at_install')
 class TestAksesAkun(_DasarReview):
@@ -262,6 +315,14 @@ class TestAksesAkun(_DasarReview):
         self.assertFalse(user.active)
         self.assertEqual(user.company_ids, self.unit_sma)
         self.assertEqual(user.company_id, self.unit_sma)
+
+    def test_arsip_semua_sekaligus_menyisakan_satu_unit(self):
+        smp, sma, user = self._dua_unit_berakun()
+        (smp | sma).write({'active': False})
+        self.assertFalse(user.active)
+        self.assertEqual(len(user.company_ids), 1)
+        self.assertEqual(user.company_ids, user.company_id)
+        self.assertEqual(user.company_id, self.unit_smp)
 
     def test_sisa_pegawai_dicocokkan_lewat_kontak(self):
         smp = self._buat_pegawai('Pak Kontak', self.unit_smp, work_email='kontak@contoh.id')

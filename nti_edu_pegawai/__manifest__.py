@@ -5,9 +5,9 @@
     'description': """
 Data kepegawaian guru dan tenaga kependidikan NTI Edu.
 
-- Profil per orang (NUPTK, NIP, status kepegawaian, pendidikan, sertifikasi) pada kontak kerja pegawai.
-- Data per penempatan (jenis PTK, TMT) pada karyawan di unit sekolah.
-    """,
+* Profil per orang (NUPTK, NIP, status kepegawaian, pendidikan, sertifikasi) pada kontak kerja pegawai.
+* Data per penempatan (jenis PTK, TMT) pada karyawan di unit sekolah.
+""",
     'author': 'Haydar Alghifari',
     'category': 'Education',
     'version': '18.0.1.0.0',

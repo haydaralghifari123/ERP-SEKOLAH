@@ -67,6 +67,10 @@ class ResPartner(models.Model):
         if not user.has_group(GRUP_OPERATOR):
             return False
         # Semua unit tempat orang ini bekerja harus termasuk unit TU; kontak tanpa pegawai aktif hanya HRD.
+        # Sengaja user.company_ids (semua unit yang dipegang), bukan unit aktif di pemilih perusahaan: ini soal hak
+        # atas orangnya, tidak boleh berubah karena pilihan tampilan. Aturan baca sertifikasi (ir.rule) memakai
+        # `company_ids` (unit aktif di pemilih) seperti aturan multi-company standar, sehingga yang terbaca
+        # mengikuti unit yang sedang dipilih sedangkan hak ubah tetap dicek terhadap semua unit TU.
         unit_pegawai = self.sudo().employee_ids.company_id
         return bool(unit_pegawai) and unit_pegawai <= user.company_ids
 

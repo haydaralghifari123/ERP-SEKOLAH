@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Sertifikasi hanya terbaca untuk orang yang bekerja di unit TU; HRD melihat semua. -->
+    <!-- Sertifikasi hanya terbaca untuk orang yang bekerja di unit TU; HRD melihat semua.
+         company_ids = unit aktif di pemilih perusahaan (seperti aturan multi-company standar); hak ubah profil
+         dicek terpisah terhadap semua unit TU (user.company_ids), lihat res.partner._nti_edu_boleh_ubah_profil_pegawai. -->
     <record id="rule_pegawai_sertifikasi_operator" model="ir.rule">
         <field name="name">Sertifikasi pegawai: unit sendiri</field>
         <field name="model_id" ref="model_nti_edu_pegawai_sertifikasi"/>

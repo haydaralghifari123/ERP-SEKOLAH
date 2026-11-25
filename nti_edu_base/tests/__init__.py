@@ -9,3 +9,4 @@ from . import test_portal
 from . import test_kenaikan
 from . import test_tampilan
 from . import test_demo
+from . import test_company_admin

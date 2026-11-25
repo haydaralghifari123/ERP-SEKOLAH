@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 from odoo import _, api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
+
+# Field standar res.company yang boleh diubah Admin Data Sekolah (selain semua field nti_edu_*).
+FIELD_BOLEH_ADMIN_DATA = {
+    'name', 'logo', 'street', 'street2', 'city', 'zip', 'state_id', 'phone', 'email', 'website',
+}
 
 
 class ResCompany(models.Model):
@@ -36,8 +41,29 @@ class ResCompany(models.Model):
 
     @api.constrains('nti_edu_kode')
     def _cek_kode_unik(self):
+        # sudo + active_test=False: unit yang tidak terlihat atau diarsipkan tetap memakai kodenya.
+        Company = self.env['res.company'].sudo().with_context(active_test=False)
         for rec in self.filtered('nti_edu_kode'):
-            lain = self.with_context(active_test=False).search_count([
-                ('nti_edu_kode', '=', rec.nti_edu_kode), ('id', '!=', rec.id)])
-            if lain:
+            if Company.search_count([('nti_edu_kode', '=', rec.nti_edu_kode), ('id', '!=', rec.id)]):
                 raise ValidationError(_('Kode unit "%s" sudah dipakai unit lain.', rec.nti_edu_kode))
+
+    @api.constrains('nti_edu_jenis')
+    def _cek_jenis_unit_berisi_data(self):
+        for rec in self.filtered(lambda c: c.nti_edu_jenis != 'unit'):
+            domain = [('company_id', '=', rec.id)]
+            if (self.env['nti_edu.rombel'].sudo().with_context(active_test=False).search_count(domain)
+                    or self.env['nti_edu.ruang'].sudo().with_context(active_test=False).search_count(domain)):
+                raise ValidationError(_(
+                    'Jenis "%s" tidak bisa diubah menjadi bukan unit karena masih memiliki rombel atau ruang.',
+                    rec.name))
+
+    def write(self, vals):
+        if not self.env.su and not self.env.user.has_group('base.group_erp_manager'):
+            terlarang = sorted(f for f in vals if not (f.startswith('nti_edu_') or f in FIELD_BOLEH_ADMIN_DATA))
+            if terlarang:
+                raise AccessError(_(
+                    'Admin Data Sekolah hanya boleh mengubah data identitas dan pengaturan sekolah; '
+                    'field berikut tidak diizinkan: %s.', ', '.join(terlarang)))
+            if self - self.env.user.company_ids:
+                raise AccessError(_('Anda hanya boleh mengubah unit sekolah yang menjadi akses Anda.'))
+        return super().write(vals)

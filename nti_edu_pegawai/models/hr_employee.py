@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import _, api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .res_partner import GRUP_HRD, GRUP_OPERATOR
 
@@ -110,25 +110,41 @@ class HrEmployee(models.Model):
         return hasil
 
     def _nti_edu_sinkron_akses_akun(self):
-        """Setelah pegawai diarsipkan: cabut unit-nya dari akun bila tak ada pegawai aktif lain milik akun itu
-        di unit tsb; tanpa pegawai aktif tersisa, akun dinonaktifkan. Akun administrator sistem tidak disentuh.
+        """Setelah pegawai diarsipkan: cabut unit milik record yang diarsipkan dari akunnya bila akun itu tak punya
+        pegawai aktif lain di unit tsb. Tanpa pegawai aktif tersisa, akun dinonaktifkan hanya bila pemanggil
+        berwenang (su/HRD, atau semua unit tersisa akun itu dipegang pemanggil). Akun administrator tidak disentuh.
         Tidak pernah mengaktifkan ulang akun."""
+        pemanggil = self.env.user
+        super_user = self.env.su
+        pemanggil_hrd = super_user or pemanggil.has_group(GRUP_HRD)
+        kebal = (self.env.ref('base.group_system') | self.env.ref('base.group_erp_manager')
+                 | self.env.ref('nti_edu_base.group_base_admin'))
         admin_ids = {self.env.ref('base.user_root').id, self.env.ref('base.user_admin').id}
         Pegawai = self.env['hr.employee'].sudo()
         for user in self.sudo().user_id:
-            if user.id in admin_ids or user.has_group('base.group_system') or not user.active:
+            if user.id in admin_ids or not user.active or user.groups_id & kebal:
                 continue
+            diarsip = self.sudo().filtered(lambda e: e.user_id == user)
             sisa = Pegawai.search([('user_id', '=', user.id), ('active', '=', True)])
+            kandidat = diarsip.company_id.filtered(
+                lambda c: c.nti_edu_jenis == 'unit' and c in user.company_ids and c not in sisa.company_id)
             if not sisa:
-                user.active = False
-                continue
-            dicabut = user.company_ids.filtered(
-                lambda c: c.nti_edu_jenis == 'unit' and c not in sisa.company_id)
-            if not dicabut:
+                tersisa_unit = (user.company_ids - kandidat).filtered(lambda c: c.nti_edu_jenis == 'unit')
+                berwenang = pemanggil_hrd or (
+                    not user.has_group(GRUP_HRD) and tersisa_unit <= pemanggil.company_ids)
+                if berwenang:
+                    if user.id == self.env.uid:
+                        raise UserError(_("Anda tidak dapat mengarsipkan data pegawai terakhir milik akun Anda sendiri."))
+                    user.active = False
+                    continue
+            dicabut = kandidat
+            pool = user.company_ids - dicabut
+            if not dicabut or not pool:
                 continue
             nilai = {'company_ids': [(3, c.id) for c in dicabut]}
             if user.company_id in dicabut:
-                nilai['company_id'] = sisa.company_id[0].id
+                pilihan = pool & sisa.company_id
+                nilai['company_id'] = (pilihan or pool.filtered(lambda c: c.nti_edu_jenis == 'unit') or pool)[0].id
             user.write(nilai)
 
     def _nti_edu_terapkan_sertifikasi(self, cmds):

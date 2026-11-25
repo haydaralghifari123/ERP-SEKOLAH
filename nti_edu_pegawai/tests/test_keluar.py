@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from odoo.exceptions import UserError
 from odoo.tests import tagged
 
 from .common import NtiPegawaiCommon
@@ -95,3 +96,71 @@ class TestKeluar(NtiPegawaiCommon):
         user.write({'company_ids': [(4, self.yayasan.id)]})
         sma.write({'active': False})
         self.assertEqual(user.company_ids, self.unit_smp | self.yayasan)
+
+    def _unit_smk(self):
+        return self.env['res.company'].create({
+            'name': 'SMK Pegawai Tes', 'parent_id': self.yayasan.id, 'nti_edu_jenis': 'unit',
+            'nti_edu_jenjang_id': self.env.ref('nti_edu_base.jenjang_sma').id, 'nti_edu_kode': 'pgsmk',
+        })
+
+    def _arsip_oleh(self, pegawai, user):
+        pegawai.with_user(user).with_context(allowed_company_ids=user.company_ids.ids).write({'active': False})
+
+    def test_hanya_unit_yang_diarsip_dicabut(self):
+        smk = self._unit_smk()
+        smp, sma, user = self._akun_dua_unit()
+        user.write({'company_ids': [(4, smk.id)]})
+        sma.write({'active': False})
+        self.assertEqual(user.company_ids, self.unit_smp | smk)
+        self.assertTrue(user.active)
+
+    def test_tu_tak_menonaktifkan_akun_dengan_unit_lain(self):
+        pegawai = self._buat_pegawai('Pak Satu', self.unit_smp, work_email='satu@contoh.id')
+        user = self.env['res.users'].with_context(no_reset_password=True).create({
+            'name': 'Pak Satu', 'login': 'pak_satu', 'partner_id': pegawai.work_contact_id.id,
+            'company_id': self.unit_smp.id,
+            'company_ids': [(6, 0, (self.unit_smp | self.unit_sma).ids)],
+            'groups_id': [(6, 0, [self.env.ref('nti_edu_base.group_base_pengguna').id])],
+        })
+        pegawai.write({'user_id': user.id})
+        self._arsip_oleh(pegawai, self.tu_smp)
+        self.assertEqual(user.company_ids, self.unit_sma)
+        self.assertEqual(user.company_id, self.unit_sma)
+        self.assertTrue(user.active)
+
+    def test_tu_menonaktifkan_akun_bila_semua_unit_miliknya(self):
+        pegawai = self._buat_pegawai('Pak Satu', self.unit_smp, work_email='satu@contoh.id')
+        user = self.env['res.users'].with_context(no_reset_password=True).create({
+            'name': 'Pak Satu', 'login': 'pak_satu', 'partner_id': pegawai.work_contact_id.id,
+            'company_id': self.unit_smp.id, 'company_ids': [(6, 0, self.unit_smp.ids)],
+            'groups_id': [(6, 0, [self.env.ref('nti_edu_base.group_base_pengguna').id])],
+        })
+        pegawai.write({'user_id': user.id})
+        self._arsip_oleh(pegawai, self.tu_smp)
+        self.assertFalse(user.active)
+
+    def test_akun_admin_dasar_tidak_disentuh(self):
+        admin = self.env['res.users'].with_context(no_reset_password=True).create({
+            'name': 'Admin Dasar', 'login': 'admin_dasar', 'company_id': self.unit_smp.id,
+            'company_ids': [(6, 0, (self.unit_smp | self.unit_sma).ids)],
+            'groups_id': [(6, 0, [self.env.ref('nti_edu_base.group_base_admin').id])],
+        })
+        pegawai = self._buat_pegawai(
+            'Admin Dasar', self.unit_sma, work_contact_id=admin.partner_id.id, user_id=admin.id)
+        pegawai.write({'active': False})
+        self.assertEqual(admin.company_ids, self.unit_smp | self.unit_sma)
+        self.assertTrue(admin.active)
+
+    def test_akun_hrd_hanya_dinonaktifkan_oleh_hrd(self):
+        pegawai = self._buat_pegawai(
+            'Bu HRD', self.unit_smp, work_contact_id=self.hrd.partner_id.id, user_id=self.hrd.id)
+        self.hrd.write({'company_ids': [(3, self.unit_sma.id)], 'company_id': self.unit_smp.id})
+        self._arsip_oleh(pegawai, self.tu_smp)
+        self.assertTrue(self.hrd.active)
+
+    def test_arsip_diri_sendiri_ditolak(self):
+        pegawai = self._buat_pegawai(
+            'Bu HRD', self.unit_smp, work_contact_id=self.hrd.partner_id.id, user_id=self.hrd.id)
+        self.hrd.write({'company_ids': [(3, self.unit_sma.id)], 'company_id': self.unit_smp.id})
+        with self.assertRaises(UserError):
+            self._arsip_oleh(pegawai, self.hrd)

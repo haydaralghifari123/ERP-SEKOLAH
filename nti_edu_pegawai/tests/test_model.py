@@ -44,6 +44,18 @@ class TestModel(NtiPegawaiCommon):
         with self.assertRaises(ValidationError):
             self._buat_pegawai('Di Yayasan', self.yayasan)
 
+    def test_unit_berpegawai_tak_bisa_jadi_yayasan(self):
+        unit = self.env['res.company'].create({
+            'name': 'SMK Tes Jenis', 'parent_id': self.yayasan.id, 'nti_edu_jenis': 'unit',
+            'nti_edu_jenjang_id': self.env.ref('nti_edu_base.jenjang_sma').id, 'nti_edu_kode': 'pgjns'})
+        pegawai = self._buat_pegawai('Pak Jenis', unit)
+        with self.assertRaises(ValidationError):
+            unit.write({'nti_edu_jenis': 'yayasan'})
+        # Hanya pegawai aktif yang menahan jenis unit.
+        pegawai.write({'active': False})
+        unit.write({'nti_edu_jenis': 'yayasan'})
+        self.assertEqual(unit.nti_edu_jenis, 'yayasan')
+
     def test_guru_tidak_baca_profil(self):
         p = self._buat_pegawai('Pak Guru', self.unit_smp)
         p.work_contact_id.write({'nti_edu_nuptk': '999', 'nti_edu_nip': '888'})

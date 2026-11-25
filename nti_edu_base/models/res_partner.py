@@ -5,6 +5,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 GRUP_OPERATOR = 'nti_edu_base.group_base_operator'
+GRUP_ADMIN = 'nti_edu_base.group_base_admin'
 
 # Field data siswa yang hanya boleh diubah Operator Data Sekolah (dipakai penjaga tulis).
 FIELD_SISWA = {
@@ -148,6 +149,11 @@ class ResPartner(models.Model):
     def unlink(self):
         if self and self._nti_edu_perlu_operator() and any(self.sudo().mapped('nti_edu_is_siswa')):
             self._nti_edu_tolak()
+        if (self and not self.env.su and not self.env.user.has_group(GRUP_ADMIN)
+                and any(self.sudo().mapped('nti_edu_is_siswa'))):
+            raise AccessError(_(
+                "Data siswa hanya boleh dihapus oleh Admin Data Sekolah. "
+                "Arsipkan siswa ini, atau minta Admin untuk menghapusnya."))
         return super().unlink()
 
     def update_address(self, vals):

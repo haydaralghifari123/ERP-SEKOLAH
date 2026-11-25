@@ -181,6 +181,19 @@ class TestAkses(NtiEduCommon):
         baris.with_user(self.user_operator_smp).unlink()
         self.assertFalse(baris.exists())
 
+    def test_operator_tidak_hapus_siswa_tapi_bisa_arsipkan(self):
+        operator = self.user_operator_smp
+        with self.assertRaises(AccessError):
+            self.siswa_smp.with_user(operator).unlink()
+        self.assertTrue(self.siswa_smp.exists())
+        self.siswa_smp.with_user(operator).write({'active': False})
+        self.assertFalse(self.siswa_smp.active)
+
+    def test_admin_hapus_siswa_tanpa_riwayat(self):
+        admin = self._buat_user('tes_admin_hapus3', 'nti_edu_base.group_base_admin', self.unit_smp)
+        self.siswa_smp.with_user(admin).unlink()
+        self.assertFalse(self.siswa_smp.exists())
+
     def test_admin_tidak_hapus_rombel_berisi_anggota(self):
         self._anggota_smp()
         admin = self._buat_user('tes_admin_hapus', 'nti_edu_base.group_base_admin', self.unit_smp)

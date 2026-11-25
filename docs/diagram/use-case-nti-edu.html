@@ -1,0 +1,275 @@
+<title>Use Case NTI Edu</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: satu kolom dokumen; tiap modul = kartu batas sistem berisi diagram SVG + daftar aktor→use case untuk layar kecil */
+:root {
+  --bg: #f6f7f4; --panel: #ffffff; --fg: #1d2420; --muted: #5d6a62; --line: #b9c4bc;
+  --accent: #1f6f55; --accent-soft: #e2efe8;
+  --done: #1f6f55; --wip: #b26a00; --plan: #6b5fb3;
+  --font-display: "Space Grotesk", "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121815; --panel: #19211d; --fg: #e3ebe6; --muted: #9aa9a0; --line: #3d4a43;
+  --accent: #6cc8a3; --accent-soft: #1f3a2f; --done: #6cc8a3; --wip: #f0b357; --plan: #a99cf0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121815; --panel: #19211d; --fg: #e3ebe6; --muted: #9aa9a0; --line: #3d4a43;
+  --accent: #6cc8a3; --accent-soft: #1f3a2f; --done: #6cc8a3; --wip: #f0b357; --plan: #a99cf0; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 1080px; margin: 0 auto; padding-block: 32px 64px; display: grid; gap: 28px; }
+h1, h2 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.6rem, 3.5vw, 2.3rem); letter-spacing: -0.01em; }
+h2 { font-size: 1.3rem; }
+.lead { color: var(--muted); max-width: 68ch; margin: 6px 0 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; font-size: 0.85rem; color: var(--muted); margin-top: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; padding: 2px 10px 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); }
+.dot { width: 9px; height: 9px; border-radius: 50%; }
+.s-selesai { background: var(--done); } .s-proses { background: var(--wip); } .s-rencana { background: var(--plan); }
+.modul { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 18px 8px; display: grid; gap: 12px; min-width: 0; }
+.modul header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; align-items: baseline; }
+.kode { font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent); background: var(--accent-soft); padding: 1px 8px; border-radius: 4px; }
+.desc { color: var(--muted); margin: 0; font-size: 0.92rem; max-width: 75ch; }
+.kanvas { overflow-x: auto; border-top: 1px dashed var(--line); padding-top: 8px; }
+.kanvas svg { display: block; min-width: 680px; width: 100%; height: auto; }
+details { border-top: 1px dashed var(--line); padding: 8px 0; }
+summary { cursor: pointer; font-weight: 500; font-size: 0.92rem; }
+summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.daftar { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px; margin-top: 10px; }
+.daftar h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 4px; font-weight: 600; }
+.daftar ul { margin: 0; padding-left: 18px; font-size: 0.9rem; }
+.daftar li { margin: 2px 0; }
+.riwayat { font-size: 0.9rem; }
+.riwayat ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
+.riwayat time { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin-right: 6px; font-variant-numeric: tabular-nums; }
+svg text { font-family: var(--font-body); }
+</style>
+
+<main>
+  <section>
+    <h1>Use Case NTI Edu</h1>
+    <p class="lead">Siapa melakukan apa di setiap modul ERP sekolah NTI Edu (Odoo 18 Community). Diagram ini diperbarui setiap kali task yang mengubah perilaku pengguna selesai.</p>
+    <div class="meta">
+      <span>Diperbarui <strong id="tgl"></strong></span>
+      <span class="legend">
+        <span class="chip"><span class="dot s-selesai"></span>Selesai</span>
+        <span class="chip"><span class="dot s-proses"></span>Sedang dikerjakan</span>
+        <span class="chip"><span class="dot s-rencana"></span>Direncanakan</span>
+      </span>
+    </div>
+  </section>
+  <div id="modul-modul" style="display:grid;gap:28px"></div>
+  <section class="modul riwayat">
+    <h2>Riwayat pembaruan</h2>
+    <ol id="riwayat"></ol>
+  </section>
+</main>
+
+<script>
+// ===== DATA (diperbarui per task) =====
+const DIPERBARUI = '25 November 2026';
+const RIWAYAT = [
+  ['2026-11-25', 'nti_edu_pegawai: review akhir selesai. "Aktifkan kembali akun login" (HRD) selesai; mengaktifkan lagi pegawai kini mengembalikan unit ke akunnya; tautan kontak kerja, email kerja, dan akses akun dijaga.'],
+  ['2026-11-25', 'Diagram pertama: nti_edu_base (selesai) dan nti_edu_pegawai Task 1–7 (selesai); perbaikan review akhir dan penempatan di yayasan (Task 8) ditandai.'],
+];
+const MODUL = [
+  {
+    kode: 'nti_edu_base', nama: 'Fondasi Data Sekolah', status: 'selesai',
+    desc: 'Yayasan, unit sekolah, master akademik, siswa di res.partner, rombel, wali murid, kalender, dan portal orang tua/siswa.',
+    aktor: [
+      { id: 'adm', nama: 'Admin NTI Edu' },
+      { id: 'op', nama: 'Operator Data Sekolah' },
+      { id: 'guru', nama: 'Guru (Pengguna)' },
+      { id: 'wali', nama: 'Wali Murid', portal: true },
+      { id: 'sis', nama: 'Siswa', portal: true },
+    ],
+    generalisasi: [['adm', 'op']],
+    kasus: [
+      { id: 'unit', nama: 'Kelola unit sekolah & yayasan', aktor: ['adm'] },
+      { id: 'master', nama: 'Kelola jenjang, tingkat, jurusan, mapel, ruang', aktor: ['adm'] },
+      { id: 'hapus', nama: 'Hapus data siswa', aktor: ['adm'] },
+      { id: 'siswa', nama: 'Kelola data siswa (tambah, ubah, arsip)', aktor: ['op'] },
+      { id: 'rombel', nama: 'Kelola rombel', aktor: ['op'] },
+      { id: 'tambah', nama: 'Tambah siswa ke rombel', aktor: ['op'] },
+      { id: 'naik', nama: 'Kenaikan kelas', aktor: ['op'] },
+      { id: 'walim', nama: 'Kelola wali murid & kontaknya', aktor: ['op'] },
+      { id: 'portal', nama: 'Buat akun portal wali/siswa', aktor: ['op'] },
+      { id: 'kal', nama: 'Kelola tahun ajaran, semester, hari libur', aktor: ['op'] },
+      { id: 'lihat', nama: 'Lihat siswa & rombel unitnya', aktor: ['guru'] },
+      { id: 'anak', nama: 'Lihat daftar & profil anak', aktor: ['wali'] },
+      { id: 'pilih', nama: 'Pilih anak yang sedang dilihat', aktor: ['wali'] },
+      { id: 'akun', nama: 'Lihat akun sendiri (tanpa ubah data)', aktor: ['sis'] },
+      { id: 'sandi', nama: 'Tampilkan kata sandi awal sekali', kolom: 1 },
+      { id: 'tutup', nama: 'Tutup keanggotaan rombel', kolom: 1 },
+    ],
+    relasi: [['portal', 'sandi', 'include'], ['siswa', 'tutup', 'include']],
+  },
+  {
+    kode: 'nti_edu_pegawai', nama: 'Data Kepegawaian', status: 'selesai',
+    desc: 'Data guru & tenaga kependidikan di atas hr.employee: profil per orang (NUPTK, NIP, sertifikasi) di kontak kerja, penempatan per unit, akun login, dan pencabutan akses saat keluar unit.',
+    aktor: [
+      { id: 'tu', nama: 'TU Pegawai' },
+      { id: 'hrd', nama: 'HRD Yayasan' },
+      { id: 'peg', nama: 'Guru / Staf' },
+    ],
+    generalisasi: [['hrd', 'tu']],
+    kasus: [
+      { id: 'kelola', nama: 'Kelola pegawai di unitnya', aktor: ['tu'] },
+      { id: 'profil', nama: 'Ubah profil kepegawaian (pegang semua unit orangnya)', aktor: ['tu'] },
+      { id: 'sert', nama: 'Kelola sertifikasi pegawai', aktor: ['tu'] },
+      { id: 'buatakun', nama: 'Buat akun login pegawai', aktor: ['tu'] },
+      { id: 'tempat', nama: 'Tempatkan di unit lain (pegang unit asal & tujuan)', aktor: ['tu'] },
+      { id: 'arsip', nama: 'Arsipkan / aktifkan lagi pegawai', aktor: ['tu'] },
+      { id: 'tautuser', nama: 'Tautkan akun login ke pegawai', aktor: ['hrd'] },
+      { id: 'hapuspeg', nama: 'Hapus pegawai & sertifikasi', aktor: ['hrd'] },
+      { id: 'aktifakun', nama: 'Aktifkan kembali akun login', aktor: ['hrd'] },
+      { id: 'yayasan', nama: 'Tempatkan pegawai di yayasan', aktor: ['hrd'], status: 'rencana' },
+      { id: 'masuk', nama: 'Masuk & akses Data Sekolah di unit penempatannya', aktor: ['peg'] },
+      { id: 'undang', nama: 'Kirim undangan email / sandi awal', kolom: 1 },
+      { id: 'cabut', nama: 'Cabut unit dari akun; nonaktifkan akun terakhir', kolom: 1 },
+      { id: 'beriunit', nama: 'Tambahkan / kembalikan unit ke akun', kolom: 1 },
+    ],
+    relasi: [['buatakun', 'undang', 'include'], ['arsip', 'cabut', 'include'], ['tempat', 'beriunit', 'include']],
+  },
+];
+
+// ===== RENDER =====
+const NS = 'http://www.w3.org/2000/svg';
+const LABEL_STATUS = { selesai: 'Selesai', proses: 'Sedang dikerjakan', rencana: 'Direncanakan' };
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function bungkus(teks, maks) {
+  const kata = teks.split(' '); const baris = []; let kini = '';
+  for (const k of kata) { if ((kini + ' ' + k).trim().length > maks && kini) { baris.push(kini); kini = k; } else kini = (kini + ' ' + k).trim(); }
+  if (kini) baris.push(kini);
+  return baris;
+}
+function tepiElips(cx, cy, rx, ry, dx, dy) {
+  const t = 1 / Math.sqrt((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry));
+  return [cx + dx * t, cy + dy * t];
+}
+function gambar(m) {
+  const RX = 128, RY = 27, GAP = 66, X_AKTOR = 70, X0 = 330, X1 = 640, TOP = 60;
+  const pos = {};
+  const kol0 = m.kasus.filter(k => !k.kolom);
+  // urutkan kolom 0 berdasarkan urutan aktor supaya garis tidak saling silang
+  const urutAktor = Object.fromEntries(m.aktor.map((a, i) => [a.id, i]));
+  kol0.sort((a, b) => urutAktor[a.aktor[0]] - urutAktor[b.aktor[0]]);
+  kol0.forEach((k, i) => { pos[k.id] = { x: X0, y: TOP + 30 + i * GAP }; });
+  m.kasus.filter(k => k.kolom).forEach(k => {
+    const r = m.relasi.find(r => r[1] === k.id); pos[k.id] = { x: X1, y: r ? pos[r[0]].y : TOP };
+  });
+  const tinggi = TOP + 30 + kol0.length * GAP + 10;
+  // posisi aktor: rata-rata y use case-nya, lalu didorong agar tidak bertumpuk
+  const ya = m.aktor.map(a => {
+    const ys = m.kasus.filter(k => (k.aktor || []).includes(a.id)).map(k => pos[k.id].y);
+    return { a, y: ys.length ? ys.reduce((s, v) => s + v, 0) / ys.length : TOP + 60 };
+  });
+  for (let i = 1; i < ya.length; i++) if (ya[i].y - ya[i - 1].y < 120) ya[i].y = ya[i - 1].y + 120;
+  const lebar = X1 + RX + 30;
+  const h = Math.max(tinggi, ya[ya.length - 1].y + 80);
+  const svg = el('svg', { viewBox: `0 0 ${lebar} ${h}`, role: 'img', 'aria-label': `Use case diagram ${m.kode}` });
+  const defs = el('defs', {}, svg);
+  const mk = el('marker', { id: `panah-${m.kode}`, viewBox: '0 0 10 10', refX: 10, refY: 5, markerWidth: 8, markerHeight: 8, orient: 'auto-start-reverse' }, defs);
+  el('path', { d: 'M0,0 L10,5 L0,10', fill: 'none', stroke: 'var(--muted)', 'stroke-width': 1.5 }, mk);
+  const mg = el('marker', { id: `gen-${m.kode}`, viewBox: '0 0 12 12', refX: 12, refY: 6, markerWidth: 12, markerHeight: 12, orient: 'auto' }, defs);
+  el('path', { d: 'M0,0 L12,6 L0,12 Z', fill: 'var(--panel)', stroke: 'var(--fg)', 'stroke-width': 1.3 }, mg);
+  // batas sistem
+  el('rect', { x: X0 - RX - 22, y: 14, width: lebar - (X0 - RX - 22) - 8, height: h - 24, rx: 8, fill: 'none', stroke: 'var(--line)', 'stroke-width': 1.5 }, svg);
+  const judul = el('text', { x: X0 - RX - 8, y: 36, fill: 'var(--accent)', 'font-size': 13, 'font-weight': 600 }, svg);
+  judul.textContent = m.kode;
+  const yA = Object.fromEntries(ya.map(o => [o.a.id, o.y]));
+  // garis aktor → use case
+  m.kasus.forEach(k => (k.aktor || []).forEach(aid => {
+    const p = pos[k.id]; const ax = X_AKTOR + 26, ay = yA[aid] - 8;
+    const [ex, ey] = tepiElips(p.x, p.y, RX, RY, ax - p.x, ay - p.y);
+    el('line', { x1: ax, y1: ay, x2: ex, y2: ey, stroke: 'var(--muted)', 'stroke-width': 1.1 }, svg);
+  }));
+  // relasi include/extend
+  m.relasi.forEach(([a, b, jenis]) => {
+    const p = pos[a], q = pos[b];
+    const x1 = p.x + RX, x2 = q.x - RX;
+    el('line', { x1, y1: p.y, x2, y2: q.y, stroke: 'var(--muted)', 'stroke-width': 1.2, 'stroke-dasharray': '5 4', 'marker-end': `url(#panah-${m.kode})` }, svg);
+    const t = el('text', { x: (x1 + x2) / 2, y: (p.y + q.y) / 2 - 6, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 11, 'font-family': 'var(--font-mono)' }, svg);
+    t.textContent = `«${jenis}»`;
+  });
+  // generalisasi aktor (anak → induk)
+  (m.generalisasi || []).forEach(([anak, induk]) => {
+    el('line', { x1: X_AKTOR - 30, y1: yA[anak] - 30, x2: X_AKTOR - 30, y2: yA[induk] + 34, stroke: 'var(--fg)', 'stroke-width': 1.2, 'marker-end': `url(#gen-${m.kode})` }, svg);
+  });
+  // use case
+  m.kasus.forEach(k => {
+    const p = pos[k.id]; const st = k.status || m.status;
+    const warna = st === 'proses' ? 'var(--wip)' : st === 'rencana' ? 'var(--plan)' : 'var(--done)';
+    el('ellipse', { cx: p.x, cy: p.y, rx: RX, ry: RY, fill: 'var(--panel)', stroke: warna, 'stroke-width': st === 'selesai' ? 1.4 : 2, 'stroke-dasharray': st === 'rencana' ? '6 4' : 'none' }, svg);
+    const baris = bungkus(k.nama, 30);
+    baris.forEach((b, i) => {
+      const t = el('text', { x: p.x, y: p.y + (i - (baris.length - 1) / 2) * 14 + 4, 'text-anchor': 'middle', fill: 'var(--fg)', 'font-size': 12 }, svg);
+      t.textContent = b;
+    });
+    const judulEl = el('title', {}, svg.lastChild); judulEl.textContent = `${k.nama} — ${LABEL_STATUS[st]}`;
+  });
+  // aktor (orang lidi)
+  ya.forEach(({ a, y }) => {
+    const g = el('g', { stroke: 'var(--fg)', 'stroke-width': 1.6, fill: 'none' }, svg);
+    el('circle', { cx: X_AKTOR, cy: y - 28, r: 9, fill: a.portal ? 'var(--accent-soft)' : 'var(--panel)' }, g);
+    el('line', { x1: X_AKTOR, y1: y - 19, x2: X_AKTOR, y2: y + 6 }, g);
+    el('line', { x1: X_AKTOR - 15, y1: y - 10, x2: X_AKTOR + 15, y2: y - 10 }, g);
+    el('line', { x1: X_AKTOR, y1: y + 6, x2: X_AKTOR - 12, y2: y + 24 }, g);
+    el('line', { x1: X_AKTOR, y1: y + 6, x2: X_AKTOR + 12, y2: y + 24 }, g);
+    bungkus(a.nama + (a.portal ? ' (portal)' : ''), 16).forEach((b, i) => {
+      const t = el('text', { x: X_AKTOR, y: y + 42 + i * 14, 'text-anchor': 'middle', fill: 'var(--fg)', 'font-size': 12, 'font-weight': 500 }, svg);
+      t.textContent = b;
+    });
+  });
+  return svg;
+}
+function daftar(m) {
+  const d = document.createElement('details');
+  d.innerHTML = '<summary>Daftar aktor dan use case</summary>';
+  const wrap = document.createElement('div'); wrap.className = 'daftar';
+  m.aktor.forEach(a => {
+    const box = document.createElement('div');
+    const h = document.createElement('h3'); h.textContent = a.nama + (a.portal ? ' (portal)' : ''); box.appendChild(h);
+    const ul = document.createElement('ul');
+    m.kasus.filter(k => (k.aktor || []).includes(a.id)).forEach(k => {
+      const li = document.createElement('li'); const st = k.status || m.status;
+      li.textContent = k.nama + (st !== 'selesai' ? ` (${LABEL_STATUS[st].toLowerCase()})` : '');
+      const inc = m.relasi.filter(r => r[0] === k.id).map(r => m.kasus.find(x => x.id === r[1]).nama);
+      if (inc.length) li.textContent += ` — mencakup: ${inc.join(', ')}`;
+      ul.appendChild(li);
+    });
+    box.appendChild(ul); wrap.appendChild(box);
+  });
+  (m.generalisasi || []).forEach(([anak, induk]) => {
+    const p = document.createElement('p'); p.className = 'desc';
+    p.textContent = `${m.aktor.find(a => a.id === anak).nama} mewarisi semua use case ${m.aktor.find(a => a.id === induk).nama}.`;
+    wrap.appendChild(p);
+  });
+  d.appendChild(wrap);
+  return d;
+}
+document.getElementById('tgl').textContent = DIPERBARUI;
+const wadah = document.getElementById('modul-modul');
+MODUL.forEach(m => {
+  const s = document.createElement('section'); s.className = 'modul';
+  s.innerHTML = `<header><h2>${m.nama}</h2><span class="kode">${m.kode}</span></header><p class="desc"></p>`;
+  s.querySelector('.desc').textContent = m.desc;
+  const k = document.createElement('div'); k.className = 'kanvas'; k.appendChild(gambar(m)); s.appendChild(k);
+  s.appendChild(daftar(m));
+  wadah.appendChild(s);
+});
+const ol = document.getElementById('riwayat');
+RIWAYAT.slice().reverse().forEach(([t, isi]) => {
+  const li = document.createElement('li'); li.innerHTML = `<time></time><span></span>`;
+  li.querySelector('time').textContent = t; li.querySelector('span').textContent = isi; ol.appendChild(li);
+});
+</script>

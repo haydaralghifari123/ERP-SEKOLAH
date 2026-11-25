@@ -10,13 +10,15 @@ class PenempatanWizard(models.TransientModel):
     _description = 'Wizard Tempatkan Pegawai di Unit Lain'
 
     employee_id = fields.Many2one('hr.employee', string='Pegawai', required=True)
-    company_id = fields.Many2one('res.company', string='Unit Tujuan', required=True)
+    company_id = fields.Many2one(
+        'res.company', string='Unit/Yayasan Tujuan', required=True,
+        help='Unit sekolah tujuan; HRD juga dapat memilih yayasan yang sama dengan penempatan asal.')
     company_ids_diizinkan = fields.Many2many(
-        'res.company', compute='_compute_company_ids_diizinkan', string='Unit yang Boleh Dipilih')
+        'res.company', compute='_compute_company_ids_diizinkan', string='Unit/Yayasan yang Boleh Dipilih')
     nti_edu_jenis_ptk = fields.Selection(
         selection=lambda self: self.env['hr.employee']._fields['nti_edu_jenis_ptk'].selection,
         string='Jenis PTK')
-    nti_edu_tmt = fields.Date(string='TMT di Unit Tujuan')
+    nti_edu_tmt = fields.Date(string='TMT di Unit/Yayasan Tujuan')
 
     @api.model
     def _yayasan_induk(self, companies):
@@ -78,12 +80,13 @@ class PenempatanWizard(models.TransientModel):
         if not self.env.su:
             asal = semua.company_id
             if tujuan not in pemanggil.company_ids:
-                raise AccessError(_("Penempatan hanya boleh ke unit yang Anda pegang."))
+                raise AccessError(_("Penempatan hanya boleh ke unit/yayasan yang Anda pegang."))
             if pemanggil.has_group(GRUP_HRD):
                 # Yayasan tujuan = tujuan itu sendiri (staf yayasan) atau induk unit tujuan.
                 yayasan_tujuan = tujuan if tujuan.nti_edu_jenis == 'yayasan' else tujuan.parent_id
                 if yayasan_tujuan != self._yayasan_induk(asal):
-                    raise AccessError(_("Unit tujuan harus berada di yayasan yang sama dengan unit asal."))
+                    raise AccessError(_(
+                        "Unit/yayasan tujuan harus berada di yayasan yang sama dengan penempatan asal."))
             elif not asal <= pemanggil.company_ids:
                 raise AccessError(_("Penempatan hanya boleh oleh HRD atau TU yang memegang unit asal."))
             else:

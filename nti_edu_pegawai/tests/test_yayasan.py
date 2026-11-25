@@ -158,8 +158,9 @@ class TestYayasan(NtiPegawaiCommon):
         guru = self._buat_pegawai('Pak Lintas', self.unit_smp)
         wizard = self._wizard(guru, self.hrd, lain)
         self.assertNotIn(lain, wizard.company_ids_diizinkan)
-        with self.assertRaises(AccessError):
+        with self.assertRaisesRegex(AccessError, "Unit/yayasan tujuan harus berada di yayasan yang sama"):
             wizard.action_tempatkan()
+        self.assertEqual(wizard._fields['company_id'].string, 'Unit/Yayasan Tujuan')
         self.assertFalse(self._di(guru, lain))
 
     def test_tu_tak_bisa_tempatkan_ke_yayasan(self):
@@ -192,19 +193,52 @@ class TestYayasan(NtiPegawaiCommon):
         self.assertEqual(user.company_ids, self.unit_sma | self.yayasan)
 
     def test_tu_arsip_unit_tak_mencabut_yayasan(self):
+        # Masih ada penempatan yayasan aktif: akun tetap aktif, yayasan tidak dicabut TU.
         sma, yys, user = self._guru_sma_dan_yayasan('guru_yys2')
         self._sebagai(sma, self.tu_sma_yys).action_archive()
         self.assertEqual(user.company_ids, self.yayasan)
         self.assertTrue(user.active)
 
-    def test_tu_tak_menonaktifkan_akun_yang_memegang_yayasan(self):
-        # Yayasan diberikan administrator tanpa data pegawai yayasan: TU tidak mencabutnya dan tidak menonaktifkan.
-        guru = self._buat_pegawai('Pak Akses Yayasan', self.unit_smp, work_email='aksesyys@contoh.id')
-        user = self._akun(guru, 'akses_yys', self.unit_smp | self.yayasan)
-        self._sebagai(guru, self.tu_yys).action_archive()
+    def test_tu_arsip_unit_tanpa_yayasan_di_akunnya_penempatan_yayasan_aktif(self):
+        sma, yys, user = self._guru_sma_dan_yayasan('guru_yys4')
+        self._sebagai(sma, self.tu_sma).action_archive()
         self.assertTrue(user.active)
         self.assertEqual(user.company_ids, self.yayasan)
-        self.assertEqual(user.company_id, self.yayasan)
+
+    def test_tu_menonaktifkan_akun_dengan_yayasan_tanpa_penempatan(self):
+        # Yayasan diberikan administrator tanpa data pegawai yayasan: tidak menahan TU menonaktifkan akun yang
+        # tidak lagi punya pegawai aktif di mana pun (§4.10.6); wewenang dihitung dari unit tersisa saja.
+        for tu, login in ((self.tu_smp, 'akses_yys'), (self.tu_yys, 'akses_yys2')):
+            guru = self._buat_pegawai('Pak Akses ' + login, self.unit_smp, work_email=login + '@contoh.id')
+            user = self._akun(guru, login, self.unit_smp | self.yayasan)
+            self._sebagai(guru, tu).action_archive()
+            self.assertFalse(user.active, tu.login)
+            self.assertEqual(user.company_ids, self.yayasan, tu.login)
+
+    def test_hrd_aktifkan_akun_staf_yayasan_mempertahankan_unit_manual(self):
+        # Akun HRD yang penempatannya hanya di yayasan, sedangkan SMP dan SMA diberikan administrator.
+        hrd_staf = self._buat_user(
+            'peg_hrd_staf', 'nti_edu_pegawai.group_pegawai_hrd', self.unit_smp | self.unit_sma | self.yayasan)
+        staf = self._buat_pegawai(
+            'Bu HRD Staf', self.yayasan, user_id=hrd_staf.id, nti_edu_jenis_ptk='staf_yayasan')
+        self._sebagai(staf, self.hrd).action_archive()
+        self.assertFalse(hrd_staf.active)
+        self.assertEqual(hrd_staf.company_ids, self.unit_smp | self.unit_sma)
+        self._sebagai(staf, self.hrd).action_unarchive()
+        self._sebagai(staf, self.hrd).action_nti_edu_aktifkan_akun_login()
+        self.assertTrue(hrd_staf.active)
+        self.assertEqual(hrd_staf.company_ids, self.unit_smp | self.unit_sma | self.yayasan)
+
+    def test_aktifkan_akun_mencabut_unit_yang_penempatannya_diarsip(self):
+        # Satu aturan untuk unit dan yayasan: dicabut hanya bila ada penempatan arsip dan tak ada yang aktif.
+        sma, yys, user = self._guru_sma_dan_yayasan('guru_yys5')
+        (sma | yys).write({'active': False})
+        user.write({'company_ids': [(4, self.unit_sma.id), (4, self.unit_smp.id)]})
+        yys.write({'active': True})
+        self._sebagai(yys, self.hrd).action_nti_edu_aktifkan_akun_login()
+        self.assertTrue(user.active)
+        # SMA: penempatan diarsip, dicabut; SMP: diberikan tanpa penempatan, dipertahankan.
+        self.assertEqual(user.company_ids, self.unit_smp | self.yayasan)
 
     def test_arsip_staf_yayasan_terakhir_lalu_hrd_aktifkan_akun(self):
         user = self._akun(self.staf, 'bendahara', self.yayasan)

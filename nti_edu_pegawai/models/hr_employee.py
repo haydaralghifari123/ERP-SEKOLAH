@@ -3,6 +3,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .res_partner import GRUP_HRD, GRUP_OPERATOR
+from .resource_resource import RESOURCE_LEWAT_PEGAWAI
 
 # Field profil per orang yang dicerminkan (dapat diedit) pada form pegawai.
 PROFIL_TERKAIT = (
@@ -168,6 +169,17 @@ class HrEmployee(models.Model):
         if self._nti_edu_perlu_hrd() and any(c.nti_edu_jenis == 'yayasan' for c in companies.sudo()):
             raise AccessError(_("Data staf yayasan hanya boleh dikelola HRD."))
 
+    @api.model
+    def _nti_edu_cek_resource_baru(self, resource_ids):
+        """Selain HRD/superuser: resource yang diberikan saat membuat pegawai tidak boleh milik pegawai lain dan
+        tidak boleh berakun (akun pegawai hanya ditautkan HRD)."""
+        if not resource_ids or not self._nti_edu_perlu_hrd():
+            return
+        resources = self.env['resource.resource'].sudo().browse(resource_ids)
+        if resources.user_id or self.sudo().with_context(active_test=False).search_count(
+                [('resource_id', 'in', resources.ids)]):
+            raise AccessError(_("Ubah data pegawai lewat menu Pegawai."))
+
     def _nti_edu_cek_tautan_kontak(self, vals):
         """Penjaga kontak kerja yang ditautkan lewat `vals` (create/write), dicek dengan hak pemanggil:
         - selain HRD: `user_id` tidak boleh diisi; kontak harus sudah menjadi kontak kerja pegawai dan semua
@@ -219,13 +231,21 @@ class HrEmployee(models.Model):
                 bawaan = self.default_get(['company_id']).get('company_id')
             self._nti_edu_cek_yayasan(self.env['res.company'].browse(
                 {vals.get('company_id') or bawaan for vals in vals_list} - {False, None}))
+            # Resource yang sudah ada (mis. hasil salin) hanya boleh dipakai bila belum milik pegawai dan tanpa
+            # akun: company/akun/status pegawai mengikuti resource-nya.
+            self._nti_edu_cek_resource_baru([vals['resource_id'] for vals in vals_list if vals.get('resource_id')])
         for vals in vals_list:
             self._nti_edu_cek_tautan_kontak(vals)
         # Profil dan sertifikasi disimpan di kontak kerja, yang baru dibuat hr setelah record tersimpan:
         # dipisahkan dari vals lalu diterapkan sesudahnya lewat jalur berpenjaga yang sama.
         profil = [{f: vals.pop(f) for f in PROFIL_TERKAIT if f in vals} for vals in vals_list]
         perintah = [vals.pop('nti_edu_sertifikasi_ids', None) for vals in vals_list]
-        pegawai = super().create(vals_list)
+        # Penjaga di atas sudah lolos: inverse field terkait boleh menulis resource baru dengan hak pemanggil.
+        token = RESOURCE_LEWAT_PEGAWAI.set(True)
+        try:
+            pegawai = super().create(vals_list)
+        finally:
+            RESOURCE_LEWAT_PEGAWAI.reset(token)
         # Dicek lagi pada record yang terbentuk (mis. company dari resource), sebelum profil ditulis.
         self._nti_edu_cek_yayasan(pegawai.sudo().company_id)
         for rec, nilai, cmds in zip(pegawai, profil, perintah):
@@ -241,6 +261,8 @@ class HrEmployee(models.Model):
             if vals.get('company_id'):
                 companies |= self.env['res.company'].browse(vals['company_id'])
             self._nti_edu_cek_yayasan(companies)
+            if 'resource_id' in vals:
+                raise AccessError(_("Ubah data pegawai lewat menu Pegawai."))
         if 'work_contact_id' in vals or 'user_id' in vals:
             self._nti_edu_cek_tautan_kontak(vals)
         vals = dict(vals)
@@ -248,7 +270,17 @@ class HrEmployee(models.Model):
         # profil hanya field yang dikirim pemanggil (lihat _inverse_nti_edu_profil).
         profil = {f: vals.pop(f) for f in PROFIL_TERKAIT if f in vals}
         cmds = vals.pop('nti_edu_sertifikasi_ids', None)
-        hasil = super().write(vals) if vals else True
+        hasil = True
+        if vals:
+            # Penjaga di atas sudah lolos: inverse field terkait (company_id, active, name, user_id, tz, jam kerja)
+            # boleh menulis resource record ini dengan hak pemanggil (lihat resource_resource.RESOURCE_LEWAT_PEGAWAI).
+            lama = RESOURCE_LEWAT_PEGAWAI.get()
+            token = RESOURCE_LEWAT_PEGAWAI.set(
+                True if lama is True else lama | frozenset(self.sudo().resource_id.ids))
+            try:
+                hasil = super().write(vals)
+            finally:
+                RESOURCE_LEWAT_PEGAWAI.reset(token)
         if profil:
             for rec in self:
                 rec._nti_edu_tulis_profil(profil)
@@ -307,8 +339,8 @@ class HrEmployee(models.Model):
         - `_nti_edu_wewenang_akun` (administrator tidak disentuh; akun HRD hanya oleh HRD/superuser);
         - unit ditambah/dicabut hanya unit sekolah yang dipegang pemanggil (HRD/superuser: semua unit, dan yayasan
           diperlakukan seperti unit, lihat _nti_edu_entitas_akun); perusahaan terakhir akun tidak pernah dicabut;
-        - nonaktifkan hanya bila pemanggil HRD/superuser atau memegang semua unit dan yayasan tersisa akun itu, dan
-          bukan akun pemanggil sendiri; unit dicabut dulu, baru akun dinonaktifkan;
+        - nonaktifkan hanya bila pemanggil HRD/superuser atau memegang semua unit tersisa akun itu, dan bukan
+          akun pemanggil sendiri; unit dicabut dulu, baru akun dinonaktifkan;
         - aktifkan hanya dipakai jalur HRD (dicek pemanggilnya); company_id dipindah ke `utama`.
         Tanpa wewenang: diam (jalur otomatis) atau AccessError bila `wajib`. Kembalikan True bila diterapkan."""
         Company = self.env['res.company'].sudo()
@@ -324,11 +356,12 @@ class HrEmployee(models.Model):
         tambah = self._nti_edu_unit_dipegang(self._nti_edu_entitas_akun(tambah or Company) - user.company_ids)
         cabut = self._nti_edu_unit_dipegang(self._nti_edu_entitas_akun(cabut or Company) & user.company_ids)
         if nonaktifkan:
-            # Yayasan tersisa ikut dihitung dan bagi TU tidak pernah "dipegang": TU tidak menonaktifkan akun yang
-            # masih memegang yayasan.
-            tersisa = (user.company_ids - cabut).filtered(lambda c: c.nti_edu_jenis in ('unit', 'yayasan'))
+            # Wewenang dihitung dari unit tersisa saja: yayasan yang ada di akun tanpa penempatan yayasan aktif
+            # (pemberian administrator) tidak menahan TU (§4.10.6). Bila orang itu masih punya penempatan yayasan
+            # aktif, jalur ini tidak menonaktifkan sama sekali (masih ada pegawai aktif).
+            tersisa = unit_sekolah(user.company_ids - cabut)
             nonaktifkan = (self.env.su or self.env.user.has_group(GRUP_HRD)
-                           or tersisa <= self._nti_edu_entitas_akun(self.env.user.company_ids))
+                           or tersisa <= self.env.user.company_ids.sudo())
             if nonaktifkan and user.id == self.env.uid:
                 raise UserError(_("Anda tidak dapat mengarsipkan data pegawai terakhir milik akun Anda sendiri."))
         pool = (user.company_ids | tambah) - cabut
@@ -380,10 +413,10 @@ class HrEmployee(models.Model):
                 self._nti_edu_atur_akses_akun(user, tambah=aktif.company_id)
 
     def action_nti_edu_aktifkan_akun_login(self):
-        """HRD: aktifkan kembali akun login pegawai yang nonaktif; unit dan yayasannya = company semua pegawai aktif
-        orang itu. Unit tanpa pegawai aktif dicabut; yayasan dicabut hanya bila orang itu punya penempatan (arsip)
-        di yayasan itu, sehingga yayasan yang diberikan administrator tanpa data pegawai dipertahankan, begitu pula
-        perusahaan lain."""
+        """HRD: aktifkan kembali akun login pegawai yang nonaktif; company semua pegawai aktif orang itu (unit dan
+        yayasan) ditambahkan. Satu aturan untuk unit dan yayasan: yang dicabut hanya company tempat orang itu punya
+        penempatan arsip tanpa penempatan aktif; selebihnya (unit/yayasan yang diberikan administrator tanpa data
+        pegawai, dan perusahaan lain) dipertahankan."""
         self.ensure_one()
         if self._nti_edu_perlu_hrd():
             raise AccessError(_("Akun login pegawai hanya boleh diaktifkan kembali oleh HRD."))
@@ -395,10 +428,10 @@ class HrEmployee(models.Model):
         aktif = self._nti_edu_entitas_akun(self._nti_edu_pegawai_aktif_akun(user).company_id)
         if not aktif:
             raise UserError(_("Akun ini tidak punya data pegawai aktif; aktifkan data pegawainya lebih dulu."))
-        yayasan_arsip = self.env['hr.employee'].sudo().with_context(active_test=False).search([
+        cabut = self.env['hr.employee'].sudo().with_context(active_test=False).search([
+            ('active', '=', False),
             '|', ('user_id', '=', user.id), ('work_contact_id', '=', user.partner_id.id),
-        ]).company_id.filtered(lambda c: c.nti_edu_jenis == 'yayasan')
-        cabut = (user.company_ids.filtered(lambda c: c.nti_edu_jenis == 'unit') | yayasan_arsip) - aktif
+        ]).company_id - aktif
         utama = aktif.filtered(lambda c: c.nti_edu_jenis == 'unit') or aktif
         self._nti_edu_atur_akses_akun(user, tambah=aktif, cabut=cabut, aktifkan=True, utama=utama, wajib=True)
         return True

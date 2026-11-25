@@ -73,6 +73,7 @@ svg text { font-family: var(--font-body); }
 // ===== DATA (diperbarui per task) =====
 const DIPERBARUI = '25 November 2026';
 const RIWAYAT = [
+  ['2026-11-25', 'nti_edu_pegawai Task 8 selesai: staf yayasan bisa menjadi pegawai di yayasan (jenis PTK "Staf Yayasan"), dikelola dan ditempatkan hanya oleh HRD; TU tidak bisa mengubah staf yayasan.'],
   ['2026-11-25', 'nti_edu_pegawai: review akhir selesai. "Aktifkan kembali akun login" (HRD) selesai; mengaktifkan lagi pegawai kini mengembalikan unit ke akunnya; tautan kontak kerja, email kerja, dan akses akun dijaga.'],
   ['2026-11-25', 'Diagram pertama: nti_edu_base (selesai) dan nti_edu_pegawai Task 1–7 (selesai); perbaikan review akhir dan penempatan di yayasan (Task 8) ditandai.'],
 ];
@@ -110,7 +111,7 @@ const MODUL = [
   },
   {
     kode: 'nti_edu_pegawai', nama: 'Data Kepegawaian', status: 'selesai',
-    desc: 'Data guru & tenaga kependidikan di atas hr.employee: profil per orang (NUPTK, NIP, sertifikasi) di kontak kerja, penempatan per unit, akun login, dan pencabutan akses saat keluar unit.',
+    desc: 'Data guru, tenaga kependidikan, dan staf yayasan di atas hr.employee: profil per orang (NUPTK, NIP, sertifikasi) di kontak kerja, penempatan per unit atau yayasan, akun login, dan pencabutan akses saat keluar.',
     aktor: [
       { id: 'tu', nama: 'TU Pegawai' },
       { id: 'hrd', nama: 'HRD Yayasan' },
@@ -127,7 +128,7 @@ const MODUL = [
       { id: 'tautuser', nama: 'Tautkan akun login ke pegawai', aktor: ['hrd'] },
       { id: 'hapuspeg', nama: 'Hapus pegawai & sertifikasi', aktor: ['hrd'] },
       { id: 'aktifakun', nama: 'Aktifkan kembali akun login', aktor: ['hrd'] },
-      { id: 'yayasan', nama: 'Tempatkan pegawai di yayasan', aktor: ['hrd'], status: 'rencana' },
+      { id: 'yayasan', nama: 'Kelola staf yayasan & tempatkan pegawai di yayasan', aktor: ['hrd'] },
       { id: 'masuk', nama: 'Masuk & akses Data Sekolah di unit penempatannya', aktor: ['peg'] },
       { id: 'undang', nama: 'Kirim undangan email / sandi awal', kolom: 1 },
       { id: 'cabut', nama: 'Cabut unit dari akun; nonaktifkan akun terakhir', kolom: 1 },

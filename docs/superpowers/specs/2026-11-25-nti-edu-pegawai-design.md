@@ -143,7 +143,9 @@ beberapa sertifikasi; satu tenaga administrasi tanpa akun login.
    tidak menyebut nama atau unit pemiliknya.
 3. **Kontak kerja bersama.** Saat orang ditempatkan di unit kedua, `company_id` kontak kerjanya dikosongkan (seperti
    wali di base) supaya terbaca di semua unitnya; field profil tetap terlindung `groups=`. Pegawai satu unit tetap
-   memakai unitnya sebagai company kontak.
+   memakai unitnya sebagai company kontak. Konsekuensi yang diterima: kontak staf yayasan (company = yayasan) dan
+   kontak pegawai multi-unit terbaca oleh pengguna semua unit (aturan multi-company `parent_of`); field profil
+   terbaca operator pegawai unit mana pun, tetapi hanya bisa diubah oleh yang berwenang (HRD untuk staf yayasan).
 4. **Login tanpa email.** Wizard Buat Akun Login punya isian `login` (bawaan = email kerja). Bila email kosong,
    operator mengetik login dan kata sandi awal ditampilkan sekali (pola wizard akun portal). Email kerja memang
    per orang (kontak bersama).

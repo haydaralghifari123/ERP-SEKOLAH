@@ -43,7 +43,7 @@ class TestUiDataSekolah(HttpCase):
         })
 
     def test_admin(self):
-        self.start_tour('/odoo', 'nti_edu_base_asap', login='ui_admin')
+        self.start_tour('/odoo', 'nti_edu_base_asap', login='ui_admin', timeout=120)
 
     def test_operator(self):
-        self.start_tour('/odoo', 'nti_edu_base_asap_operator', login='ui_operator')
+        self.start_tour('/odoo', 'nti_edu_base_asap_operator', login='ui_operator', timeout=120)

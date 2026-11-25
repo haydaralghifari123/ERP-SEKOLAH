@@ -5,7 +5,8 @@
 
     <menuitem id="menu_siswa" name="Siswa" parent="menu_data_sekolah" action="action_siswa" sequence="10"/>
     <menuitem id="menu_rombel" name="Rombel" parent="menu_data_sekolah" action="action_rombel" sequence="20"/>
-    <menuitem id="menu_wali" name="Wali Murid" parent="menu_data_sekolah" action="action_wali" sequence="30"/>
+    <menuitem id="menu_wali" name="Wali Murid" parent="menu_data_sekolah" action="action_wali" sequence="30"
+              groups="nti_edu_base.group_base_operator"/>
 
     <menuitem id="menu_kalender" name="Kalender" parent="menu_data_sekolah" sequence="40"/>
     <menuitem id="menu_tahun_ajaran" name="Tahun Ajaran &amp; Semester" parent="menu_kalender"

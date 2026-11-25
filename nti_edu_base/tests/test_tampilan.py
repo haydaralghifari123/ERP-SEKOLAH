@@ -50,7 +50,7 @@ class TestTampilan(NtiEduCommon):
     def test_semua_action_terbuka(self):
         diharapkan = {
             self.user_operator_smp: set(ACTIONS) - set(ACTIONS_ADMIN),
-            self.user_guru_smp: set(ACTIONS) - set(ACTIONS_ADMIN),
+            self.user_guru_smp: set(ACTIONS) - set(ACTIONS_ADMIN) - {'action_wali'},
             self.user_admin: set(ACTIONS),
         }
         for user, nama in diharapkan.items():
@@ -62,7 +62,7 @@ class TestTampilan(NtiEduCommon):
                 model = self.env[action.res_model].with_user(user)
                 with self.subTest(user=user.login, action=xmlid):
                     self.assertTrue(model.has_access('read'))
-                    domain = safe_eval(action.domain or '[]', {'uid': user.id})
+                    domain = safe_eval(action.domain or '[]', {'uid': user.id, 'allowed_company_ids': user.company_ids.ids})
                     konteks = safe_eval(action.context or '{}', {'uid': user.id, 'active_id': False})
                     self.assertIsInstance(konteks, dict)
                     model.search_read(domain, ['id'], limit=1)
@@ -148,3 +148,22 @@ class TestTampilan(NtiEduCommon):
         siswa = self._buat_siswa('Siswa Tampil 2', self.unit_smp, '002')
         form = Form(siswa.with_user(self.user_operator_smp), view='nti_edu_base.view_siswa_form')
         self.assertEqual(form.nti_edu_nis, '002')
+
+    def test_menu_wali_khusus_operator_dan_per_unit(self):
+        Menu = self.env['ir.ui.menu']
+        menu = self.env.ref('nti_edu_base.menu_wali')
+        self.assertNotIn(menu.id, Menu.with_user(self.user_guru_smp)._visible_menu_ids())
+        self.assertIn(menu.id, Menu.with_user(self.user_operator_smp)._visible_menu_ids())
+        siswa_smp = self._buat_siswa('Anak SMP', self.unit_smp, 'W001')
+        siswa_sma = self._buat_siswa('Anak SMA', self.unit_sma, 'W002')
+        Wali = self.env['nti_edu.siswa.wali']
+        wali_smp = self.env['res.partner'].create({'name': 'Wali SMP'})
+        wali_sma = self.env['res.partner'].create({'name': 'Wali SMA'})
+        Wali.create({'siswa_id': siswa_smp.id, 'partner_id': wali_smp.id})
+        Wali.create({'siswa_id': siswa_sma.id, 'partner_id': wali_sma.id})
+        aksi = self.env.ref('nti_edu_base.action_wali')
+        user = self.user_operator_smp
+        domain = safe_eval(aksi.domain, {'uid': user.id, 'allowed_company_ids': user.company_ids.ids})
+        hasil = self.env['res.partner'].with_user(user).search(domain)
+        self.assertIn(wali_smp, hasil)
+        self.assertNotIn(wali_sma, hasil)

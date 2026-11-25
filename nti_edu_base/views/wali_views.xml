@@ -54,7 +54,9 @@
         <field name="name">Wali Murid</field>
         <field name="res_model">res.partner</field>
         <field name="view_mode">list,form</field>
-        <field name="domain">[('nti_edu_is_wali', '=', True)]</field>
+        <field name="domain">[('nti_edu_is_wali', '=', True),
+            ('nti_edu_anak_ids.siswa_id.company_id', 'in', allowed_company_ids)]</field>
+        <field name="groups_id" eval="[(4, ref('nti_edu_base.group_base_operator'))]"/>
         <field name="view_ids" eval="[(5, 0, 0),
             (0, 0, {'view_mode': 'list', 'view_id': ref('view_wali_list')}),
             (0, 0, {'view_mode': 'form', 'view_id': ref('view_wali_form')})]"/>

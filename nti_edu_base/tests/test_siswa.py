@@ -166,3 +166,10 @@ class TestSiswa(NtiEduCommon):
             {'name': 'Anak Kontak', 'parent_id': siswa.id, 'street': 'Jl. Sah',
              'company_id': self.unit_smp.id})
         self.assertEqual(siswa.street, 'Jl. Sah')
+
+    def test_duplikat_tidak_menyalin_identitas(self):
+        siswa = self._buat_siswa('Asli', self.unit_smp, 'D001', nti_edu_nisn='1234567890', nti_edu_nik='3171')
+        salinan = siswa.copy()
+        self.assertFalse(salinan.nti_edu_nis)
+        self.assertFalse(salinan.nti_edu_nisn)
+        self.assertFalse(salinan.nti_edu_nik)

@@ -24,9 +24,9 @@ class ResPartner(models.Model):
     _inherit = 'res.partner'
 
     nti_edu_is_siswa = fields.Boolean(string='Siswa', index=True)
-    nti_edu_nis = fields.Char(string='NIS', help='Nomor Induk Siswa (unik per unit)')
-    nti_edu_nisn = fields.Char(string='NISN', groups=GRUP_OPERATOR, help='Nomor Induk Siswa Nasional (unik global)')
-    nti_edu_nik = fields.Char(string='NIK', groups=GRUP_OPERATOR)
+    nti_edu_nis = fields.Char(string='NIS', copy=False, help='Nomor Induk Siswa (unik per unit)')
+    nti_edu_nisn = fields.Char(string='NISN', copy=False, groups=GRUP_OPERATOR, help='Nomor Induk Siswa Nasional (unik global)')
+    nti_edu_nik = fields.Char(string='NIK', copy=False, groups=GRUP_OPERATOR)
     nti_edu_jenis_kelamin = fields.Selection([('l', 'Laki-laki'), ('p', 'Perempuan')], string='Jenis Kelamin')
     nti_edu_tempat_lahir = fields.Char(string='Tempat Lahir', groups=GRUP_OPERATOR)
     nti_edu_tanggal_lahir = fields.Date(string='Tanggal Lahir', groups=GRUP_OPERATOR)
@@ -54,7 +54,10 @@ class ResPartner(models.Model):
             rec.nti_edu_rombel_aktif_id = aktif.rombel_id
 
     def _nti_edu_rombel_pada(self, tanggal):
-        """Rombel siswa pada tanggal tertentu (kosong bila tidak ada); tanggal keluar dihitung masih anggota."""
+        """Rombel siswa pada tanggal tertentu (kosong bila tidak ada).
+
+        Keanggotaan berlaku pada interval [tanggal_masuk, tanggal_keluar): hari keluar bersifat eksklusif,
+        artinya pada tanggal_keluar siswa sudah tidak lagi menjadi anggota."""
         self.ensure_one()
         anggota = self.sudo().nti_edu_anggota_ids.filtered(
             lambda a: a.tahun_ajaran_id.tanggal_mulai <= tanggal <= a.tahun_ajaran_id.tanggal_selesai

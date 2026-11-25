@@ -40,6 +40,10 @@ class HrEmployee(models.Model):
     nti_edu_bidang_studi = fields.Char(
         string='Bidang Studi', compute='_compute_nti_edu_profil', inverse='_inverse_nti_edu_profil',
         groups=GRUP_OPERATOR)
+    # Sertifikasi milik orangnya (kontak kerja); tulis lewat sini tetap melewati penjaga sertifikasi/kontak.
+    nti_edu_sertifikasi_ids = fields.One2many(
+        related='work_contact_id.nti_edu_sertifikasi_ids', readonly=False, groups=GRUP_OPERATOR,
+        string='Sertifikasi')
 
     @api.constrains('company_id')
     def _check_nti_edu_pegawai_unit(self):
@@ -84,14 +88,50 @@ class HrEmployee(models.Model):
                 raise AccessError(_("Akun login pegawai hanya boleh ditautkan oleh HRD."))
             for vals in vals_list:
                 self._nti_edu_cek_tautan_kontak(vals.get('work_contact_id'))
-        return super().create(vals_list)
+        vals_list = [dict(vals) for vals in vals_list]
+        perintah = [vals.pop('nti_edu_sertifikasi_ids', None) for vals in vals_list]
+        pegawai = super().create(vals_list)
+        for rec, cmds in zip(pegawai, perintah):
+            rec._nti_edu_terapkan_sertifikasi(cmds)
+        return pegawai
 
     def write(self, vals):
         if self._nti_edu_perlu_hrd():
             if 'user_id' in vals:
                 raise AccessError(_("Akun login pegawai hanya boleh ditautkan oleh HRD."))
             self._nti_edu_cek_tautan_kontak(vals.get('work_contact_id'))
-        return super().write(vals)
+        if 'nti_edu_sertifikasi_ids' in vals:
+            vals = dict(vals)
+            cmds = vals.pop('nti_edu_sertifikasi_ids')
+            self._nti_edu_terapkan_sertifikasi(cmds)
+        return super().write(vals) if vals else True
+
+    def _nti_edu_terapkan_sertifikasi(self, cmds):
+        """Terapkan perintah One2many sertifikasi lewat model sertifikasi dengan hak pemanggil (bukan sudo),
+        sehingga penjaga profil lintas unit dan penjaga hapus tetap berlaku; hak tulis kontak tidak dipakai."""
+        if not cmds:
+            return
+        Sert = self.env['nti_edu.pegawai.sertifikasi']
+        for rec in self:
+            kontak = rec.work_contact_id
+            if not kontak:
+                raise AccessError(_("Pegawai belum punya kontak kerja untuk menyimpan sertifikasi."))
+            milik = Sert.sudo().search([('partner_id', '=', kontak.id)]).ids
+            for cmd in cmds:
+                aksi = cmd[0]
+                if aksi == 0:
+                    Sert.create(dict(cmd[2], partner_id=kontak.id))
+                elif aksi in (1, 2, 3, 4):
+                    if cmd[1] not in milik:
+                        raise AccessError(_("Sertifikasi ini bukan milik pegawai tersebut."))
+                    if aksi == 1:
+                        Sert.browse(cmd[1]).write(cmd[2])
+                    elif aksi in (2, 3):
+                        Sert.browse(cmd[1]).unlink()
+                elif aksi == 5:
+                    Sert.browse(milik).unlink()
+                elif aksi == 6:
+                    Sert.browse(set(milik) - set(cmd[2])).unlink()
 
     def unlink(self):
         if self._nti_edu_perlu_hrd():

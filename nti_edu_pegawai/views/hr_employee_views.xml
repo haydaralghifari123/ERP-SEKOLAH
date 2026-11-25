@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pegawai_kanban" model="ir.ui.view">
+        <field name="name">nti_edu.pegawai.kanban</field>
+        <field name="model">hr.employee</field>
+        <field name="arch" type="xml">
+            <kanban string="Pegawai">
+                <field name="id"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <field name="avatar_128" widget="image" class="o_kanban_image" alt="Foto"
+                                       options="{'img_class': 'rounded object-fit-cover'}"/>
+                            </div>
+                            <div>
+                                <field name="name" class="fw-bold fs-5"/>
+                                <div><field name="company_id"/></div>
+                                <field name="nti_edu_jenis_ptk" widget="badge"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_pegawai_list" model="ir.ui.view">
+        <field name="name">nti_edu.pegawai.list</field>
+        <field name="model">hr.employee</field>
+        <field name="arch" type="xml">
+            <list string="Pegawai">
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="nti_edu_jenis_ptk"/>
+                <field name="nti_edu_tmt" optional="show"/>
+                <field name="nti_edu_status_kepegawaian" optional="show"/>
+                <field name="nti_edu_nuptk" optional="hide"/>
+                <field name="nti_edu_nip" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pegawai_search" model="ir.ui.view">
+        <field name="name">nti_edu.pegawai.search</field>
+        <field name="model">hr.employee</field>
+        <field name="arch" type="xml">
+            <search string="Pegawai">
+                <field name="name" string="Nama"/>
+                <field name="company_id"/>
+                <field name="nti_edu_jenis_ptk"/>
+                <group expand="0" string="Kelompokkan">
+                    <filter name="grp_unit" string="Unit" context="{'group_by': 'company_id'}"/>
+                    <filter name="grp_jenis" string="Jenis PTK" context="{'group_by': 'nti_edu_jenis_ptk'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Form memakai form standar hr (mode primary) ditambah tab Kepegawaian; form hr standar tidak berubah. -->
+    <record id="view_pegawai_form" model="ir.ui.view">
+        <field name="name">nti_edu.pegawai.form</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="mode">primary</field>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page name="page_kepegawaian" string="Kepegawaian" groups="nti_edu_pegawai.group_pegawai_operator">
+                    <group>
+                        <group string="Profil (per orang, semua unit)">
+                            <field name="nti_edu_nik"/>
+                            <field name="nti_edu_nuptk"/>
+                            <field name="nti_edu_nip"/>
+                            <field name="nti_edu_status_kepegawaian"/>
+                            <field name="nti_edu_pendidikan_terakhir"/>
+                            <field name="nti_edu_bidang_studi"/>
+                        </group>
+                        <group string="Penempatan di unit ini">
+                            <field name="nti_edu_jenis_ptk"/>
+                            <field name="nti_edu_tmt"/>
+                        </group>
+                    </group>
+                    <field name="nti_edu_sertifikasi_ids" string="Sertifikasi">
+                        <list editable="bottom">
+                            <field name="jenis"/>
+                            <field name="nomor"/>
+                            <field name="tahun"/>
+                            <field name="bidang"/>
+                            <field name="mapel_id"/>
+                            <field name="lampiran"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_pegawai" model="ir.actions.act_window">
+        <field name="name">Pegawai</field>
+        <field name="res_model">hr.employee</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="view_pegawai_search"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_pegawai_kanban')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_pegawai_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_pegawai_form')})]"/>
+    </record>
+</odoo>

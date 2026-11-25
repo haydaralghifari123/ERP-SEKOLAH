@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_pegawai" name="Pegawai" parent="nti_edu_base.menu_data_sekolah"
+              action="action_pegawai" sequence="15" groups="nti_edu_pegawai.group_pegawai_operator"/>
+</odoo>

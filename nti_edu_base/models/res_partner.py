@@ -139,8 +139,9 @@ class ResPartner(models.Model):
             return True
         if not user.has_group(GRUP_OPERATOR):
             return False
-        anak = self.sudo().nti_edu_anak_ids.siswa_id
-        return bool(anak.filtered(lambda s: s.company_id in user.company_ids))
+        # Semua unit anak harus termasuk unit operator: menautkan wali ke siswa unit sendiri tidak cukup.
+        unit_anak = self.sudo().nti_edu_anak_ids.siswa_id.company_id
+        return bool(unit_anak) and unit_anak <= user.company_ids
 
     def write(self, vals):
         if self and self._nti_edu_perlu_operator() and FIELD_SISWA & set(vals):
@@ -152,7 +153,7 @@ class ResPartner(models.Model):
                 if not rec.with_env(self.env)._nti_edu_boleh_ubah_kontak_wali():
                     raise AccessError(_(
                         "Kontak wali hanya boleh diubah oleh walinya sendiri "
-                        "atau Operator Data Sekolah di unit anaknya."))
+                        "atau Operator Data Sekolah yang memegang semua unit anaknya."))
         hasil = super().write(vals)
         if vals.get('nti_edu_status') in ('pindah', 'keluar') or vals.get('active') is False:
             self._nti_edu_tutup_keanggotaan()

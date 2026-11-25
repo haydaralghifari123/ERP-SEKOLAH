@@ -47,6 +47,24 @@ class TestSiswa(NtiEduCommon):
         self.assertFalse(wali.phone)
         self.assertFalse(wali.mobile)
 
+    def test_tautan_wali_lintas_unit_tidak_beri_hak_kontak(self):
+        wali = self._wali_dengan_anak_smp()
+        operator_sma = self._operator_sma()
+        anak_sma = self._buat_siswa('Anak SMA KW', self.unit_sma, 'KW02')
+        self.env['nti_edu.siswa.wali'].create(
+            {'siswa_id': anak_sma.id, 'partner_id': wali.id, 'hubungan': 'ibu'})
+        # Wali kini beranak di SMP dan SMA: operator satu unit saja tidak cukup.
+        for operator in (operator_sma, self.user_operator_smp):
+            for nama in ('email', 'phone', 'mobile'):
+                with self.assertRaises(AccessError):
+                    wali.with_user(operator).write({nama: 'x@contoh.id' if nama == 'email' else '0812'})
+        self.assertEqual(wali.email, 'lama@contoh.id')
+        dua_unit = new_test_user(
+            self.env, login='tes_operator_dua_kw', groups='nti_edu_base.group_base_operator',
+            company_id=self.unit_smp.id, company_ids=[(6, 0, (self.unit_smp | self.unit_sma).ids)])
+        wali.with_user(dua_unit).write({'email': 'resmi@contoh.id'})
+        self.assertEqual(wali.email, 'resmi@contoh.id')
+
     def test_pengelola_kontak_non_sekolah_tidak_ubah_email_wali(self):
         wali = self._wali_dengan_anak_smp()
         pm = new_test_user(

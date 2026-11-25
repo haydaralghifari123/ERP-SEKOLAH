@@ -3,6 +3,7 @@ from lxml import etree
 
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import tagged
+from odoo.tests.common import new_test_user
 
 from .common import NtiEduCommon
 
@@ -166,10 +167,32 @@ class TestAkunPortal(NtiEduCommon):
         anak_sma = self._buat_siswa('Anak Dua', self.unit_sma, 'T016')
         wali = self._wali(anak_smp, email='wali.dua@example.com')
         self.env['nti_edu.siswa.wali'].create({'siswa_id': anak_sma.id, 'partner_id': wali.id, 'hubungan': 'ayah'})
-        self._wizard(wali).action_buat()
+        operator_dua = new_test_user(
+            self.env, login='tes_operator_dua_ap', groups='nti_edu_base.group_base_operator',
+            company_id=self.unit_smp.id, company_ids=[(6, 0, (self.unit_smp | self.unit_sma).ids)])
+        self._wizard(wali, user=operator_dua).action_buat()
         user = wali.user_ids
         self.assertEqual(user.company_ids, self.unit_smp | self.unit_sma)
         self.assertEqual(user.company_id, self.unit_smp)
+
+    def test_wali_tautan_lintas_unit_hanya_operator_semua_unit(self):
+        anak_smp = self._buat_siswa('Anak SMP W', self.unit_smp, 'T018')
+        anak_sma = self._buat_siswa('Anak SMA W', self.unit_sma, 'T019')
+        wali = self._wali(anak_smp, email='wali.tautan@example.com')
+        self.env['nti_edu.siswa.wali'].create({'siswa_id': anak_sma.id, 'partner_id': wali.id, 'hubungan': 'ibu'})
+        operator_sma = self._buat_user('tes_operator_sma_ap', 'nti_edu_base.group_base_operator', self.unit_sma)
+        for operator in (operator_sma, self.user_operator_smp):
+            with self.assertRaises(AccessError):
+                self._wizard(wali, user=operator).action_buat()
+        self.assertFalse(wali.user_ids)
+        # Tanpa email: kata sandi awal juga tidak boleh muncul bagi operator sebagian unit.
+        wali_tanpa = self._wali(anak_smp, phone='0812000111')
+        self.env['nti_edu.siswa.wali'].create({'siswa_id': anak_sma.id, 'partner_id': wali_tanpa.id, 'hubungan': 'ibu'})
+        wizard = self._wizard(wali_tanpa, user=operator_sma)
+        with self.assertRaises(AccessError):
+            wizard.action_buat()
+        self.assertFalse(wizard.password_awal)
+        self.assertFalse(wali_tanpa.user_ids)
 
     def test_siswa_company_hanya_unit_sendiri(self):
         siswa = self._buat_siswa('Anak Unit', self.unit_smp, 'T017')

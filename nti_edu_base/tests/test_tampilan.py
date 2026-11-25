@@ -85,6 +85,23 @@ class TestTampilan(NtiEduCommon):
             '//field[@name="nti_edu_wali_ids"]//list/button[@name="action_buat_akun_portal" and @type="object"]')
         self.assertEqual(len(tombol), 1)
 
+    def test_kanban_tanpa_helper_lama(self):
+        """Kanban Odoo 18 bergaya `card` tidak punya `kanban_image`/`user_context` (hanya ada di arsitektur lama);
+        memakainya membuat web client galat saat merender kartu."""
+        views = self.env['ir.ui.view'].search([('type', '=', 'kanban')]).filtered(
+            lambda v: v.get_external_id().get(v.id, '').startswith('nti_edu_base.'))
+        self.assertTrue(views, 'Modul seharusnya punya minimal satu view kanban.')
+        for view in views:
+            with self.subTest(view=view.get_external_id()[view.id]):
+                arch = self.env[view.model].get_views([(view.id, 'kanban')])['views']['kanban']['arch']
+                kanban = etree.fromstring(arch)
+                if kanban.xpath('//t[@t-name="card"]'):
+                    for atribut in kanban.xpath('//@*'):
+                        self.assertNotRegex(atribut, r'\b(kanban_image|user_context)\b')
+        kanban = etree.fromstring(self.env['res.partner'].get_views(
+            [(self.env.ref('nti_edu_base.view_siswa_kanban').id, 'kanban')])['views']['kanban']['arch'])
+        self.assertEqual(len(kanban.xpath('//field[@name="avatar_128" and @widget="image"]')), 1)
+
     def test_admin_data_sekolah_ubah_unit(self):
         unit = self.unit_smp.with_user(self.user_admin)
         unit.write({'nti_edu_kode': 'smpx', 'nti_edu_hari_sekolah': '6'})

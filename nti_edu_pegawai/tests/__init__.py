@@ -7,3 +7,4 @@ from . import test_keluar
 from . import test_demo
 from . import test_ui
 from . import test_review_akhir
+from . import test_yayasan

@@ -92,9 +92,11 @@ class TestPenempatan(NtiPegawaiCommon):
         self.assertEqual(lama.user_id, user)
         self.assertIn(self.unit_sma, user.company_ids)
 
-    def test_tujuan_bukan_unit_ditolak(self):
-        with self.assertRaises(UserError):
+    def test_tujuan_yayasan_di_luar_pegangan_hrd_ditolak(self):
+        # Yayasan boleh menjadi tujuan HRD (pilihan B), tetapi hanya bila ada di company_ids HRD itu.
+        with self.assertRaises(AccessError):
             self._wizard(self.pegawai, self.hrd, self.yayasan).action_tempatkan()
+        self.assertFalse(self._di_unit(self.yayasan))
 
     def test_sudah_di_unit_itu_ditolak(self):
         with self.assertRaises(UserError):

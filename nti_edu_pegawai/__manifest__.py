@@ -6,12 +6,14 @@
 Data kepegawaian guru dan tenaga kependidikan NTI Edu.
 
 * Profil per orang (NUPTK, NIP, status kepegawaian, pendidikan, sertifikasi) pada kontak kerja pegawai.
-* Data per penempatan (jenis PTK, TMT) pada karyawan di unit sekolah.
+* Data per penempatan (jenis PTK, TMT) pada karyawan di unit sekolah atau di yayasan.
+* Staf yayasan (HRD, bendahara, pengurus) menjadi pegawai langsung di yayasan dan hanya dikelola HRD.
 
 Data demo (opsional, di atas demo nti_edu_base) menambahkan data pegawai untuk akun demo dan akun HRD
 (password sama dengan login):
 
-- HRD Yayasan (SMP dan SMA): hrd.demo
+- HRD Yayasan (SMP, SMA, dan yayasan), juga staf yayasan: hrd.demo
+- Bendahara yayasan tanpa akun login: Bendahara Yayasan Demo
 - Operator Data Sekolah juga TU Pegawai, pegawai tenaga administrasi SMP: operator.demo
 - Guru SMP dengan sertifikasi: guru1.demo
 - Guru di SMP dan SMA (satu orang, dua penempatan): guru2.demo

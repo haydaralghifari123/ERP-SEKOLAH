@@ -18,8 +18,16 @@ class PenempatanWizard(models.TransientModel):
         string='Jenis PTK')
     nti_edu_tmt = fields.Date(string='TMT di Unit Tujuan')
 
+    @api.model
+    def _yayasan_induk(self, companies):
+        """Yayasan tempat `companies` bernaung: induk unit-unitnya, ditambah yayasan itu sendiri (staf yayasan)."""
+        return (companies.filtered(lambda c: c.nti_edu_jenis == 'unit').parent_id
+                | companies.filtered(lambda c: c.nti_edu_jenis == 'yayasan'))
+
     def _unit_tujuan_boleh(self, pegawai):
-        """Unit tujuan yang boleh dipilih pemanggil untuk pegawai ini (tanpa unit yang sudah aktif)."""
+        """Unit (dan bagi HRD, yayasan) tujuan yang boleh dipilih pemanggil untuk pegawai ini, tanpa yang sudah
+        aktif. HRD: unit dan yayasan di yayasan yang sama dengan penempatan asal; TU: unit yang ia pegang, tidak
+        pernah yayasan, dan tidak untuk orang yang punya penempatan yayasan."""
         Company = self.env['res.company'].sudo()
         kontak = pegawai.sudo().work_contact_id
         if not kontak:
@@ -28,15 +36,19 @@ class PenempatanWizard(models.TransientModel):
             [('work_contact_id', '=', kontak.id)])
         aktif = semua.filtered('active').company_id
         asal = semua.company_id
+        induk = self._yayasan_induk(asal)
+
+        def se_yayasan(c):
+            return (c.nti_edu_jenis == 'unit' and c.parent_id in induk) or (
+                c.nti_edu_jenis == 'yayasan' and c in induk)
+
         if self.env.su:
-            unit = Company.search([
-                ('nti_edu_jenis', '=', 'unit'), ('parent_id', 'in', asal.parent_id.ids)])
+            unit = Company.search([('nti_edu_jenis', 'in', ('unit', 'yayasan'))]).filtered(se_yayasan)
         else:
             pemegang = self.env.user.company_ids.sudo()
             if self.env.user.has_group(GRUP_HRD):
-                unit = pemegang.filtered(
-                    lambda c: c.nti_edu_jenis == 'unit' and c.parent_id in asal.parent_id)
-            elif asal <= pemegang:
+                unit = pemegang.filtered(se_yayasan)
+            elif asal <= pemegang and not any(c.nti_edu_jenis == 'yayasan' for c in asal):
                 unit = pemegang.filtered(lambda c: c.nti_edu_jenis == 'unit')
             else:
                 return Company
@@ -57,8 +69,8 @@ class PenempatanWizard(models.TransientModel):
         tujuan = self.company_id.sudo()
         if not kontak:
             raise UserError(_("Pegawai ini belum punya kontak kerja."))
-        if tujuan.nti_edu_jenis != 'unit':
-            raise UserError(_("Unit tujuan harus berupa unit sekolah, bukan yayasan."))
+        if tujuan.nti_edu_jenis not in ('unit', 'yayasan'):
+            raise UserError(_("Tujuan penempatan harus unit sekolah atau yayasan."))
 
         Pegawai = self.env['hr.employee'].sudo().with_context(active_test=False)
         semua = Pegawai.search([('work_contact_id', '=', kontak.id)])
@@ -68,10 +80,15 @@ class PenempatanWizard(models.TransientModel):
             if tujuan not in pemanggil.company_ids:
                 raise AccessError(_("Penempatan hanya boleh ke unit yang Anda pegang."))
             if pemanggil.has_group(GRUP_HRD):
-                if tujuan.parent_id != asal.parent_id:
+                # Yayasan tujuan = tujuan itu sendiri (staf yayasan) atau induk unit tujuan.
+                yayasan_tujuan = tujuan if tujuan.nti_edu_jenis == 'yayasan' else tujuan.parent_id
+                if yayasan_tujuan != self._yayasan_induk(asal):
                     raise AccessError(_("Unit tujuan harus berada di yayasan yang sama dengan unit asal."))
             elif not asal <= pemanggil.company_ids:
                 raise AccessError(_("Penempatan hanya boleh oleh HRD atau TU yang memegang unit asal."))
+            else:
+                # Ke atau dari yayasan hanya HRD; dicek setelah TU terbukti memegang semua penempatan asal.
+                self.env['hr.employee']._nti_edu_cek_yayasan(tujuan | asal)
 
         # Kontak siswa tidak pernah jadi kontak kerja (ditolak saat menautkan); jangan sampai dilepas dari unitnya.
         if kontak.nti_edu_is_siswa:

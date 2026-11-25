@@ -72,11 +72,15 @@ class ResPartner(models.Model):
         # `company_ids` (unit aktif di pemilih) seperti aturan multi-company standar, sehingga yang terbaca
         # mengikuti unit yang sedang dipilih sedangkan hak ubah tetap dicek terhadap semua unit TU.
         unit_pegawai = self.sudo().employee_ids.company_id
+        # Orang dengan penempatan aktif di yayasan (staf yayasan) hanya diubah HRD, walau TU diberi company yayasan.
+        if any(c.nti_edu_jenis == 'yayasan' for c in unit_pegawai):
+            return False
         return bool(unit_pegawai) and unit_pegawai <= user.company_ids
 
     def _nti_edu_tolak_profil(self):
         raise AccessError(_(
-            "Profil kepegawaian hanya boleh diubah HRD atau TU yang memegang semua unit tempat pegawai ini bekerja."))
+            "Profil kepegawaian hanya boleh diubah HRD atau TU yang memegang semua unit tempat pegawai ini bekerja "
+            "(profil staf yayasan hanya oleh HRD)."))
 
     @api.model
     def _nti_edu_rapikan_nomor(self, vals):

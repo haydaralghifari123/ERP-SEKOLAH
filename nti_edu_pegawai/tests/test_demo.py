@@ -37,6 +37,20 @@ class TestDemo(TransactionCase):
         self.assertTrue(hrd.has_group('nti_edu_pegawai.group_pegawai_hrd'))
         self.assertEqual(hrd.company_ids & self.env['res.company'].search([('nti_edu_jenis', '=', 'unit')]),
                          self.env.ref('nti_edu_base.demo_unit_smp') | self.env.ref('nti_edu_base.demo_unit_sma'))
+        yayasan = self.env.ref('nti_edu_base.demo_yayasan')
+        self.assertIn(yayasan, hrd.company_ids)
+        # HRD Demo juga staf yayasan.
+        staf = self.env.ref('nti_edu_pegawai.demo_pegawai_hrd')
+        self.assertEqual(staf.company_id, yayasan)
+        self.assertEqual(staf.user_id, hrd)
+        self.assertEqual(staf.nti_edu_jenis_ptk, 'staf_yayasan')
+
+    def test_bendahara_yayasan_tanpa_akun(self):
+        bendahara = self.env.ref('nti_edu_pegawai.demo_pegawai_bendahara')
+        self.assertEqual(bendahara.company_id, self.env.ref('nti_edu_base.demo_yayasan'))
+        self.assertEqual(bendahara.nti_edu_jenis_ptk, 'staf_yayasan')
+        self.assertFalse(bendahara.user_id)
+        self.assertTrue(bendahara.work_contact_id.email)
 
     def test_operator_pegawai(self):
         operator = self.env.ref('nti_edu_base.demo_user_operator')
@@ -52,11 +66,14 @@ class TestDemo(TransactionCase):
         self.assertFalse(tendik.user_id)
         self.assertTrue(tendik.work_contact_id.email)
 
-    def test_semua_pegawai_di_unit(self):
+    def test_semua_pegawai_di_unit_atau_yayasan(self):
         imd = self.env['ir.model.data'].search([
             ('module', '=', 'nti_edu_pegawai'), ('model', '=', 'hr.employee'), ('name', '=like', 'demo_pegawai_%')])
         pegawai = self.env['hr.employee'].browse(imd.mapped('res_id'))
-        self.assertEqual(len(pegawai), 6)
-        self.assertTrue(all(p.company_id.nti_edu_jenis == 'unit' for p in pegawai))
+        self.assertEqual(len(pegawai), 8)
+        di_yayasan = pegawai.filtered(lambda p: p.company_id.nti_edu_jenis == 'yayasan')
+        self.assertEqual(len(di_yayasan), 2)
+        self.assertTrue(all(p.nti_edu_jenis_ptk == 'staf_yayasan' for p in di_yayasan))
+        self.assertTrue(all(p.company_id.nti_edu_jenis == 'unit' for p in pegawai - di_yayasan))
         sertifikasi = self.env['nti_edu.pegawai.sertifikasi'].search([('nomor', '=like', 'SERT-DEMO-%')])
         self.assertEqual(len(sertifikasi), 4)

@@ -40,9 +40,12 @@ class TestModel(NtiPegawaiCommon):
         c.work_contact_id.nti_edu_nuptk = False
         d.work_contact_id.nti_edu_nuptk = False
 
-    def test_pegawai_wajib_unit(self):
-        with self.assertRaises(ValidationError):
-            self._buat_pegawai('Di Yayasan', self.yayasan)
+    def test_pegawai_di_unit_atau_yayasan(self):
+        # Pilihan B (2026-11-25): staf yayasan boleh menjadi pegawai langsung di company yayasan.
+        staf = self._buat_pegawai('Di Yayasan', self.yayasan, nti_edu_jenis_ptk='staf_yayasan')
+        self.assertEqual(staf.company_id, self.yayasan)
+        guru = self._buat_pegawai('Di Unit', self.unit_smp)
+        self.assertEqual(guru.company_id, self.unit_smp)
 
     def test_unit_berpegawai_tak_bisa_jadi_yayasan(self):
         unit = self.env['res.company'].create({

@@ -96,3 +96,32 @@ class TestPenjaga(NtiPegawaiCommon):
             self.sari.work_contact_id.write({'nti_edu_nuptk': '123'})
         a.write({'nti_edu_nip': '   '})
         self.assertFalse(a.nti_edu_nip)
+
+    def test_nik_partner_pegawai_dijaga(self):
+        grup = 'nti_edu_base.group_base_operator,nti_edu_pegawai.group_pegawai_operator'
+        op_sma = self._buat_user('peg_op_sma', grup, self.unit_sma)
+        op_dua = self._buat_user('peg_op_dua', grup, self.unit_smp | self.unit_sma)
+        kontak = self.budi_smp.work_contact_id
+        kontak.company_id = False  # agar aturan rekaman multi-unit kontak tidak menolak lebih dulu
+        with self.assertRaisesRegex(AccessError, "Profil kepegawaian"):
+            self._sebagai(kontak, op_sma).write({'nti_edu_nik': '3201000000000009'})
+        self.assertFalse(kontak.nti_edu_nik)
+        self._sebagai(kontak, op_dua).write({'nti_edu_nik': '3201000000000009'})
+        self.assertEqual(kontak.nti_edu_nik, '3201000000000009')
+
+    def test_tu_tak_bisa_tautkan_kontak_pegawai_unit_lain(self):
+        kontak_sma = self.siti_sma.work_contact_id
+        Emp = self._sebagai(self.env['hr.employee'], self.tu_smp)
+        with self.assertRaises(AccessError):
+            Emp.create({'name': 'Siti', 'company_id': self.unit_smp.id, 'work_contact_id': kontak_sma.id})
+        with self.assertRaises(AccessError):
+            self._sebagai(self.sari, self.tu_smp).write({'work_contact_id': kontak_sma.id})
+        self.assertNotEqual(self.sari.work_contact_id, kontak_sma)
+
+    def test_tu_dua_unit_boleh_tautkan(self):
+        kontak_sma = self.siti_sma.work_contact_id
+        for user in (self.tu_dua, self.hrd):
+            emp = self._sebagai(self.env['hr.employee'], user).create(
+                {'name': 'Siti', 'company_id': self.unit_smp.id, 'work_contact_id': kontak_sma.id})
+            self.assertEqual(emp.work_contact_id, kontak_sma)
+            emp.sudo().unlink()

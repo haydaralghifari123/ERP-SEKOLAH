@@ -68,15 +68,29 @@ class HrEmployee(models.Model):
     def _nti_edu_perlu_hrd(self):
         return not self.env.su and not self.env.user.has_group(GRUP_HRD)
 
+    def _nti_edu_cek_tautan_kontak(self, kontak_id):
+        """Kontak yang sudah jadi pegawai di unit lain tidak boleh ditautkan oleh TU yang tak memegang unit itu."""
+        if not kontak_id:
+            return
+        pegawai = self.env['hr.employee'].sudo().search([
+            ('work_contact_id', '=', kontak_id), ('id', 'not in', self.ids)])
+        if not pegawai.company_id <= self.env.user.company_ids:
+            raise AccessError(_("Menempatkan pegawai dari unit lain hanya boleh oleh HRD atau TU yang memegang kedua unit."))
+
     @api.model_create_multi
     def create(self, vals_list):
-        if self._nti_edu_perlu_hrd() and any(vals.get('user_id') for vals in vals_list):
-            raise AccessError(_("Akun login pegawai hanya boleh ditautkan oleh HRD."))
+        if self._nti_edu_perlu_hrd():
+            if any(vals.get('user_id') for vals in vals_list):
+                raise AccessError(_("Akun login pegawai hanya boleh ditautkan oleh HRD."))
+            for vals in vals_list:
+                self._nti_edu_cek_tautan_kontak(vals.get('work_contact_id'))
         return super().create(vals_list)
 
     def write(self, vals):
-        if 'user_id' in vals and self._nti_edu_perlu_hrd():
-            raise AccessError(_("Akun login pegawai hanya boleh ditautkan oleh HRD."))
+        if self._nti_edu_perlu_hrd():
+            if 'user_id' in vals:
+                raise AccessError(_("Akun login pegawai hanya boleh ditautkan oleh HRD."))
+            self._nti_edu_cek_tautan_kontak(vals.get('work_contact_id'))
         return super().write(vals)
 
     def unlink(self):

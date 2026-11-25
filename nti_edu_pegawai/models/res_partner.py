@@ -93,6 +93,11 @@ class ResPartner(models.Model):
     def write(self, vals):
         if self and not self.env.su and FIELD_PROFIL & set(vals):
             for rec in self:
-                if not rec.with_env(self.env)._nti_edu_boleh_ubah_profil_pegawai():
+                if not rec._nti_edu_boleh_ubah_profil_pegawai():
+                    self._nti_edu_tolak_profil()
+        # NIK dipakai bersama siswa/wali; hanya dijaga bila kontak ini pegawai aktif.
+        if self and not self.env.su and 'nti_edu_nik' in vals:
+            for rec in self.filtered(lambda r: r.sudo().employee_ids):
+                if not rec._nti_edu_boleh_ubah_profil_pegawai():
                     self._nti_edu_tolak_profil()
         return super().write(self._nti_edu_rapikan_nomor(dict(vals)))

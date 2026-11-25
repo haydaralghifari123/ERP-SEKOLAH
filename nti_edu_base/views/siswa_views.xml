@@ -5,6 +5,10 @@
         <field name="model">res.partner</field>
         <field name="arch" type="xml">
             <list string="Siswa">
+                <header>
+                    <button name="%(nti_edu_base.action_tambah_rombel_wizard)d" type="action" string="Tambah ke Rombel"
+                            groups="nti_edu_base.group_base_operator"/>
+                </header>
                 <field name="name"/>
                 <field name="nti_edu_nis"/>
                 <field name="nti_edu_jenis_kelamin" optional="show"/>

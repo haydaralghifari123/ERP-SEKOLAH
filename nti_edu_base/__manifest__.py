@@ -29,6 +29,7 @@ Data demo (opsional) memuat Yayasan Pendidikan Nusantara dengan SMP dan SMA, 20 
         'data/jenjang_data.xml',
         'wizard/akun_portal_wizard_views.xml',
         'wizard/kenaikan_kelas_wizard_views.xml',
+        'wizard/tambah_rombel_wizard_views.xml',
         'views/portal_templates.xml',
         'views/res_company_views.xml',
         'views/jenjang_views.xml',

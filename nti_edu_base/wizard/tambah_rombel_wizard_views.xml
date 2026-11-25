@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_tambah_rombel_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.tambah.rombel.wizard.form</field>
+        <field name="model">nti_edu.tambah.rombel.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tambah ke Rombel">
+                <group>
+                    <field name="rombel_id"/>
+                    <field name="tanggal_masuk" required="1"/>
+                </group>
+                <field name="siswa_ids">
+                    <list create="0">
+                        <field name="name"/>
+                        <field name="nti_edu_nis"/>
+                        <field name="nti_edu_status"/>
+                    </list>
+                </field>
+                <footer>
+                    <button string="Tambah" name="action_tambah" type="object" class="btn-primary"/>
+                    <button string="Batal" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_tambah_rombel_wizard" model="ir.actions.act_window">
+        <field name="name">Tambah ke Rombel</field>
+        <field name="res_model">nti_edu.tambah.rombel.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

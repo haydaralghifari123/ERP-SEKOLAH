@@ -21,7 +21,9 @@ Keputusan pengguna (2026-11-25): **setiap modul berdiri sendiri** — `nti_edu_p
 - Profil kepegawaian per **orang** (NUPTK, NIP, status kepegawaian, pendidikan terakhir, sertifikasi) diisi sekali dan
   tampil di setiap unit tempat orang itu bekerja.
 - Data per **penempatan** (unit) — jenis PTK dan tanggal mulai tugas di unit itu.
-- Menu **Data Sekolah › Pegawai** untuk TU (unitnya sendiri) dan HRD Yayasan (semua unit).
+- Menu **Data Sekolah › Pegawai** untuk TU (unitnya sendiri) dan HRD Yayasan (semua unit dan staf yayasan).
+- Staf **yayasan** (HRD, bendahara, pengurus) bisa punya data pegawai langsung di yayasan, dikelola hanya oleh HRD
+  (keputusan pengguna 2026-11-25, pilihan B).
 - Tombol **Buat Akun Login** untuk pegawai: akun internal dengan akses Data Sekolah di unit-unit tempat ia bekerja.
 - Tombol **Tempatkan di Unit Lain** untuk guru yang mengajar di lebih dari satu unit (satu orang, satu akun, beberapa
   record pegawai).
@@ -76,9 +78,13 @@ didefinisikan ulang); cara menampilkannya ke grup pegawai diserahkan ke pembangu
 
 ### 4.4 Data per penempatan — di `hr.employee`
 - `nti_edu_jenis_ptk` (selection: Guru Mapel, Guru Kelas, Guru BK, Kepala Sekolah, Wakil Kepala, Tenaga
-  Administrasi, Pustakawan, Laboran, Lainnya), `nti_edu_tmt` (date, tanggal mulai tugas di unit ini).
+  Administrasi, Pustakawan, Laboran, Staf Yayasan, Lainnya), `nti_edu_tmt` (date, tanggal mulai tugas di unit ini).
 - Field terkait (related ke `work_contact_id`) untuk menampilkan profil per orang di form pegawai.
-- `company_id` pegawai wajib unit (`nti_edu_jenis == 'unit'`), sama seperti siswa.
+- `company_id` pegawai wajib unit **atau yayasan** (`nti_edu_jenis in ('unit', 'yayasan')`). Pegawai di yayasan =
+  staf yayasan (keputusan pengguna 2026-11-25, pilihan B: biaya gaji, presensi, dan laporan per unit tetap bersih;
+  staf yayasan tidak perlu "dititipkan" di unit). Pegawai yayasan — membuat, mengubah, mengarsipkan, menempatkan ke
+  atau dari yayasan, dan profil orang yang punya penempatan yayasan — hanya oleh HRD (atau superuser); TU tidak pernah.
+- Company yang masih punya pegawai aktif tidak bisa diubah jenisnya (unit ↔ yayasan).
 
 ### 4.5 Tindakan
 - **Buat Akun Login** (form pegawai, grup pegawai operator): membuat `res.users` internal yang memakai kontak kerja
@@ -88,7 +94,7 @@ didefinisikan ulang); cara menampilkannya ke grup pegawai diserahkan ke pembangu
   email tidak ada). Ditolak bila orang itu sudah punya akun.
 - **Tempatkan di Unit Lain** (wizard): memilih unit lain → membuat record `hr.employee` baru untuk orang yang sama
   (kontak dan user sama), lalu menambahkan unit itu ke `company_ids` user-nya bila ada. Hanya unit yang diizinkan bagi
-  pemanggil.
+  pemanggil. HRD juga bisa memilih **yayasan** (yayasan yang sama dengan unit asal) sebagai tujuan.
 
 ### 4.6 Menu dan tampilan
 `Data Sekolah › Pegawai` (list/kanban/form `hr.employee`) dengan filter unit lewat aturan multi-company standar; tab
@@ -99,7 +105,7 @@ tetap ada dan tidak diubah. Kanban memakai gaya `card` Odoo 18 (tanpa `kanban_im
 | Grup | Implies | Hak |
 |---|---|---|
 | `group_pegawai_operator` (TU Pegawai) | `nti_edu_base.group_base_pengguna`, `hr.group_hr_user` | Buat/ubah pegawai, profil, sertifikasi di unit yang diizinkan baginya; buat akun login; tempatkan di unit lain (unit yang ia pegang). |
-| `group_pegawai_hrd` (HRD Yayasan) | `group_pegawai_operator` | Sama, untuk semua unit yang diizinkan (HRD diberi semua unit); hapus data pegawai. |
+| `group_pegawai_hrd` (HRD Yayasan) | `group_pegawai_operator` | Sama, untuk semua unit yang diizinkan (HRD diberi semua unit dan yayasan); kelola staf yayasan; hapus data pegawai. |
 
 - Isolasi unit memakai aturan multi-company `hr.employee` standar (company ∈ company_ids).
 - Guru/staf biasa: hanya direktori pegawai standar (`hr.employee.public`); field profil kepegawaian tersembunyi
@@ -146,7 +152,8 @@ beberapa sertifikasi; satu tenaga administrasi tanpa akun login.
    menautkan pegawai ke user demo base. Tidak ada migrasi otomatis untuk instalasi lama.
 6. **Keluar dari unit (keputusan pengguna 2026-11-25, pilihan A).** Saat record pegawai diarsipkan, unitnya dicabut
    dari `company_ids` akun orang itu (kecuali ia masih punya pegawai aktif lain di unit yang sama). Bila tidak tersisa
-   pegawai aktif di unit mana pun, akunnya **dinonaktifkan** (`active=False`, tidak dihapus). Konsekuensi yang
+   pegawai aktif di unit mana pun, akunnya **dinonaktifkan** (`active=False`, tidak dihapus). Penempatan di yayasan
+   diperlakukan sama (company yayasan dicabut/ditambahkan ke akun), dan hanya oleh HRD/superuser. Konsekuensi yang
    diterima: pegawai yang juga orang tua kehilangan akses "Anak Saya" setelah keluar. Mengaktifkan kembali record
    pegawai tidak otomatis mengaktifkan akun (dilakukan HRD/admin). `nti_edu_is_pegawai` mengikuti ada/tidaknya pegawai
    aktif.

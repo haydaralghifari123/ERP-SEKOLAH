@@ -169,3 +169,27 @@
 - [ ] **Step 2: Tes** `TestDemo` (lewati diri bila demo tidak ada): guru dua unit punya 2 record dengan kontak sama; `hrd.demo` ada. `TestUiPegawai(HttpCase)` dengan data sendiri: tour `nti_edu_pegawai_asap` sebagai TU dua unit — Data Sekolah › Pegawai, kanban → list → form (tab Kepegawaian), buka & batal wizard Buat Akun Login dan Tempatkan di Unit Lain; tiap langkah menunggu remah roti layar baru dan modal tertutup (pelajaran tour base); `start_tour(..., timeout=120)`. Buktikan RED dengan sementara merusak satu view (jangan di-commit).
 - [ ] **Step 3: Suite `/nti_edu_pegawai`**, lalu jalankan juga `--test-tags /nti_edu_base,/nti_edu_pegawai` di `nti_pegawai_tes` (base tetap hijau dengan `hr` + pegawai terpasang), dan `uji_tunggal.ps1 -Modul nti_edu_pegawai` → semua `0 failed, 0 error(s)`.
 - [ ] **Step 4: Commit** `nti_edu_pegawai: data demo dan uji asap browser`
+
+### Task 8: Staf yayasan sebagai pegawai (keputusan pengguna 2026-11-25, pilihan B)
+
+Spec §2, §4.4, §4.5, §4.7, §4.10.6 (diperbarui). Dikerjakan setelah review akhir Task 1–7 dan perbaikannya di-merge (main 4918dd9).
+
+**Files:**
+- Modify: `nti_edu_pegawai/models/hr_employee.py`, `models/res_partner.py`, `models/res_company.py`, `wizard/penempatan_wizard.py`, `wizard/akun_login_wizard.py` (bila perlu), `demo/nti_edu_pegawai_demo.xml`, `__manifest__.py` (`description`)
+- Test: `nti_edu_pegawai/tests/test_yayasan.py` (+ penyesuaian tes lama yang mengandalkan "wajib unit")
+
+**Interfaces:**
+- Consumes: penjaga Task 2 + review akhir (`_nti_edu_boleh_ubah_profil_pegawai`, `_nti_edu_cek_tautan_kontak`, `_nti_edu_atur_akses_akun`, `_nti_edu_wewenang_akun`, `GRUP_HRD`), wizard Task 4–5.
+- Produces:
+  - `nti_edu_jenis_ptk` bertambah `('staf_yayasan', 'Staf Yayasan')`.
+  - Konstrain `company_id` pegawai: `nti_edu_jenis in ('unit', 'yayasan')`; pesan `_("Pegawai harus terdaftar pada unit sekolah atau yayasan.")`.
+  - Penjaga yayasan: non-HRD non-su yang membuat/mengubah/mengarsipkan/mengaktifkan lagi `hr.employee` ber-company yayasan, atau menempatkan ke/dari yayasan → `AccessError(_("Data staf yayasan hanya boleh dikelola HRD."))`. `_nti_edu_boleh_ubah_profil_pegawai()` → hanya HRD/su bila orang itu punya penempatan aktif di yayasan.
+  - Wizard penempatan: HRD boleh memilih yayasan yang sama dengan unit asal (dan ada di `company_ids` HRD); domain helper ikut; TU tidak pernah melihat yayasan sebagai tujuan.
+  - Akses akun: arsip/aktifkan-lagi/penempatan/aktifkan-akun memperlakukan company yayasan seperti unit (dicabut/ditambahkan sesuai penempatan), wewenangnya HRD/su.
+  - Konstrain `res.company`: company dengan pegawai aktif tidak bisa berganti `nti_edu_jenis` (unit ↔ yayasan).
+
+- [ ] **Step 1: Tes gagal** `TestYayasan` (data sendiri; HRD diberi juga company yayasan): `test_hrd_buat_staf_yayasan` (jenis `staf_yayasan`, berhasil); `test_tu_tak_bisa_buat_atau_ubah_pegawai_yayasan` (create, write, arsip → `AccessError`); `test_profil_orang_berpenempatan_yayasan_hanya_hrd` (guru SMA yang juga staf yayasan: `tu_dua` ubah NUPTK → `AccessError`; HRD boleh); `test_hrd_tempatkan_ke_yayasan` (record baru di yayasan, akun mendapat company yayasan); `test_tu_tak_bisa_tempatkan_ke_yayasan` (tujuan yayasan → `AccessError`; domain helper TU tanpa yayasan); `test_arsip_penempatan_yayasan_mencabut_yayasan` (oleh HRD; akun tetap aktif bila masih punya unit); `test_buat_akun_staf_yayasan` (HRD; `company_ids` = yayasan); `test_jenis_company_berpegawai_tak_bisa_diubah` (unit→yayasan dan yayasan→unit ditolak bila ada pegawai aktif).
+- [ ] **Step 2: Jalankan** → gagal.
+- [ ] **Step 3: Implementasi** sesuai Interfaces; demo: `hrd.demo` diberi company yayasan demo + pegawai yayasan miliknya (`staf_yayasan`), plus satu bendahara yayasan tanpa akun; deskripsi manifest menyebut staf yayasan.
+- [ ] **Step 4: Suite `/nti_edu_pegawai`, `/nti_edu_base,/nti_edu_pegawai` (tour jalan), `uji_tunggal.ps1`** → `0 failed, 0 error(s)`.
+- [ ] **Step 5: Commit** `nti_edu_pegawai: staf yayasan sebagai pegawai, dikelola HRD`

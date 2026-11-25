@@ -143,6 +143,21 @@ class ResPartner(models.Model):
         unit_anak = self.sudo().nti_edu_anak_ids.siswa_id.company_id
         return bool(unit_anak) and unit_anak <= user.company_ids
 
+    def _nti_edu_boleh_ubah_kontak_akun(self, vals=None):
+        """Apakah user saat ini boleh mengubah email/telepon kontak ini bila ia pemilik akun internal
+        (self = satu partner). Nilai yang sama dengan nilai lama bukan perubahan."""
+        self.ensure_one()
+        if self.env.su or self.env.user.has_group('base.group_erp_manager'):
+            return True
+        akun = self.sudo().with_context(active_test=False).user_ids.filtered(lambda u: not u.share)
+        if not akun or akun <= self.env.user:
+            return True
+        if vals is not None:
+            rec = self.sudo()
+            return all((vals.get(f) or False) == (rec[f] or False)
+                       for f in FIELD_KONTAK_WALI & set(vals))
+        return False
+
     def write(self, vals):
         if self and self._nti_edu_perlu_operator() and FIELD_SISWA & set(vals):
             if vals.get('nti_edu_is_siswa') or any(self.sudo().mapped('nti_edu_is_siswa')):
@@ -154,6 +169,12 @@ class ResPartner(models.Model):
                     raise AccessError(_(
                         "Kontak wali hanya boleh diubah oleh walinya sendiri "
                         "atau Operator Data Sekolah yang memegang semua unit anaknya."))
+        # Email akun internal = kanal reset kata sandi: operator tidak boleh mengubah kontak akun orang lain.
+        if self and not self.env.su and FIELD_KONTAK_WALI & set(vals):
+            for rec in self.sudo():
+                if not rec.with_env(self.env)._nti_edu_boleh_ubah_kontak_akun(vals):
+                    raise AccessError(_(
+                        "Email dan telepon akun pengguna hanya bisa diubah oleh pemilik akun atau administrator."))
         hasil = super().write(vals)
         if vals.get('nti_edu_status') in ('pindah', 'keluar') or vals.get('active') is False:
             self._nti_edu_tutup_keanggotaan()

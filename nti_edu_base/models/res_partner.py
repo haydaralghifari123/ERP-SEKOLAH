@@ -20,6 +20,9 @@ FIELD_SISWA = {
     'parent_id', 'type', 'child_ids', 'vat', 'function', 'title', 'category_id', 'comment', 'lang',
 }
 
+# Kontak wali = login dan kanal reset kata sandi akun portalnya; dikunci (lihat write).
+FIELD_KONTAK_WALI = {'email', 'phone', 'mobile'}
+
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
@@ -128,10 +131,28 @@ class ResPartner(models.Model):
                 self._nti_edu_tolak()
         return super().create(vals_list)
 
+    def _nti_edu_boleh_ubah_kontak_wali(self):
+        """Apakah user saat ini boleh mengubah kontak partner wali ini (self = satu partner)."""
+        self.ensure_one()
+        user = self.env.user
+        if user.partner_id == self:
+            return True
+        if not user.has_group(GRUP_OPERATOR):
+            return False
+        anak = self.sudo().nti_edu_anak_ids.siswa_id
+        return bool(anak.filtered(lambda s: s.company_id in user.company_ids))
+
     def write(self, vals):
         if self and self._nti_edu_perlu_operator() and FIELD_SISWA & set(vals):
             if vals.get('nti_edu_is_siswa') or any(self.sudo().mapped('nti_edu_is_siswa')):
                 self._nti_edu_tolak()
+        # Email/telepon wali = login dan kanal reset kata sandi portalnya.
+        if self and not self.env.su and FIELD_KONTAK_WALI & set(vals):
+            for rec in self.sudo().filtered('nti_edu_is_wali'):
+                if not rec.with_env(self.env)._nti_edu_boleh_ubah_kontak_wali():
+                    raise AccessError(_(
+                        "Kontak wali hanya boleh diubah oleh walinya sendiri "
+                        "atau Operator Data Sekolah di unit anaknya."))
         hasil = super().write(vals)
         if vals.get('nti_edu_status') in ('pindah', 'keluar') or vals.get('active') is False:
             self._nti_edu_tutup_keanggotaan()

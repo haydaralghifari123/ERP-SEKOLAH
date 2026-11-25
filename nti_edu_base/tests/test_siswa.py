@@ -20,6 +20,57 @@ class TestSiswa(NtiEduCommon):
             groups='nti_edu_base.group_base_pengguna,base.group_partner_manager',
             company_id=cls.unit_smp.id, company_ids=[(6, 0, cls.unit_smp.ids)])
 
+    # --- Kunci kontak wali ---
+
+    def _wali_dengan_anak_smp(self):
+        siswa = self._buat_siswa('Anak Kontak', self.unit_smp, 'KW01')
+        wali = self.env['res.partner'].create({'name': 'Wali Kontak', 'email': 'lama@contoh.id'})
+        self.env['nti_edu.siswa.wali'].create(
+            {'siswa_id': siswa.id, 'partner_id': wali.id, 'hubungan': 'ayah'})
+        return wali
+
+    def _operator_sma(self):
+        return self._buat_user('tes_operator_sma_kw', 'nti_edu_base.group_base_operator', self.unit_sma)
+
+    def test_operator_unit_anak_ubah_email_wali(self):
+        wali = self._wali_dengan_anak_smp()
+        wali.with_user(self.user_operator_smp).write({'email': 'baru@contoh.id'})
+        self.assertEqual(wali.email, 'baru@contoh.id')
+
+    def test_operator_unit_lain_tidak_ubah_email_wali(self):
+        wali = self._wali_dengan_anak_smp()
+        operator_sma = self._operator_sma()
+        for nama in ('email', 'phone', 'mobile'):
+            with self.assertRaises(AccessError):
+                wali.with_user(operator_sma).write({nama: 'x@contoh.id' if nama == 'email' else '0812'})
+        self.assertEqual(wali.email, 'lama@contoh.id')
+        self.assertFalse(wali.phone)
+        self.assertFalse(wali.mobile)
+
+    def test_pengelola_kontak_non_sekolah_tidak_ubah_email_wali(self):
+        wali = self._wali_dengan_anak_smp()
+        pm = new_test_user(
+            self.env, login='tes_pm_saja_kw', groups='base.group_user,base.group_partner_manager',
+            company_id=self.unit_smp.id, company_ids=[(6, 0, self.unit_smp.ids)])
+        with self.assertRaises(AccessError):
+            wali.with_user(pm).write({'email': 'curang@contoh.id'})
+        self.assertEqual(wali.email, 'lama@contoh.id')
+
+    def test_wali_ubah_kontak_sendiri(self):
+        wali = self._wali_dengan_anak_smp()
+        akun = self.env['res.users'].create({
+            'name': wali.name, 'login': 'wali_kw', 'partner_id': wali.id,
+            'groups_id': [(6, 0, self.env.ref('base.group_portal').ids)]})
+        akun.with_user(akun).write({'email': 'sendiri@contoh.id'})
+        self.assertEqual(wali.email, 'sendiri@contoh.id')
+        # Jalur guard langsung: partner sendiri dinilai boleh.
+        self.assertTrue(wali.with_user(akun)._nti_edu_boleh_ubah_kontak_wali())
+
+    def test_field_lain_wali_tetap_bebas(self):
+        wali = self._wali_dengan_anak_smp()
+        wali.with_user(self._operator_sma()).write({'comment': 'catatan'})
+        self.assertIn('catatan', wali.comment)
+
     def test_nis_unik_per_unit(self):
         self._buat_siswa('A', self.unit_smp, 'T001')
         with self.assertRaises(ValidationError):

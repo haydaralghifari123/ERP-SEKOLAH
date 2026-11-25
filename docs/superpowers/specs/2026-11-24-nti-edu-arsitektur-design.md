@@ -161,7 +161,7 @@ Jenis: **Inti** · **Varian** (depend ke inti temanya) · **Jembatan** (dibuat s
 | Kelompok | Addon | Isi pokok | Basis | Jenis |
 |---|---|---|---|---|
 | Fondasi | `nti_edu_base` | Lihat Bagian II | base, mail, portal | Fondasi |
-| SDM | `nti_edu_pegawai` | Data guru & staf (NUPTK, sertifikasi, kualifikasi) di atas `hr.employee`, tautan ke `res.users`. Bukan dependensi modul lain (§I.5.4) | hr | Inti |
+| SDM | `nti_edu_pegawai` | Data guru & staf (NUPTK, sertifikasi, kualifikasi, beban mengajar) di atas `hr.employee`, tautan ke `res.users`. Bukan dependensi modul lain (§I.5.4) | hr | Inti |
 | Penerimaan | `nti_edu_ppdb` | Daftar online, berkas, jalur & kuota, metode seleksi (konfigurasi), pengumuman, daftar ulang → jadi siswa | website, survey | Inti |
 | | `nti_edu_ppdb_zonasi` | Seleksi berbasis jarak/peta | — | Varian |
 | Akademik | `nti_edu_jadwal` | Struktur mapel per tingkat, jadwal, cek bentrok, guru pengganti | — | Inti |
@@ -217,6 +217,13 @@ Catatan:
 **Level unit (internal):** Kepala Sekolah, Wakasek Kurikulum, Wakasek Kesiswaan, Wakasek Sarpras, Tata Usaha/Operator,
 Bendahara/Kasir, Panitia PPDB, Guru Mapel, Wali Kelas, Guru BK, Guru Piket, Pembina Ekskul, Pustakawan, Petugas UKS,
 Kasir Koperasi; paket: Koordinator/Pembimbing PKL, Ustadz Tahfidz/Musyrif, Pembina Asrama.
+
+Pengelola data pegawai: **HRD Yayasan** (data pegawai lintas unit, penggajian) dan **Tata Usaha/Operator** di tiap
+unit (data siswa & pegawai unitnya). Satu guru bisa mengajar di lebih dari satu unit (lewat *allowed companies*).
+
+Identitas guru/staf: **satu** `res.partner` (kontak) + **satu** `res.users` internal + `hr.employee` per unit tempat ia
+bekerja (bila `nti_edu_pegawai` terpasang; Odoo 18 membatasi satu pegawai per user per company, dan semua record
+pegawai milik satu user berbagi kontak yang sama). Pegawai yang juga orang tua tetap satu akun internal + baris wali.
 
 **Portal:** Orang Tua/Wali, Siswa, Calon Siswa/Pendaftar, Alumni.
 

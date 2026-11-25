@@ -7,6 +7,16 @@ Data kepegawaian guru dan tenaga kependidikan NTI Edu.
 
 * Profil per orang (NUPTK, NIP, status kepegawaian, pendidikan, sertifikasi) pada kontak kerja pegawai.
 * Data per penempatan (jenis PTK, TMT) pada karyawan di unit sekolah.
+
+Data demo (opsional, di atas demo nti_edu_base) menambahkan data pegawai untuk akun demo dan akun HRD
+(password sama dengan login):
+
+- HRD Yayasan (SMP dan SMA): hrd.demo
+- Operator Data Sekolah juga TU Pegawai, pegawai tenaga administrasi SMP: operator.demo
+- Guru SMP dengan sertifikasi: guru1.demo
+- Guru di SMP dan SMA (satu orang, dua penempatan): guru2.demo
+- Kepala sekolah SMA: guru3.demo
+- Tenaga administrasi SMA tanpa akun login: Tendik Tanpa Akun Demo
 """,
     'author': 'Haydar Alghifari',
     'category': 'Education',
@@ -23,6 +33,12 @@ Data kepegawaian guru dan tenaga kependidikan NTI Edu.
         'wizard/penempatan_wizard_views.xml',
         'views/menu.xml',
     ],
+    'demo': [
+        'demo/nti_edu_pegawai_demo.xml',
+    ],
+    'assets': {
+        'web.assets_tests': ['nti_edu_pegawai/static/tests/tours/**/*'],
+    },
     'application': False,
     'installable': True,
 }

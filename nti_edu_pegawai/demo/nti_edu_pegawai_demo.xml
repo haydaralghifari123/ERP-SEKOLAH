@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Data demo pegawai NTI Edu (nama dan data fiktif; domain email example.com). Memakai unit dan akun dari demo nti_edu_base. -->
+<odoo noupdate="1">
+    <!-- HRD Yayasan (password = login) -->
+    <record id="demo_user_hrd" model="res.users">
+        <field name="name">HRD Demo</field>
+        <field name="login">hrd.demo</field>
+        <field name="password">hrd.demo</field>
+        <field name="email">hrd.demo@example.com</field>
+        <field name="company_id" ref="nti_edu_base.demo_unit_smp"/>
+        <field name="company_ids" eval="[(6, 0, [ref('nti_edu_base.demo_unit_smp'), ref('nti_edu_base.demo_unit_sma')])]"/>
+        <field name="groups_id" eval="[(6, 0, [ref('base.group_user'), ref('group_pegawai_hrd')])]"/>
+    </record>
+
+    <!-- Operator demo juga TU Pegawai -->
+    <record id="nti_edu_base.demo_user_operator" model="res.users">
+        <field name="groups_id" eval="[(4, ref('group_pegawai_operator'))]"/>
+    </record>
+
+    <!-- Guru Dua mengajar di SMP dan SMA: akunnya perlu memegang kedua unit -->
+    <record id="nti_edu_base.demo_user_guru2" model="res.users">
+        <field name="company_ids" eval="[(4, ref('nti_edu_base.demo_unit_sma'))]"/>
+    </record>
+
+    <!-- Tenaga administrasi tanpa akun login -->
+    <record id="demo_kontak_tendik" model="res.partner">
+        <field name="name">Tendik Tanpa Akun Demo</field>
+        <field name="email">tendik.demo@example.com</field>
+        <field name="nti_edu_status_kepegawaian">gtt</field>
+        <field name="nti_edu_pendidikan_terakhir">sma</field>
+    </record>
+
+    <!-- Pegawai: operator (tenaga administrasi SMP) -->
+    <record id="demo_pegawai_operator" model="hr.employee">
+        <field name="name">Operator Demo</field>
+        <field name="company_id" ref="nti_edu_base.demo_unit_smp"/>
+        <field name="user_id" ref="nti_edu_base.demo_user_operator"/>
+        <field name="nti_edu_jenis_ptk">tendik_admin</field>
+        <field name="nti_edu_tmt">2024-07-15</field>
+        <field name="nti_edu_status_kepegawaian">gty</field>
+        <field name="nti_edu_pendidikan_terakhir">s1</field>
+    </record>
+
+    <!-- Guru Satu: SMP -->
+    <record id="demo_pegawai_guru1" model="hr.employee">
+        <field name="name">Guru Satu Demo</field>
+        <field name="company_id" ref="nti_edu_base.demo_unit_smp"/>
+        <field name="user_id" ref="nti_edu_base.demo_user_guru1"/>
+        <field name="nti_edu_jenis_ptk">guru_mapel</field>
+        <field name="nti_edu_tmt">2022-07-18</field>
+        <field name="nti_edu_status_kepegawaian">pns</field>
+        <field name="nti_edu_pendidikan_terakhir">s1</field>
+        <field name="nti_edu_bidang_studi">Matematika</field>
+        <field name="nti_edu_nuptk">1234567890120001</field>
+        <field name="nti_edu_sertifikasi_ids" eval="[(0, 0, {
+            'jenis': 'pendidik', 'nomor': 'SERT-DEMO-001', 'tahun': 2020, 'bidang': 'Matematika'})]"/>
+    </record>
+
+    <!-- Guru Dua: satu orang, dua penempatan (SMP dan SMA) dengan kontak kerja yang sama -->
+    <record id="demo_pegawai_guru2_smp" model="hr.employee">
+        <field name="name">Guru Dua Demo</field>
+        <field name="company_id" ref="nti_edu_base.demo_unit_smp"/>
+        <field name="user_id" ref="nti_edu_base.demo_user_guru2"/>
+        <field name="nti_edu_jenis_ptk">guru_mapel</field>
+        <field name="nti_edu_tmt">2023-07-17</field>
+        <field name="nti_edu_status_kepegawaian">gty</field>
+        <field name="nti_edu_pendidikan_terakhir">s2</field>
+        <field name="nti_edu_bidang_studi">Bahasa Inggris</field>
+        <field name="nti_edu_nuptk">1234567890120002</field>
+        <field name="nti_edu_sertifikasi_ids" eval="[
+            (0, 0, {'jenis': 'pendidik', 'nomor': 'SERT-DEMO-002', 'tahun': 2021, 'bidang': 'Bahasa Inggris'}),
+            (0, 0, {'jenis': 'lainnya', 'nomor': 'SERT-DEMO-003', 'tahun': 2023, 'bidang': 'Pelatihan Kurikulum Merdeka'})]"/>
+    </record>
+    <record id="demo_pegawai_guru2_sma" model="hr.employee">
+        <field name="name">Guru Dua Demo</field>
+        <field name="company_id" ref="nti_edu_base.demo_unit_sma"/>
+        <field name="user_id" ref="nti_edu_base.demo_user_guru2"/>
+        <field name="nti_edu_jenis_ptk">guru_mapel</field>
+        <field name="nti_edu_tmt">2024-01-08</field>
+    </record>
+
+    <!-- Guru Tiga: kepala sekolah SMA -->
+    <record id="demo_pegawai_guru3" model="hr.employee">
+        <field name="name">Guru Tiga Demo</field>
+        <field name="company_id" ref="nti_edu_base.demo_unit_sma"/>
+        <field name="user_id" ref="nti_edu_base.demo_user_guru3"/>
+        <field name="nti_edu_jenis_ptk">kepala_sekolah</field>
+        <field name="nti_edu_tmt">2021-07-19</field>
+        <field name="nti_edu_status_kepegawaian">pns</field>
+        <field name="nti_edu_pendidikan_terakhir">s2</field>
+        <field name="nti_edu_bidang_studi">Manajemen Pendidikan</field>
+        <field name="nti_edu_nip">198001012005011001</field>
+        <field name="nti_edu_sertifikasi_ids" eval="[(0, 0, {
+            'jenis': 'lainnya', 'nomor': 'SERT-DEMO-004', 'tahun': 2022, 'bidang': 'Calon Kepala Sekolah'})]"/>
+    </record>
+
+    <!-- Tenaga administrasi SMA tanpa akun login (kontak punya email, siap dibuatkan akun) -->
+    <record id="demo_pegawai_tendik" model="hr.employee">
+        <field name="name">Tendik Tanpa Akun Demo</field>
+        <field name="company_id" ref="nti_edu_base.demo_unit_sma"/>
+        <field name="work_contact_id" ref="demo_kontak_tendik"/>
+        <field name="nti_edu_jenis_ptk">tendik_admin</field>
+        <field name="nti_edu_tmt">2025-01-06</field>
+    </record>
+</odoo>

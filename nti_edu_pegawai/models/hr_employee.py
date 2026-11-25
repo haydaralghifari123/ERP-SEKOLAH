@@ -104,7 +104,32 @@ class HrEmployee(models.Model):
             vals = dict(vals)
             cmds = vals.pop('nti_edu_sertifikasi_ids')
             self._nti_edu_terapkan_sertifikasi(cmds)
-        return super().write(vals) if vals else True
+        hasil = super().write(vals) if vals else True
+        if 'active' in vals and not vals['active']:
+            self._nti_edu_sinkron_akses_akun()
+        return hasil
+
+    def _nti_edu_sinkron_akses_akun(self):
+        """Setelah pegawai diarsipkan: cabut unit-nya dari akun bila tak ada pegawai aktif lain milik akun itu
+        di unit tsb; tanpa pegawai aktif tersisa, akun dinonaktifkan. Akun administrator sistem tidak disentuh.
+        Tidak pernah mengaktifkan ulang akun."""
+        admin_ids = {self.env.ref('base.user_root').id, self.env.ref('base.user_admin').id}
+        Pegawai = self.env['hr.employee'].sudo()
+        for user in self.sudo().user_id:
+            if user.id in admin_ids or user.has_group('base.group_system') or not user.active:
+                continue
+            sisa = Pegawai.search([('user_id', '=', user.id), ('active', '=', True)])
+            if not sisa:
+                user.active = False
+                continue
+            dicabut = user.company_ids.filtered(
+                lambda c: c.nti_edu_jenis == 'unit' and c not in sisa.company_id)
+            if not dicabut:
+                continue
+            nilai = {'company_ids': [(3, c.id) for c in dicabut]}
+            if user.company_id in dicabut:
+                nilai['company_id'] = sisa.company_id[0].id
+            user.write(nilai)
 
     def _nti_edu_terapkan_sertifikasi(self, cmds):
         """Terapkan perintah One2many sertifikasi lewat model sertifikasi dengan hak pemanggil (bukan sudo),

@@ -42,10 +42,9 @@ class TambahRombelWizard(models.TransientModel):
         # Validasi semua siswa dahulu dan kumpulkan masalah supaya tidak ada penambahan sebagian.
         masalah = []
         # Id yang tidak terbaca pemanggil bisa terbuang diam-diam oleh ORM (atau baru gagal saat dibaca):
-        # cek ulang lewat search (aturan akses berlaku) terhadap pilihan wizard dan active_ids.
+        # cek ulang lewat search (aturan akses berlaku) terhadap pilihan tersimpan di wizard. active_ids
+        # tidak dipakai: operator boleh mengurangi siswa di form, jadi hanya siswa_ids wizard yang sah.
         pilihan = set(self.sudo().siswa_ids.ids)  # hanya id; sudo agar id tak terbaca tidak memicu AccessError
-        if self.env.context.get('active_model') == 'res.partner':
-            pilihan |= set(self.env.context.get('active_ids') or [])
         terbaca = self.env['res.partner'].with_context(active_test=False).search([('id', 'in', list(pilihan))])
         hilang = pilihan - set(terbaca.ids)
         if hilang:

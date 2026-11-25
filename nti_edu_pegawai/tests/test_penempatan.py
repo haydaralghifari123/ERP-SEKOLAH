@@ -60,8 +60,37 @@ class TestPenempatan(NtiPegawaiCommon):
         self.assertFalse(self._di_unit(self.unit_sma))
 
     def test_hrd_boleh_menempatkan(self):
-        self._wizard(self.pegawai, self.hrd, self.unit_sma).action_tempatkan()
-        self.assertTrue(self._di_unit(self.unit_sma))
+        aksi = self._wizard(self.pegawai, self.hrd, self.unit_sma).action_tempatkan()
+        baru = self._di_unit(self.unit_sma)
+        self.assertTrue(baru)
+        konteks = aksi.get('context', {})
+        self.assertLessEqual(set(konteks.get('allowed_company_ids', [])), set(self.hrd.company_ids.ids))
+        hasil = self.env['hr.employee'].with_user(self.hrd).with_context(**konteks).browse(aksi['res_id'])
+        self.assertTrue(hasil.read(['name']))
+
+    def test_hrd_tanpa_unit_tujuan_ditolak(self):
+        hrd_smp = self._buat_user('peg_hrd_smp', 'nti_edu_pegawai.group_pegawai_hrd', self.unit_smp)
+        with self.assertRaises(AccessError):
+            self._wizard(self.pegawai, hrd_smp, self.unit_sma).action_tempatkan()
+        self.assertFalse(self._di_unit(self.unit_sma))
+
+    def test_izin_dicek_sebelum_status_aktif(self):
+        # TU SMA tidak memegang SMP: tidak boleh memancing galat "sudah aktif" yang memuat nama.
+        with self.assertRaises(AccessError):
+            self._wizard(self.pegawai, self.tu_sma, self.unit_smp).action_tempatkan()
+
+    def test_arsip_dipertahankan_bila_isian_kosong_dan_user_dilengkapi(self):
+        self._wizard(self.pegawai, self.tu_dua, self.unit_sma, nti_edu_jenis_ptk='pustakawan').action_tempatkan()
+        lama = self._di_unit(self.unit_sma)
+        lama.write({'active': False})
+        self.assertFalse(lama.user_id)
+        user = self._buat_user_untuk(self.pegawai)
+        self._wizard(self.pegawai, self.tu_dua, self.unit_sma).action_tempatkan()
+        lama.invalidate_recordset()
+        self.assertTrue(lama.active)
+        self.assertEqual(lama.nti_edu_jenis_ptk, 'pustakawan')
+        self.assertEqual(lama.user_id, user)
+        self.assertIn(self.unit_sma, user.company_ids)
 
     def test_tujuan_bukan_unit_ditolak(self):
         with self.assertRaises(UserError):

@@ -28,13 +28,18 @@ class PenempatanWizard(models.TransientModel):
             [('work_contact_id', '=', kontak.id)])
         aktif = semua.filtered('active').company_id
         asal = semua.company_id
-        if self.env.su or self.env.user.has_group(GRUP_HRD):
+        if self.env.su:
             unit = Company.search([
                 ('nti_edu_jenis', '=', 'unit'), ('parent_id', 'in', asal.parent_id.ids)])
-        elif asal <= self.env.user.company_ids:
-            unit = self.env.user.company_ids.sudo().filtered(lambda c: c.nti_edu_jenis == 'unit')
         else:
-            return Company
+            pemegang = self.env.user.company_ids.sudo()
+            if self.env.user.has_group(GRUP_HRD):
+                unit = pemegang.filtered(
+                    lambda c: c.nti_edu_jenis == 'unit' and c.parent_id in asal.parent_id)
+            elif asal <= pemegang:
+                unit = pemegang.filtered(lambda c: c.nti_edu_jenis == 'unit')
+            else:
+                return Company
         return unit - aktif
 
     @api.depends('employee_id')
@@ -57,26 +62,34 @@ class PenempatanWizard(models.TransientModel):
 
         Pegawai = self.env['hr.employee'].sudo().with_context(active_test=False)
         semua = Pegawai.search([('work_contact_id', '=', kontak.id)])
-        if semua.filtered(lambda p: p.active and p.company_id == tujuan):
-            raise UserError(_("%s sudah aktif di unit tujuan.", pegawai.name))
-
         # Hak dicek dengan hak pemanggil sebelum sudo apa pun.
         if not self.env.su:
             asal = semua.company_id
+            if tujuan not in pemanggil.company_ids:
+                raise AccessError(_("Penempatan hanya boleh ke unit yang Anda pegang."))
             if pemanggil.has_group(GRUP_HRD):
                 if tujuan.parent_id != asal.parent_id:
                     raise AccessError(_("Unit tujuan harus berada di yayasan yang sama dengan unit asal."))
-            elif not (asal | tujuan) <= pemanggil.company_ids:
-                raise AccessError(_(
-                    "Penempatan hanya boleh oleh HRD atau TU yang memegang unit asal dan unit tujuan."))
+            elif not asal <= pemanggil.company_ids:
+                raise AccessError(_("Penempatan hanya boleh oleh HRD atau TU yang memegang unit asal."))
 
-        nilai = {'nti_edu_jenis_ptk': self.nti_edu_jenis_ptk, 'nti_edu_tmt': self.nti_edu_tmt}
+        if semua.filtered(lambda p: p.active and p.company_id == tujuan):
+            raise UserError(_("%s sudah aktif di unit tujuan.", pegawai.name))
+
+        nilai = {}
+        if self.nti_edu_jenis_ptk:
+            nilai['nti_edu_jenis_ptk'] = self.nti_edu_jenis_ptk
+        if self.nti_edu_tmt:
+            nilai['nti_edu_tmt'] = self.nti_edu_tmt
+        user = semua.user_id[:1]
         arsip = semua.filtered(lambda p: p.company_id == tujuan and not p.active)
         if arsip:
             hasil = arsip[0]
-            hasil.write(dict(nilai, active=True))
+            nilai['active'] = True
+            if user and not hasil.user_id:
+                nilai['user_id'] = user.id
+            hasil.write(nilai)
         else:
-            user = semua.user_id[:1]
             nilai.update(name=pegawai.name, company_id=tujuan.id, work_contact_id=kontak.id)
             if user:
                 nilai['user_id'] = user.id
@@ -95,5 +108,5 @@ class PenempatanWizard(models.TransientModel):
             'view_mode': 'form',
             'views': [(self.env.ref('nti_edu_pegawai.view_pegawai_form').id, 'form')],
             'target': 'current',
-            'context': {'allowed_company_ids': (pemanggil.company_ids | tujuan).ids},
+            'context': {'allowed_company_ids': pemanggil.company_ids.ids},
         }

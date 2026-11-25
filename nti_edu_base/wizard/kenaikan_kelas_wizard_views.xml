@@ -12,10 +12,10 @@
                 </group>
                 <field name="baris_ids" readonly="state == 'selesai'">
                     <list editable="bottom" create="0">
-                        <field name="siswa_id" readonly="1"/>
+                        <field name="siswa_id" readonly="1" force_save="1"/>
                         <field name="aksi"/>
                         <field name="rombel_tujuan_id" required="aksi in ('naik', 'tinggal')"
-                               readonly="aksi == 'lulus'"/>
+                               readonly="aksi == 'lulus'" force_save="1"/>
                     </list>
                 </field>
                 <footer>

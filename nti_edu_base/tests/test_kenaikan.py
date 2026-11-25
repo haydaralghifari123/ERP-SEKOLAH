@@ -3,7 +3,7 @@ from datetime import date
 
 from odoo.exceptions import AccessError, UserError
 from odoo.fields import Date
-from odoo.tests import tagged
+from odoo.tests import Form, tagged
 
 from .common import NtiEduCommon
 
@@ -135,3 +135,18 @@ class TestKenaikan(NtiEduCommon):
         siswa.with_user(self.user_operator_smp).nti_edu_status = 'keluar'
         self.assertEqual(siswa.nti_edu_anggota_ids.tanggal_keluar, Date.context_today(siswa))
         self.assertFalse(siswa.nti_edu_rombel_aktif_id)
+
+    def test_form_wizard_lewat_tampilan(self):
+        """Regresi: baris siswa harus tersimpan saat wizard diisi lewat form (siswa_id readonly + force_save)."""
+        self._isi(self.rombel_7a)
+        wizard_op = self.env['nti_edu.kenaikan.kelas.wizard'].with_user(self.user_operator_smp).with_context(
+            default_rombel_asal_id=self.rombel_7a.id)
+        form = Form(wizard_op, view='nti_edu_base.view_kenaikan_kelas_wizard_form')
+        form.rombel_tujuan_id = self.rombel_8a
+        wizard = form.save()
+        self.assertEqual(len(wizard.baris_ids), 3)
+        self.assertEqual(set(wizard.baris_ids.siswa_id.ids), {s.id for s in self.siswa_ids})
+        wizard.action_proses()
+        for siswa in self.siswa_ids:
+            self.assertEqual(siswa.nti_edu_rombel_aktif_id, self.rombel_8a)
+            self.assertEqual(len(siswa.nti_edu_anggota_ids), 2)

@@ -32,6 +32,12 @@ class AkunPortalWizard(models.TransientModel):
                 # Pesan jelasnya muncul saat tombol dijalankan; di form login boleh diisi manual.
                 rec.login = False
 
+    def action_tutup(self):
+        """Tutup dialog dan hapus kata sandi awal supaya tidak tersisa di baris sementara."""
+        self.ensure_one()
+        self.password_awal = False
+        return {'type': 'ir.actions.act_window_close'}
+
     def action_buat(self):
         self.ensure_one()
         if not self.env.user.has_group(GRUP_OPERATOR):

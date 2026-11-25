@@ -20,7 +20,7 @@
                 <footer>
                     <button string="Buat Akun" name="action_buat" type="object" class="btn-primary"
                             invisible="state == 'selesai'"/>
-                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                    <button string="Tutup" name="action_tutup" type="object" class="btn-secondary"/>
                 </footer>
             </form>
         </field>

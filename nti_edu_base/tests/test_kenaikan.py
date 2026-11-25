@@ -73,6 +73,24 @@ class TestKenaikan(NtiEduCommon):
         with self.assertRaises(UserError):
             self._wizard(self.rombel_7a, lain).action_proses()
 
+    def test_tujuan_tahun_lebih_awal_ditolak(self):
+        self._isi(self.rombel_8a)
+        with self.assertRaises(UserError):
+            self._wizard(self.rombel_8a, self.rombel_7a).action_proses()
+        self.assertEqual(len(self.siswa_ids[0].nti_edu_anggota_ids), 1)
+
+    def test_naik_ke_tingkat_tidak_lebih_tinggi_ditolak(self):
+        self._isi(self.rombel_7a)
+        sama = self._rombel('VII C', self.ta_baru, self.env.ref('nti_edu_base.tingkat_smp_7'), self.unit_smp)
+        wizard = self._wizard(self.rombel_7a, sama)
+        self.assertEqual(set(wizard.baris_ids.mapped('aksi')), {'naik'})
+        with self.assertRaises(UserError):
+            wizard.action_proses()
+        # Tinggal kelas ke tingkat yang sama tetap boleh.
+        wizard.baris_ids.write({'aksi': 'tinggal'})
+        wizard.action_proses()
+        self.assertEqual(self.siswa_ids[0].nti_edu_rombel_aktif_id, sama)
+
     def test_tujuan_wajib_untuk_naik(self):
         self._isi(self.rombel_7a)
         with self.assertRaises(UserError):

@@ -47,6 +47,16 @@ class KenaikanKelasWizard(models.TransientModel):
                     raise UserError(_(
                         'Rombel tujuan "%s" harus berada pada tahun ajaran yang berbeda dari rombel asal.',
                         tujuan.name))
+                if tujuan.tahun_ajaran_id.tanggal_mulai < asal.tahun_ajaran_id.tanggal_mulai:
+                    raise UserError(_(
+                        'Rombel tujuan "%(rombel)s" untuk siswa "%(siswa)s" berada pada tahun ajaran '
+                        'yang lebih awal dari rombel asal.',
+                        rombel=tujuan.name, siswa=baris.siswa_id.name))
+                if baris.aksi == 'naik' and tujuan.tingkat_id.urutan <= asal.tingkat_id.urutan:
+                    raise UserError(_(
+                        'Rombel tujuan "%(rombel)s" untuk siswa "%(siswa)s" harus bertingkat lebih tinggi '
+                        'dari rombel asal; pilih "Tinggal Kelas" bila siswa mengulang.',
+                        rombel=tujuan.name, siswa=baris.siswa_id.name))
                 if tujuan.company_id != asal.company_id:
                     raise UserError(_('Rombel tujuan "%s" harus berada pada unit yang sama.', tujuan.name))
                 if Anggota.sudo().search_count([

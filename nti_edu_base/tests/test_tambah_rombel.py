@@ -95,6 +95,16 @@ class TestTambahRombel(NtiEduCommon):
         with self.assertRaises(UserError):
             wizard.action_tambah()
 
+    def test_id_tidak_terbaca_ditolak(self):
+        Wizard = self.env['nti_edu.tambah.rombel.wizard'].with_user(self.user_operator_smp).with_context(
+            active_model='res.partner', active_ids=[self.a.id, self.c.id])
+        wizard = Wizard.create({'rombel_id': self.rombel_smp.id})
+        with self.assertRaises(UserError) as ctx:
+            wizard.action_tambah()
+        self.assertIn('tidak dapat diakses', str(ctx.exception))
+        self.assertNotIn(self.c.name, str(ctx.exception))
+        self.assertFalse(self._anggota(self.a))
+
     def test_guru_tidak_bisa(self):
         with self.assertRaises(AccessError):
             self.env['nti_edu.tambah.rombel.wizard'].with_user(self.user_guru_smp).create({

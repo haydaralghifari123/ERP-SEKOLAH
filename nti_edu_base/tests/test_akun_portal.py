@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from lxml import etree
+
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import tagged
 
@@ -54,6 +56,17 @@ class TestAkunPortal(NtiEduCommon):
         self.assertTrue(user.has_group('base.group_portal'))
         self.assertEqual(user.company_id, self.unit_smp)
         self.assertTrue(wizard.password_awal)
+
+    def test_tutup_mengosongkan_password(self):
+        siswa = self._buat_siswa('Anak Tutup', self.unit_smp, 'T090')
+        wizard = self._wizard(siswa)
+        wizard.action_buat()
+        self.assertTrue(wizard.password_awal)
+        self.assertEqual(wizard.action_tutup(), {'type': 'ir.actions.act_window_close'})
+        self.assertFalse(wizard.password_awal)
+        arch = self.env['nti_edu.akun.portal.wizard'].with_user(self.user_operator_smp).get_view(
+            self.env.ref('nti_edu_base.view_akun_portal_wizard_form').id)['arch']
+        self.assertTrue(etree.fromstring(arch).xpath('//button[@name="action_tutup"]'))
 
     def test_wali_login_email(self):
         siswa = self._buat_siswa('Anak Wali', self.unit_smp, 'T004')

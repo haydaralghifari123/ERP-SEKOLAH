@@ -33,7 +33,7 @@ class TambahRombelWizard(models.TransientModel):
 
     def action_tambah(self):
         self.ensure_one()
-        if not self.siswa_ids:
+        if not self.sudo().siswa_ids:
             raise UserError(_('Pilih minimal satu siswa.'))
         if not self.tanggal_masuk:
             raise UserError(_('Tanggal masuk wajib diisi.'))
@@ -41,7 +41,18 @@ class TambahRombelWizard(models.TransientModel):
         Anggota = self.env['nti_edu.rombel.anggota']
         # Validasi semua siswa dahulu dan kumpulkan masalah supaya tidak ada penambahan sebagian.
         masalah = []
-        for siswa in self.siswa_ids:
+        # Id yang tidak terbaca pemanggil bisa terbuang diam-diam oleh ORM (atau baru gagal saat dibaca):
+        # cek ulang lewat search (aturan akses berlaku) terhadap pilihan wizard dan active_ids.
+        pilihan = set(self.sudo().siswa_ids.ids)  # hanya id; sudo agar id tak terbaca tidak memicu AccessError
+        if self.env.context.get('active_model') == 'res.partner':
+            pilihan |= set(self.env.context.get('active_ids') or [])
+        terbaca = self.env['res.partner'].with_context(active_test=False).search([('id', 'in', list(pilihan))])
+        hilang = pilihan - set(terbaca.ids)
+        if hilang:
+            # Nama tidak ditampilkan karena memang tidak terbaca oleh pemanggil.
+            masalah.append('- %s' % _(
+                '%s kontak terpilih tidak dapat diakses atau bukan siswa', len(hilang)))
+        for siswa in terbaca:
             if not siswa.nti_edu_is_siswa:
                 alasan = _('bukan siswa')
             elif not siswa.active or siswa.nti_edu_status != 'aktif':
@@ -60,7 +71,7 @@ class TambahRombelWizard(models.TransientModel):
                 'Siswa berikut tidak bisa ditambahkan ke rombel "%(rombel)s":\n%(daftar)s',
                 rombel=rombel.name, daftar='\n'.join(masalah)))
         # Dibuat sebagai user pemanggil (bukan sudo) agar ACL dan rule tetap berlaku.
-        for siswa in self.siswa_ids:
+        for siswa in terbaca:
             Anggota.create({
                 'rombel_id': rombel.id, 'siswa_id': siswa.id, 'tanggal_masuk': self.tanggal_masuk})
         return {'type': 'ir.actions.act_window_close'}

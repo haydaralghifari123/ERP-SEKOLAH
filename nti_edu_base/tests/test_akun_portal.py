@@ -175,6 +175,18 @@ class TestAkunPortal(NtiEduCommon):
         self.assertEqual(user.company_ids, self.unit_smp | self.unit_sma)
         self.assertEqual(user.company_id, self.unit_smp)
 
+    def test_wali_basi_tanpa_anak_ditolak(self):
+        wali = self.env['res.partner'].create({'name': 'Wali Basi', 'email': 'basi@example.com'})
+        # Simulasi penanda wali basi (anak terhapus lewat cascade SQL): tanda True tanpa anak.
+        self.env.flush_all()
+        self.env.cr.execute("UPDATE res_partner SET nti_edu_is_wali = TRUE WHERE id = %s", [wali.id])
+        wali.invalidate_recordset()
+        self.assertTrue(wali.nti_edu_is_wali)
+        self.assertFalse(wali.nti_edu_anak_ids)
+        with self.assertRaises(AccessError):
+            self._wizard(wali).action_buat()
+        self.assertFalse(wali.user_ids)
+
     def test_wali_tautan_lintas_unit_hanya_operator_semua_unit(self):
         anak_smp = self._buat_siswa('Anak SMP W', self.unit_smp, 'T018')
         anak_sma = self._buat_siswa('Anak SMA W', self.unit_sma, 'T019')

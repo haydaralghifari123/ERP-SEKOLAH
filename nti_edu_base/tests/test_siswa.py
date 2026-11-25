@@ -65,6 +65,17 @@ class TestSiswa(NtiEduCommon):
         wali.with_user(dua_unit).write({'email': 'resmi@contoh.id'})
         self.assertEqual(wali.email, 'resmi@contoh.id')
 
+    def test_wali_basi_tanpa_anak_operator_tidak_ubah_kontak(self):
+        wali = self.env['res.partner'].create({'name': 'Wali Basi KW', 'email': 'lama@contoh.id'})
+        self.env.flush_all()
+        self.env.cr.execute("UPDATE res_partner SET nti_edu_is_wali = TRUE WHERE id = %s", [wali.id])
+        wali.invalidate_recordset()
+        self.assertTrue(wali.nti_edu_is_wali)
+        self.assertFalse(wali.with_user(self.user_operator_smp)._nti_edu_boleh_ubah_kontak_wali())
+        with self.assertRaises(AccessError):
+            wali.with_user(self.user_operator_smp).write({'email': 'curang@contoh.id'})
+        self.assertEqual(wali.email, 'lama@contoh.id')
+
     def test_pengelola_kontak_non_sekolah_tidak_ubah_email_wali(self):
         wali = self._wali_dengan_anak_smp()
         pm = new_test_user(

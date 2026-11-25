@@ -65,7 +65,8 @@ class AkunPortalWizard(models.TransientModel):
             unit_anak = partner_sudo.company_id
         else:
             unit_anak = partner_sudo.nti_edu_anak_ids.siswa_id.company_id
-            if not unit_anak <= self.env.user.company_ids:
+            # Himpunan kosong adalah subset segalanya: tolak eksplisit (penanda wali bisa basi).
+            if not unit_anak or not unit_anak <= self.env.user.company_ids:
                 raise AccessError(_(
                     "Wali %s punya anak di unit yang tidak Anda pegang; akun portal hanya bisa dibuat "
                     "oleh operator yang memegang semua unit anaknya.", partner.display_name))

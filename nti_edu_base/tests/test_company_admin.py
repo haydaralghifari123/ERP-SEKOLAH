@@ -66,6 +66,12 @@ class TestCompanyAdmin(NtiEduCommon):
         with self.assertRaises(ValidationError):
             self.unit_smp.nti_edu_jenis = 'yayasan'
 
+    def test_ubah_jenis_unit_berisi_siswa_ditolak(self):
+        self.env['res.partner'].create({
+            'name': 'Siswa Tes', 'nti_edu_is_siswa': True, 'company_id': self.unit_smp.id})
+        with self.assertRaises(ValidationError):
+            self.unit_smp.nti_edu_jenis = 'yayasan'
+
     def test_ubah_jenis_unit_berisi_ruang_ditolak(self):
         self.env['nti_edu.ruang'].create({'name': 'R1', 'company_id': self.unit_smp.id})
         with self.assertRaises(ValidationError):

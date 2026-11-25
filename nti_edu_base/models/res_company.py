@@ -65,9 +65,11 @@ class ResCompany(models.Model):
         for rec in self.filtered(lambda c: c.nti_edu_jenis != 'unit'):
             domain = [('company_id', '=', rec.id)]
             if (self.env['nti_edu.rombel'].sudo().with_context(active_test=False).search_count(domain)
-                    or self.env['nti_edu.ruang'].sudo().with_context(active_test=False).search_count(domain)):
+                    or self.env['nti_edu.ruang'].sudo().with_context(active_test=False).search_count(domain)
+                    or self.env['res.partner'].sudo().with_context(active_test=False).search_count(
+                        domain + [('nti_edu_is_siswa', '=', True)])):
                 raise ValidationError(_(
-                    'Jenis "%s" tidak bisa diubah menjadi bukan unit karena masih memiliki rombel atau ruang.',
+                    'Jenis "%s" tidak bisa diubah menjadi bukan unit karena masih memiliki rombel, ruang, atau siswa.',
                     rec.name))
 
     def write(self, vals):

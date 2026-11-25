@@ -390,7 +390,7 @@ Kategori: **NTI Edu / Data Sekolah**.
 | Grup | Implies | Hak |
 |---|---|---|
 | `group_base_pengguna` (Pengguna Data Sekolah) | `base.group_user` | Baca master & data siswa **unit yang diizinkan**, tanpa NIK/data sensitif. Semua modul fitur meng-imply grup ini ke grup staf mereka. |
-| `group_base_operator` (Operator/TU) | pengguna | Buat/ubah siswa, wali, rombel, keanggotaan, kalender, tanpa hapus; hapus data hanya Admin. Lihat NIK. |
+| `group_base_operator` (Operator/TU) | pengguna | Buat/ubah siswa, wali, rombel, keanggotaan, kalender. Lihat NIK. Tanpa hapus (kecuali melepas baris wali); siswa salah input diarsipkan. Hapus data hanya Admin. |
 | `group_base_admin` (Admin Data Sekolah) | operator | Konfigurasi unit, jenjang, tingkat, jurusan, mapel, ruang; hapus data. |
 
 - Data dasar siswa (nama, foto, NIS, rombel) terbaca semua internal user di unitnya — bawaan `res.partner` +

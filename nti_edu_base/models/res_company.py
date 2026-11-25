@@ -21,18 +21,31 @@ class ResCompany(models.Model):
     nti_edu_hari_sekolah = fields.Selection(
         [('5', '5 hari'), ('6', '6 hari')], string='Hari Sekolah', default='5')
 
-    def _nti_edu_hari_efektif(self, tanggal):
-        """True bila `tanggal` adalah hari efektif sekolah untuk unit ini (self = satu company).
+    @api.model
+    def _nti_edu_tahun_ajaran_aktif(self):
+        """Tahun ajaran yang sedang aktif (recordset kosong bila belum ada)."""
+        return self.env['nti_edu.tahun.ajaran']._get_aktif()
 
+    @api.model
+    def _nti_edu_semester_aktif(self):
+        """Semester aktif pada tahun ajaran aktif (recordset kosong bila tidak ada)."""
+        return self.env['nti_edu.semester']._get_aktif()
+
+    def _nti_edu_hari_efektif(self, tanggal, company=None):
+        """True bila `tanggal` adalah hari efektif sekolah untuk satu unit.
+
+        Unit yang dipakai: `company` bila diberikan, selain itu `self` bila tidak kosong, selain itu
+        company aktif (`self.env.company`).
         Bukan hari efektif: Minggu, Sabtu pada unit 5 hari, atau tanggal yang tercakup hari libur
         (global, milik unit ini, atau milik yayasan induknya)."""
-        self.ensure_one()
+        unit = company or self or self.env.company
+        unit.ensure_one()
         hari = tanggal.weekday()
-        if hari == 6 or (hari == 5 and self.nti_edu_hari_sekolah == '5'):
+        if hari == 6 or (hari == 5 and unit.nti_edu_hari_sekolah == '5'):
             return False
         # sudo: libur tingkat yayasan harus terlihat oleh semua unit, apa pun record rule pemanggil.
         libur = self.env['nti_edu.hari.libur'].sudo().search_count([
-            ('company_id', 'in', [False, self.id, self.parent_id.id]),
+            ('company_id', 'in', [False, unit.id, unit.parent_id.id]),
             ('tanggal_mulai', '<=', tanggal),
             '|', '&', ('tanggal_selesai', '=', False), ('tanggal_mulai', '=', tanggal),
             ('tanggal_selesai', '>=', tanggal),

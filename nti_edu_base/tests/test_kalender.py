@@ -39,6 +39,34 @@ class TestKalender(NtiEduCommon):
         self._tahun()
         self.assertFalse(self.env['nti_edu.tahun.ajaran']._get_aktif())
 
+    def test_helper_spec_tahun_semester_aktif(self):
+        tahun = self._tahun(is_aktif=True)
+        smt = self.env['nti_edu.semester'].create({
+            'tahun_ajaran_id': tahun.id, 'jenis': 'ganjil',
+            'tanggal_mulai': date(2026, 7, 13), 'tanggal_selesai': date(2026, 12, 20), 'is_aktif': True})
+        Company = self.env['res.company']
+        self.assertEqual(Company._nti_edu_tahun_ajaran_aktif(), tahun)
+        self.assertEqual(Company._nti_edu_semester_aktif(), smt)
+        tahun.is_aktif = False
+        self.assertFalse(Company._nti_edu_tahun_ajaran_aktif())
+        self.assertFalse(Company._nti_edu_semester_aktif())
+
+    def test_hari_efektif_parameter_company(self):
+        self.unit_smp.nti_edu_hari_sekolah = '6'
+        self.unit_sma.nti_edu_hari_sekolah = '5'
+        sabtu = date(2026, 8, 1)
+        Company = self.env['res.company']
+        self.assertIs(Company._nti_edu_hari_efektif(sabtu, company=self.unit_smp), True)
+        self.assertIs(Company._nti_edu_hari_efektif(sabtu, company=self.unit_sma), False)
+        # Parameter company menang atas self.
+        self.assertIs(self.unit_sma._nti_edu_hari_efektif(sabtu, company=self.unit_smp), True)
+
+    def test_hari_efektif_tanpa_company_memakai_company_aktif(self):
+        self.unit_sma.nti_edu_hari_sekolah = '5'
+        Company = self.env['res.company'].with_company(self.unit_sma)
+        self.assertIs(Company._nti_edu_hari_efektif(date(2026, 8, 1)), False)
+        self.assertIs(Company._nti_edu_hari_efektif(date(2026, 8, 3)), True)
+
     def test_semester_di_luar_tahun_ditolak(self):
         tahun = self._tahun()
         with self.assertRaises(ValidationError):

@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+akses_pegawai_sertifikasi_operator,nti_edu.pegawai.sertifikasi operator,model_nti_edu_pegawai_sertifikasi,nti_edu_pegawai.group_pegawai_operator,1,1,1,0
+akses_pegawai_sertifikasi_hrd,nti_edu.pegawai.sertifikasi hrd,model_nti_edu_pegawai_sertifikasi,nti_edu_pegawai.group_pegawai_hrd,1,1,1,1

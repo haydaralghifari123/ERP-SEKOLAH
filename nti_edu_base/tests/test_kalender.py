@@ -5,6 +5,7 @@ from psycopg2 import IntegrityError
 
 from odoo.exceptions import ValidationError
 from odoo.tests import tagged
+from odoo.tests.common import new_test_user
 from odoo.tools import mute_logger
 
 from .common import NtiEduCommon
@@ -50,6 +51,16 @@ class TestKalender(NtiEduCommon):
         tahun.is_aktif = False
         self.assertFalse(Company._nti_edu_tahun_ajaran_aktif())
         self.assertFalse(Company._nti_edu_semester_aktif())
+
+    def test_helper_aktif_untuk_portal(self):
+        tahun = self._tahun(is_aktif=True)
+        smt = self.env['nti_edu.semester'].create({
+            'tahun_ajaran_id': tahun.id, 'jenis': 'ganjil',
+            'tanggal_mulai': date(2026, 7, 13), 'tanggal_selesai': date(2026, 12, 20), 'is_aktif': True})
+        portal = new_test_user(self.env, login='tes_portal_aktif', groups='base.group_portal')
+        Company = self.env['res.company'].with_user(portal)
+        self.assertEqual(Company._nti_edu_tahun_ajaran_aktif(), tahun)
+        self.assertEqual(Company._nti_edu_semester_aktif(), smt)
 
     def test_hari_efektif_parameter_company(self):
         self.unit_smp.nti_edu_hari_sekolah = '6'

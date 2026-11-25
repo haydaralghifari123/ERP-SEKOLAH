@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from datetime import date
+
 from lxml import etree
 
 from odoo.exceptions import AccessError, ValidationError
@@ -100,6 +102,19 @@ class TestSiswa(NtiEduCommon):
         biasa = self.env['res.partner'].create({'name': 'Biasa', 'company_id': self.unit_smp.id})
         with self.assertRaises(AccessError):
             biasa.with_user(self.user_pm).write({'nti_edu_is_siswa': True})
+
+    def test_arsip_siswa_menutup_keanggotaan(self):
+        tahun = self.env['nti_edu.tahun.ajaran'].create({
+            'name': '2026/2027', 'tanggal_mulai': date(2026, 7, 13), 'tanggal_selesai': date(2027, 6, 30)})
+        rombel = self.env['nti_edu.rombel'].create({
+            'name': 'VIII A', 'tahun_ajaran_id': tahun.id, 'company_id': self.unit_smp.id,
+            'tingkat_id': self.env.ref('nti_edu_base.tingkat_smp_8').id})
+        siswa = self._buat_siswa('Arsip', self.unit_smp, 'T050')
+        anggota = self.env['nti_edu.rombel.anggota'].create({'rombel_id': rombel.id, 'siswa_id': siswa.id})
+        self.assertEqual(rombel.jumlah_siswa, 1)
+        siswa.with_user(self.user_operator_smp).write({'active': False})
+        self.assertTrue(anggota.tanggal_keluar)
+        self.assertEqual(rombel.jumlah_siswa, 0)
 
     def test_operator_bisa_ubah_siswa(self):
         siswa = self._buat_siswa('A', self.unit_smp, 'T001')

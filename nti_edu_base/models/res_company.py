@@ -24,12 +24,13 @@ class ResCompany(models.Model):
     @api.model
     def _nti_edu_tahun_ajaran_aktif(self):
         """Tahun ajaran yang sedang aktif (recordset kosong bila belum ada)."""
-        return self.env['nti_edu.tahun.ajaran']._get_aktif()
+        # sudo: data tahun ajaran tidak sensitif; user portal tidak punya ACL modelnya. Hasil dikembalikan di env pemanggil.
+        return self.env['nti_edu.tahun.ajaran'].sudo()._get_aktif().with_env(self.env)
 
     @api.model
     def _nti_edu_semester_aktif(self):
         """Semester aktif pada tahun ajaran aktif (recordset kosong bila tidak ada)."""
-        return self.env['nti_edu.semester']._get_aktif()
+        return self.env['nti_edu.semester'].sudo()._get_aktif().with_env(self.env)
 
     def _nti_edu_hari_efektif(self, tanggal, company=None):
         """True bila `tanggal` adalah hari efektif sekolah untuk satu unit.

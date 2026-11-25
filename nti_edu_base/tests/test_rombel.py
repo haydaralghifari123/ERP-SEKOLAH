@@ -56,6 +56,22 @@ class TestRombel(NtiEduCommon):
         self.assertEqual((global_ | yay | sma) - hasil, self.env['nti_edu.jurusan'])
         self.assertNotIn(smp, hasil)
 
+    def test_mapel_yayasan_dipakai_unit(self):
+        Mapel = self.env['nti_edu.mapel']
+        mk = lambda n, c=None: Mapel.create({'name': n, 'company_id': c.id if c else False})
+        global_, yay, sma, smp = mk('Global'), mk('Yayasan', self.yayasan), mk('SMA', self.unit_sma), mk('SMP', self.unit_smp)
+        hasil = Mapel.search(Mapel._check_company_domain(self.unit_sma))
+        self.assertEqual((global_ | yay | sma) - hasil, Mapel)
+        self.assertNotIn(smp, hasil)
+
+    def test_jurusan_unit_ikut_terhapus(self):
+        unit = self.env['res.company'].create({'name': 'Unit Sementara', 'parent_id': self.yayasan.id})
+        jurusan = self.env['nti_edu.jurusan'].create({'name': 'J Sementara', 'company_id': unit.id})
+        mapel = self.env['nti_edu.mapel'].create({'name': 'M Sementara', 'company_id': unit.id})
+        unit.unlink()
+        self.assertFalse(jurusan.exists())
+        self.assertFalse(mapel.exists())
+
     def _anggota(self, rombel, siswa=None, **vals):
         return self.env['nti_edu.rombel.anggota'].create(dict(
             vals, rombel_id=rombel.id, siswa_id=(siswa or self.siswa).id))

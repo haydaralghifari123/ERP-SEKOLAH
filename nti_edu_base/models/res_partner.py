@@ -133,7 +133,7 @@ class ResPartner(models.Model):
             if vals.get('nti_edu_is_siswa') or any(self.sudo().mapped('nti_edu_is_siswa')):
                 self._nti_edu_tolak()
         hasil = super().write(vals)
-        if vals.get('nti_edu_status') in ('pindah', 'keluar'):
+        if vals.get('nti_edu_status') in ('pindah', 'keluar') or vals.get('active') is False:
             self._nti_edu_tutup_keanggotaan()
         return hasil
 

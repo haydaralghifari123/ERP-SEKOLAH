@@ -16,6 +16,7 @@ Data kepegawaian guru dan tenaga kependidikan NTI Edu.
     'data': [
         'security/nti_edu_pegawai_security.xml',
         'security/ir.model.access.csv',
+        'security/nti_edu_pegawai_rules.xml',
     ],
     'application': False,
     'installable': True,

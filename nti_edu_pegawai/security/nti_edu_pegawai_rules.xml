@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Sertifikasi hanya terbaca untuk orang yang bekerja di unit TU; HRD melihat semua. -->
+    <record id="rule_pegawai_sertifikasi_operator" model="ir.rule">
+        <field name="name">Sertifikasi pegawai: unit sendiri</field>
+        <field name="model_id" ref="model_nti_edu_pegawai_sertifikasi"/>
+        <field name="groups" eval="[(4, ref('group_pegawai_operator'))]"/>
+        <field name="domain_force">[('partner_id.employee_ids.company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_pegawai_sertifikasi_hrd" model="ir.rule">
+        <field name="name">Sertifikasi pegawai: HRD semua unit</field>
+        <field name="model_id" ref="model_nti_edu_pegawai_sertifikasi"/>
+        <field name="groups" eval="[(4, ref('group_pegawai_hrd'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>

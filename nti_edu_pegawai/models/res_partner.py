@@ -1,8 +1,17 @@
 # -*- coding: utf-8 -*-
 from odoo import _, api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 
 GRUP_OPERATOR = 'nti_edu_pegawai.group_pegawai_operator'
+GRUP_HRD = 'nti_edu_pegawai.group_pegawai_hrd'
+
+# Profil per orang (bukan per penempatan); dijaga lintas unit (lihat write).
+FIELD_PROFIL = {
+    'nti_edu_nuptk', 'nti_edu_nip', 'nti_edu_status_kepegawaian', 'nti_edu_pendidikan_terakhir',
+    'nti_edu_bidang_studi', 'nti_edu_sertifikasi_ids',
+}
+# Nomor identitas dirapikan (spasi tepi dibuang) agar keunikan tidak lolos karena spasi.
+FIELD_NOMOR = ('nti_edu_nuptk', 'nti_edu_nip')
 
 
 class ResPartner(models.Model):
@@ -44,3 +53,46 @@ class ResPartner(models.Model):
     @api.constrains('nti_edu_nip')
     def _check_nti_edu_nip_unik(self):
         self._nti_edu_cek_unik('nti_edu_nip', 'NIP')
+
+    # --- Penjaga tulis: profil per orang lintas unit ---
+
+    def _nti_edu_boleh_ubah_profil_pegawai(self):
+        """Apakah user saat ini boleh mengubah profil kepegawaian kontak ini (self = satu kontak)."""
+        self.ensure_one()
+        if self.env.su:
+            return True
+        user = self.env.user
+        if user.has_group(GRUP_HRD):
+            return True
+        if not user.has_group(GRUP_OPERATOR):
+            return False
+        # Semua unit tempat orang ini bekerja harus termasuk unit TU; kontak tanpa pegawai aktif hanya HRD.
+        unit_pegawai = self.sudo().employee_ids.company_id
+        return bool(unit_pegawai) and unit_pegawai <= user.company_ids
+
+    def _nti_edu_tolak_profil(self):
+        raise AccessError(_(
+            "Profil kepegawaian hanya boleh diubah HRD atau TU yang memegang semua unit tempat pegawai ini bekerja."))
+
+    @api.model
+    def _nti_edu_rapikan_nomor(self, vals):
+        for field in FIELD_NOMOR:
+            if isinstance(vals.get(field), str):
+                vals[field] = vals[field].strip() or False
+        return vals
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        vals_list = [self._nti_edu_rapikan_nomor(dict(vals)) for vals in vals_list]
+        # Belum ada pegawai pada kontak baru: profil hanya boleh diisi HRD/su.
+        if (not self.env.su and not self.env.user.has_group(GRUP_HRD)
+                and any(FIELD_PROFIL & set(vals) for vals in vals_list)):
+            self._nti_edu_tolak_profil()
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if self and not self.env.su and FIELD_PROFIL & set(vals):
+            for rec in self:
+                if not rec.with_env(self.env)._nti_edu_boleh_ubah_profil_pegawai():
+                    self._nti_edu_tolak_profil()
+        return super().write(self._nti_edu_rapikan_nomor(dict(vals)))

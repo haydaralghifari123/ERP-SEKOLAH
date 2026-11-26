@@ -154,6 +154,7 @@ sehingga sistem langsung jalan tanpa diatur.
   yang masuk rombel sebelum tanggal ini. Ini untuk sekolah yang mulai memakai sistem di tengah tahun ajaran.
 - `denda_saldo_awal` (bool, bawaan mati): apakah tunggakan saldo awal (lihat §4.3) ikut dikenai denda.
 - `tagihan_jurnal_id` (jurnal penjualan untuk tagihan; bawaan jurnal penjualan yayasan).
+- `email_tagihan_terbit` (kirim email ringkas saat tagihan terbit; bawaan nyala).
 - `pengingat_hari` (kirim email pengingat N hari sebelum jatuh tempo; 0 = mati) dan `pengingat_tunggakan` (kirim
   ringkasan tunggakan tiap N hari; 0 = mati).
 - `denda_hapus_perlu_admin` (penghapusan denda hanya Admin Keuangan; bila mati, bendahara boleh dengan alasan).
@@ -312,8 +313,8 @@ form invoice standar Akuntansi tetap ada untuk akuntan.
 ### 4.11 Grup dan hak akses (kategori "NTI Edu / Tagihan")
 | Grup | Implies | Hak |
 |---|---|---|
-| `group_tagihan_pemantau` (Pemantau Keuangan, mis. kepala sekolah/pengurus) | `nti_edu_base.group_base_pengguna`, `account.group_account_readonly` | Baca tagihan, pembayaran, tunggakan, kartu SPP, potongan di unit yang diizinkan. Tanpa ubah. |
-| `group_tagihan_bendahara` (Bendahara Unit) | pemantau, `account.group_account_invoice` | Buat tagihan (wizard), batalkan tagihan belum dibayar, atur cicilan, terima pembayaran, verifikasi konfirmasi, ajukan/kelola potongan siswa (yang `perlu_persetujuan` menunggu admin), hapus denda bila diizinkan pengaturan. Baca konfigurasi. |
+| `group_tagihan_pemantau` (Pemantau Keuangan, mis. kepala sekolah/pengurus) | `nti_edu_base.group_base_pengguna` | Baca tagihan, pembayaran, tunggakan, kartu SPP, potongan di unit yang diizinkan. Tanpa ubah. |
+| `group_tagihan_bendahara` (Bendahara Unit) | pemantau | Buat tagihan (wizard), batalkan tagihan belum dibayar, atur cicilan, terima pembayaran, verifikasi konfirmasi, ajukan/kelola potongan siswa (yang `perlu_persetujuan` menunggu admin), hapus denda bila diizinkan pengaturan. Baca konfigurasi. |
 | `group_tagihan_admin` (Admin Keuangan Yayasan) | bendahara | Kelola komponen, skema, jenis potongan; setujui potongan; hapus data konfigurasi; baca pengaturan kebijakan; semua unit yang diizinkan. |
 
 - **Admin Sistem** (`base.group_system`) otomatis mendapat `group_tagihan_admin` dan satu-satunya yang mengubah
@@ -322,10 +323,13 @@ form invoice standar Akuntansi tetap ada untuk akuntan.
   (`company_id in company_ids`). Bendahara diberi hanya unitnya di *allowed companies*; Admin Keuangan diberi yayasan
   dan semua unit.
 - **Cakupan pembukuan** (`akses_pembukuan`): rule grup pada `account.move`, `account.move.line`, `account.payment`
-  untuk grup Pemantau/Bendahara: dokumen modul ini (punya `nti_edu_komponen_id`, atau payment yang dibuat modul ini)
-  **atau** company dokumen ber-`akses_pembukuan = semua`. Karena rule grup digabung OR, grup akuntan Odoo
-  (`account.group_account_user` ke atas) dan Admin Sistem diberi rule terbuka `[(1, '=', 1)]` agar akuntan yang juga
-  bendahara tidak ikut terbatasi. Tes wajib: bendahara tidak melihat tagihan vendor/jurnal lain pada mode bawaan,
+  untuk grup Pemantau: dokumen modul ini (punya `nti_edu_komponen_id`, atau payment/jurnal payment yang dibuat modul
+  ini) **atau** company dokumen ber-`akses_pembukuan = semua`. **Grup tagihan tidak meng-imply grup akuntansi Odoo**
+  (`account.group_account_invoice`/`group_account_readonly` punya rule "lihat semua" `[(1,'=',1)]` yang, karena rule
+  grup digabung OR, akan membatalkan pembatasan ini — temuan saat menyusun rencana, 2026-11-26). Sebagai gantinya grup
+  tagihan mendapat ACL baca sendiri pada model akuntansi yang dibutuhkan tampilannya, dan **semua penulisan**
+  (terbitkan, batal, cicilan, payment, nota kredit) dilakukan metode modul lewat `sudo()` di balik pemeriksaan grup +
+  unit. Akuntan yang juga bendahara tetap melihat semua lewat rule "lihat semua" grup akuntansinya. Tes wajib: bendahara tidak melihat tagihan vendor/jurnal lain pada mode bawaan,
   melihatnya pada mode `semua`, akuntan selalu melihat.
 - Menu Akuntansi Odoo disembunyikan dari grup tagihan yang bukan akuntan (menu Keuangan Sekolah cukup); grup akuntan
   Odoo tetap bekerja seperti biasa.

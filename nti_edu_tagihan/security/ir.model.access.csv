@@ -44,3 +44,4 @@ akses_konfirmasi_bendahara,nti_edu.tagihan.konfirmasi bendahara,model_nti_edu_ta
 akses_tolak_wizard_bendahara,nti_edu.tagihan.tolak.wizard bendahara,model_nti_edu_tagihan_tolak_wizard,group_tagihan_bendahara,1,1,1,1
 akses_cicilan_wizard_bendahara,nti_edu.tagihan.cicilan.wizard bendahara,model_nti_edu_tagihan_cicilan_wizard,group_tagihan_bendahara,1,1,1,1
 akses_hapus_denda_wizard_bendahara,nti_edu.tagihan.hapus.denda.wizard bendahara,model_nti_edu_tagihan_hapus_denda_wizard,group_tagihan_bendahara,1,1,1,1
+akses_tunggakan_wali_pengguna,nti_edu.tagihan.tunggakan.wali pengguna,model_nti_edu_tagihan_tunggakan_wali,nti_edu_base.group_base_pengguna,1,0,0,0

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import timedelta
+from datetime import date, timedelta
 
 from dateutil.relativedelta import relativedelta
 from markupsafe import Markup
@@ -59,6 +59,22 @@ INDEKS_UNIK = {
         'nti_edu_potongan_id IS NOT NULL'),
 }
 
+# Kelompok umur tunggakan (spec §4.7): (kode, label, batas atas hari keterlambatan; None = tanpa batas).
+_UMUR = (
+    ('0_30', '0–30 hari', 30),
+    ('31_60', '31–60 hari', 60),
+    ('61_90', '61–90 hari', 90),
+    ('90_plus', '> 90 hari', None),
+)
+UMUR_TUNGGAKAN = [(kode, label) for kode, label, _batas in _UMUR]
+
+
+def _umur(hari):
+    """Kode umur tunggakan untuk keterlambatan `hari` (> 0)."""
+    for kode, _label, batas in _UMUR:
+        if batas is None or hari <= batas:
+            return kode
+
 
 class AccountMove(models.Model):
     _inherit = 'account.move'
@@ -108,6 +124,14 @@ class AccountMove(models.Model):
         string='Menunggu Verifikasi', compute='_compute_nti_edu_menunggu_verifikasi',
         search='_search_nti_edu_menunggu_verifikasi',
         help='Tagihan ini ada di konfirmasi transfer yang belum diverifikasi Bendahara; tetap bisa dibayar tunai.')
+    nti_edu_jatuh_tempo_terbuka = fields.Date(
+        string='Jatuh Tempo Terbuka', compute='_compute_nti_edu_jatuh_tempo_terbuka', store=True, index=True,
+        help='Jatuh tempo baris piutang (cicilan) paling awal yang masih bersisa; kosong bila lunas. Untuk tagihan '
+             'bercicil berbeda dengan jatuh tempo invoice (= cicilan terakhir).')
+    nti_edu_umur_tunggakan = fields.Selection(
+        UMUR_TUNGGAKAN, string='Umur Tunggakan', compute='_compute_nti_edu_umur_tunggakan', store=True,
+        help='Lama keterlambatan sejak jatuh tempo terbuka; kosong bila belum lewat jatuh tempo atau lunas. '
+             'Diperbarui jadwal harian dan saat pembayaran.')
 
     def init(self):
         super().init()
@@ -369,6 +393,86 @@ class AccountMove(models.Model):
         self.ensure_one()
         return self.move_type == 'out_invoice' and self.nti_edu_is_tagihan and self.state == 'posted' \
             and self.currency_id.compare_amounts(self.amount_residual, 0.0) > 0
+
+    # --- tunggakan ---------------------------------------------------------------------------
+
+    def _nti_edu_piutang(self):
+        """Baris piutang tagihan ini (satu per cicilan), urut jatuh tempo."""
+        self.ensure_one()
+        return self.line_ids.filtered(
+            lambda b: b.account_id.account_type == 'asset_receivable').sorted(
+            lambda b: (b.date_maturity or date.min, b.id))
+
+    @api.depends('move_type', 'state', 'nti_edu_komponen_id', 'currency_id', 'line_ids.account_id',
+                 'line_ids.date_maturity', 'line_ids.amount_residual', 'line_ids.amount_residual_currency')
+    def _compute_nti_edu_jatuh_tempo_terbuka(self):
+        for move in self:
+            tanggal = False
+            if move.move_type == 'out_invoice' and move.nti_edu_komponen_id and move.state == 'posted':
+                mata_uang = move.currency_id
+                terbuka = move._nti_edu_piutang().filtered(
+                    lambda b: b.date_maturity and mata_uang.compare_amounts(b.amount_residual_currency, 0.0) > 0)
+                tanggal = terbuka[:1].date_maturity or False
+            move.nti_edu_jatuh_tempo_terbuka = tanggal
+
+    @api.depends('nti_edu_jatuh_tempo_terbuka')
+    def _compute_nti_edu_umur_tunggakan(self):
+        # Bergantung pada hari ini: jadwal harian `_cron_perbarui_umur` menghitung ulang semua tagihan terbuka.
+        hari_ini = fields.Date.context_today(self)
+        for move in self:
+            jatuh_tempo = move.nti_edu_jatuh_tempo_terbuka
+            move.nti_edu_umur_tunggakan = (
+                _umur((hari_ini - jatuh_tempo).days) if jatuh_tempo and jatuh_tempo < hari_ini else False)
+
+    def _nti_edu_hitung_ulang_tunggakan(self):
+        """Hitung ulang jatuh tempo terbuka dan umur tunggakan (sudo) menurut hari ini."""
+        moves = self.sudo()
+        nama = ['nti_edu_jatuh_tempo_terbuka', 'nti_edu_umur_tunggakan']
+        for fname in nama:
+            self.env.add_to_compute(moves._fields[fname], moves)
+        moves.flush_recordset(nama)
+
+    @api.model
+    def _nti_edu_domain_tunggakan(self, hari_ini=None):
+        """Domain tunggakan (spec §4.7): tagihan sekolah terbit yang masih bersisa dan cicilan terbuka paling awalnya
+        lewat jatuh tempo per `hari_ini`. Tagihan nol/lunas tidak pernah termasuk. Sama dengan domain menu
+        Tunggakan (`action_tunggakan`)."""
+        hari_ini = hari_ini or fields.Date.context_today(self)
+        return [
+            ('move_type', '=', 'out_invoice'), ('nti_edu_is_tagihan', '=', True), ('state', '=', 'posted'),
+            ('amount_residual', '>', 0), ('nti_edu_jatuh_tempo_terbuka', '<', hari_ini),
+        ]
+
+    def action_nti_edu_kirim_pengingat(self):
+        """Tombol "Kirim Pengingat" di daftar Tunggakan (Bendahara unit): satu email ringkasan tunggakan per wali
+        penerima (`_nti_edu_penerima_tagihan`) berisi tagihan terbuka anak-anaknya yang dipilih; siswa tanpa wali
+        ber-email dicatat di chatter tagihannya."""
+        semua = self.sudo()
+        if not semua:
+            raise UserError(_('Pilih minimal satu tagihan.'))
+        # Hak lebih dahulu, agar pemanggil tanpa hak tidak mendapat informasi apa pun tentang dokumennya.
+        self.env['nti_edu.tagihan.akses']._nti_edu_cek_hak(GRUP_BENDAHARA, semua.company_id)
+        if semua.filtered(lambda m: m.move_type != 'out_invoice' or not m.nti_edu_is_tagihan):
+            raise UserError(_('Pengingat hanya dapat dikirim untuk tagihan sekolah.'))
+        terbuka = semua.filtered(lambda m: m._nti_edu_terbuka())
+        if not terbuka:
+            raise UserError(_('Tidak ada tagihan belum lunas yang dipilih.'))
+        hasil = self.env['nti_edu.tagihan.mesin']._kirim_email_tagihan(
+            'nti_edu_tagihan.mail_template_ringkasan_tunggakan', terbuka)
+        pesan = _('%s email pengingat diantrekan.', hasil['email'])
+        if hasil['tanpa_penerima']:
+            pesan = '%s %s' % (pesan, _('%s tagihan tidak dikirimi email karena wali siswanya tidak punya email '
+                                        '(tercatat di chatter tagihan).', len(hasil['tanpa_penerima'])))
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Kirim Pengingat'),
+                'message': pesan,
+                'type': 'warning' if hasil['tanpa_penerima'] else 'success',
+                'sticky': False,
+            },
+        }
 
     # --- cicilan ----------------------------------------------------------------------------
 

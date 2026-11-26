@@ -9,7 +9,7 @@
         <field name="arch" type="xml">
             <list string="Tagihan" create="0" edit="0" delete="0" default_order="invoice_date_due desc, id desc"
                   decoration-muted="state == 'cancel'"
-                  decoration-danger="state == 'posted' and not nti_edu_lunas and invoice_date_due &lt; current_date">
+                  decoration-danger="nti_edu_jatuh_tempo_terbuka and nti_edu_jatuh_tempo_terbuka &lt; current_date">
                 <field name="name"/>
                 <field name="nti_edu_siswa_id"/>
                 <field name="nti_edu_komponen_id"/>
@@ -17,6 +17,8 @@
                 <field name="nti_edu_rombel_id" optional="show"/>
                 <field name="invoice_date" optional="hide"/>
                 <field name="invoice_date_due"/>
+                <field name="nti_edu_jatuh_tempo_terbuka" optional="hide"/>
+                <field name="nti_edu_umur_tunggakan" optional="hide"/>
                 <field name="company_id" groups="base.group_multi_company" optional="show"/>
                 <field name="currency_id" column_invisible="1"/>
                 <field name="nti_edu_lunas" column_invisible="1"/>
@@ -129,7 +131,7 @@
                 <filter name="belum_lunas" string="Belum Lunas"
                         domain="[('state', '=', 'posted'), ('payment_state', 'in', ('not_paid', 'partial'))]"/>
                 <filter name="lewat_jatuh_tempo" string="Lewat Jatuh Tempo"
-                        domain="[('state', '=', 'posted'), ('payment_state', 'in', ('not_paid', 'partial')), ('invoice_date_due', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
+                        domain="[('state', '=', 'posted'), ('amount_residual', '&gt;', 0), ('nti_edu_jatuh_tempo_terbuka', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
                 <filter name="lunas" string="Lunas" domain="[('payment_state', 'in', ('paid', 'in_payment'))]"/>
                 <filter name="menunggu_verifikasi" string="Menunggu Verifikasi"
                         domain="[('nti_edu_menunggu_verifikasi', '=', True)]"/>

@@ -16,6 +16,11 @@ _logger = logging.getLogger(__name__)
 
 GRUP_BENDAHARA = 'nti_edu_tagihan.group_tagihan_bendahara'
 
+# Templat email tagihan (model res.partner = penerima; daftar tagihan lewat konteks, lihat `_kirim_email_tagihan`).
+TEMPLAT_TERBIT = 'nti_edu_tagihan.mail_template_tagihan_terbit'
+TEMPLAT_PENGINGAT = 'nti_edu_tagihan.mail_template_pengingat_jatuh_tempo'
+TEMPLAT_TUNGGAKAN = 'nti_edu_tagihan.mail_template_ringkasan_tunggakan'
+
 # Penanda "payment ini dibuat `_bayar_baris`" untuk wizard pembayaran Odoo. Sengaja bukan kunci konteks Odoo yang bisa
 # dikirim bebas lewat RPC; ContextVar hanya bisa dipasang kode server.
 _BAYAR_TAGIHAN = contextvars.ContextVar('nti_edu_bayar_tagihan', default=False)
@@ -224,9 +229,10 @@ class TagihanMesin(models.AbstractModel):
         return hasil
 
     @api.model
-    def _terbitkan(self, company, komponen, info, rombel=None):
+    def _terbitkan(self, company, komponen, info, rombel=None, kirim_email=True):
         """Terbitkan tagihan sesuai `_rencana`. Tiap siswa diproses dalam savepoint sendiri: galat satu siswa
-        dicatat di `lewati` dan tidak menghentikan siswa lain.
+        dicatat di `lewati` dan tidak menghentikan siswa lain. Bila `kirim_email`, di akhir dikirim email tagihan
+        terbit (satu per wali penerima untuk semua tagihan baru jalan ini, lihat `_kirim_email_terbit`).
 
         Mengembalikan dict `buat` (recordset `account.move`) dan `lewati` (daftar `(siswa, alasan)`).
         """
@@ -255,6 +261,8 @@ class TagihanMesin(models.AbstractModel):
                     komponen.sudo().name, info['periode'] or '-', siswa.sudo().name, siswa.id, alasan,
                     exc_info=not galat_pengguna)
                 lewati.append((siswa, alasan))
+        if kirim_email:
+            self._kirim_email_terbit(company, tagihan)
         return {'buat': tagihan, 'lewati': lewati}
 
     # --- jadwal ------------------------------------------------------------------------------
@@ -265,7 +273,8 @@ class TagihanMesin(models.AbstractModel):
         aktif tahun ajaran aktif untuk periode yang tanggal terbitnya sudah tiba. Aman dijalankan berulang.
 
         Di jalur jadwal sungguhan, hasil tiap (unit, komponen, periode) di-commit agar penerbitan awal tahun ajaran
-        yang besar tidak hilang seluruhnya bila melewati batas waktu cron; di tes tidak pernah commit."""
+        yang besar tidak hilang seluruhnya bila melewati batas waktu cron; di tes tidak pernah commit. Email tagihan
+        terbit dikirim sekali per unit di akhir jalan unit itu (satu email per wali untuk semua tagihan barunya)."""
         hari_ini = hari_ini or fields.Date.context_today(self)
         ta = self.env['nti_edu.tahun.ajaran'].sudo()._get_aktif()
         if not ta:
@@ -286,22 +295,159 @@ class TagihanMesin(models.AbstractModel):
 
         commit = _boleh_commit()
         Cron = self.env['ir.cron']
+        baru = self.env['account.move'].sudo()
         for selesai, (company, komponen, info) in enumerate(pekerjaan, start=1):
             try:
                 with self.env.cr.savepoint():
-                    hasil = self._terbitkan(company, komponen, info)
+                    hasil = self._terbitkan(company, komponen, info, kirim_email=False)
             except psycopg2.OperationalError:
                 raise
             except Exception:  # noqa: BLE001 - satu komponen rusak tidak menghentikan yang lain
                 _logger.exception(
                     'Tagihan otomatis %s %s periode %s gagal', company.name, komponen.name, info['periode'] or '-')
             else:
+                baru |= hasil['buat']
                 if hasil['buat']:
                     _logger.info(
                         'Tagihan otomatis %s %s periode %s: %s terbit, %s dilewati', company.name,
                         komponen.name, info['periode'] or '-', len(hasil['buat']), len(hasil['lewati']))
+            # Pekerjaan urut per unit: di pekerjaan terakhir suatu unit, kirim email tagihan baru unit itu.
+            if selesai == len(pekerjaan) or pekerjaan[selesai][0] != company:
+                self._kirim_email_terbit(company, baru)
+                baru = baru.browse()
             if commit:
                 Cron._notify_progress(done=selesai, remaining=len(pekerjaan) - selesai)
+                self.env.cr.commit()
+
+    # --- email -------------------------------------------------------------------------------
+
+    @api.model
+    def _kirim_email_tagihan(self, template_xmlid, tagihan):
+        """Antrekan email `template_xmlid` (model `res.partner`, dirender untuk penerima) berisi daftar `tagihan`:
+        satu email per (unit tagihan, wali penerima `_nti_edu_peta_penerima_tagihan`) memuat tagihan semua anaknya.
+        Daftar tagihan dan unit diberikan ke templat lewat konteks `nti_edu_tagihan_email` / `nti_edu_unit`.
+        Tagihan siswa tanpa penerima (atau bila templat dihapus) dicatat di chatter tagihan. Sebagai superuser.
+
+        Mengembalikan dict `email` (jumlah email) dan `tanpa_penerima` (tagihan yang tidak dikirimi email).
+        """
+        tagihan = tagihan.sudo()
+        hasil = {'email': 0, 'tanpa_penerima': tagihan.browse()}
+        if not tagihan:
+            return hasil
+        template = self.env.ref(template_xmlid, raise_if_not_found=False)
+        peta = tagihan.nti_edu_siswa_id._nti_edu_peta_penerima_tagihan() if template else {}
+        kelompok = {}
+        for item in tagihan:
+            penerima = peta.get(item.nti_edu_siswa_id.id)
+            if not penerima:
+                hasil['tanpa_penerima'] |= item
+                continue
+            for partner in penerima:
+                kunci = (item.company_id, partner)
+                kelompok[kunci] = kelompok.get(kunci, tagihan.browse()) | item
+        if hasil['tanpa_penerima']:
+            alasan = (_('Email tidak terkirim: wali tanpa email.') if template
+                      else _('Email tidak terkirim: templat email tidak ditemukan.'))
+            for item in hasil['tanpa_penerima']:
+                item.message_post(body=alasan, subtype_xmlid='mail.mt_note')
+        for (company, partner), daftar in kelompok.items():
+            daftar = daftar.sorted(lambda m: (
+                m.nti_edu_siswa_id.name or '', m.nti_edu_jatuh_tempo_terbuka or m.invoice_date_due or m.invoice_date,
+                m.id))
+            template.sudo().with_context(nti_edu_tagihan_email=daftar, nti_edu_unit=company).send_mail(
+                partner.id, force_send=False)
+            hasil['email'] += 1
+        return hasil
+
+    @api.model
+    def _kirim_email_terbit(self, company, tagihan):
+        """Email tagihan terbit untuk `tagihan` baru unit `company` bila pengaturan unit
+        `nti_edu_email_tagihan_terbit` menyala. Galat pengiriman tidak membatalkan tagihan yang sudah terbit."""
+        if not tagihan or not company.sudo().nti_edu_email_tagihan_terbit:
+            return
+        try:
+            with self.env.cr.savepoint():
+                self._kirim_email_tagihan(TEMPLAT_TERBIT, tagihan)
+        except psycopg2.OperationalError:
+            raise
+        except Exception:  # noqa: BLE001 - email gagal tidak boleh membatalkan penerbitan
+            _logger.exception('Email tagihan terbit unit %s gagal diantrekan', company.sudo().name)
+
+    # --- pengingat & tunggakan -----------------------------------------------------------------
+
+    @api.model
+    def _cron_pengingat(self, hari_ini=None):
+        """Jadwal harian email pengingat (spec §4.9), per unit:
+
+        - `nti_edu_pengingat_hari` N > 0: tagihan terbuka yang cicilan terbuka paling awalnya jatuh tempo tepat
+          `hari_ini` + N hari.
+        - `nti_edu_pengingat_tunggakan` N > 0: ringkasan tunggakan (lewat jatuh tempo) bila selisih `hari_ini`
+          dengan tanggal 1 bulan berjalan habis dibagi N (tanggal 1, 1 + N, 1 + 2N, ... tiap bulan).
+
+        Satu email per wali penerima per jenis. Tiap unit dalam savepoint sendiri; di jalur jadwal sungguhan
+        di-commit per unit, di tes tidak pernah commit."""
+        hari_ini = hari_ini or fields.Date.context_today(self)
+        units = self.env['res.company'].sudo().search([
+            '|', ('nti_edu_pengingat_hari', '>', 0), ('nti_edu_pengingat_tunggakan', '>', 0)])
+        commit = _boleh_commit()
+        Cron = self.env['ir.cron']
+        for selesai, company in enumerate(units, start=1):
+            try:
+                with self.env.cr.savepoint():
+                    self._pengingat_unit(company, hari_ini)
+            except psycopg2.OperationalError:
+                raise
+            except Exception as e:  # noqa: BLE001 - satu unit rusak tidak menghentikan yang lain
+                galat_pengguna = isinstance(e, UserError)
+                _logger.warning(
+                    'Pengingat tagihan unit %s gagal: %s', company.name,
+                    e.args[0] if galat_pengguna and e.args else e, exc_info=not galat_pengguna)
+            if commit:
+                Cron._notify_progress(done=selesai, remaining=len(units) - selesai)
+                self.env.cr.commit()
+
+    @api.model
+    def _pengingat_unit(self, company, hari_ini):
+        """Pengingat jatuh tempo dan ringkasan tunggakan satu unit (lihat `_cron_pengingat`)."""
+        Move = self.env['account.move'].sudo()
+        terbuka = [
+            ('company_id', '=', company.id), ('move_type', '=', 'out_invoice'), ('nti_edu_is_tagihan', '=', True),
+            ('state', '=', 'posted'), ('amount_residual', '>', 0),
+        ]
+        if company.nti_edu_pengingat_hari > 0:
+            tanggal = hari_ini + timedelta(days=company.nti_edu_pengingat_hari)
+            self._kirim_email_tagihan(
+                TEMPLAT_PENGINGAT, Move.search(terbuka + [('nti_edu_jatuh_tempo_terbuka', '=', tanggal)]))
+        jarak = company.nti_edu_pengingat_tunggakan
+        if jarak > 0 and (hari_ini - _awal_bulan(hari_ini)).days % jarak == 0:
+            self._kirim_email_tagihan(
+                TEMPLAT_TUNGGAKAN,
+                Move.search([('company_id', '=', company.id)] + Move._nti_edu_domain_tunggakan(hari_ini)))
+
+    @api.model
+    def _cron_perbarui_umur(self):
+        """Jadwal harian: hitung ulang jatuh tempo terbuka dan umur tunggakan semua tagihan yang masih terbuka atau
+        masih berumur (umur bergantung pada hari ini). Per unit dalam savepoint; commit hanya di luar tes."""
+        moves = self.env['account.move'].sudo().search([
+            ('move_type', '=', 'out_invoice'), ('nti_edu_is_tagihan', '=', True),
+            '|', ('nti_edu_jatuh_tempo_terbuka', '!=', False), ('nti_edu_umur_tunggakan', '!=', False),
+        ], order='company_id, id')
+        commit = _boleh_commit()
+        Cron = self.env['ir.cron']
+        units = moves.company_id
+        for selesai, company in enumerate(units, start=1):
+            try:
+                with self.env.cr.savepoint():
+                    moves.filtered(lambda m: m.company_id == company)._nti_edu_hitung_ulang_tunggakan()
+            except psycopg2.OperationalError:
+                raise
+            except Exception as e:  # noqa: BLE001 - satu unit rusak tidak menghentikan yang lain
+                galat_pengguna = isinstance(e, UserError)
+                _logger.warning(
+                    'Umur tunggakan unit %s gagal diperbarui: %s', company.name,
+                    e.args[0] if galat_pengguna and e.args else e, exc_info=not galat_pengguna)
+            if commit:
+                Cron._notify_progress(done=selesai, remaining=len(units) - selesai)
                 self.env.cr.commit()
 
     # --- denda -------------------------------------------------------------------------------

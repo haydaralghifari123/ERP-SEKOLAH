@@ -58,4 +58,127 @@
 </div>
         </field>
     </record>
+
+    <!-- Email tagihan ke wali penerima (spec §4.9): dirender untuk partner penerima; daftar tagihan anak-anaknya
+         (account.move) di konteks `nti_edu_tagihan_email` dan unitnya di `nti_edu_unit`
+         (nti_edu.tagihan.mesin._kirim_email_tagihan). Bisa diedit admin. -->
+    <record id="mail_template_tagihan_terbit" model="mail.template">
+        <field name="name">Keuangan Sekolah: Tagihan Terbit</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="subject">Tagihan Baru {{ ctx.get('nti_edu_unit') and ctx['nti_edu_unit'].name or '' }}</field>
+        <field name="email_from">{{ (ctx.get('nti_edu_unit') and ctx['nti_edu_unit'].email_formatted) or user.email_formatted }}</field>
+        <field name="partner_to">{{ object.id }}</field>
+        <field name="lang">{{ object.lang }}</field>
+        <field name="auto_delete" eval="True"/>
+        <field name="description">Dikirim ke wali penerima saat tagihan baru terbit (bila pengaturan unit menyala); satu email untuk semua tagihan baru anak-anaknya dalam satu jalan pembuatan.</field>
+        <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <p>Yth. <t t-out="object.name or ''">Bapak/Ibu</t>,</p>
+    <p>
+        Tagihan baru dari <t t-out="ctx.get('nti_edu_unit') and ctx['nti_edu_unit'].name or ''">unit sekolah</t>
+        telah terbit:
+    </p>
+    <table style="border-collapse: collapse;" cellpadding="4" border="1">
+        <tr>
+            <th>Siswa</th>
+            <th>Tagihan</th>
+            <th>Jatuh Tempo</th>
+            <th>Jumlah</th>
+        </tr>
+        <tr t-foreach="ctx.get('nti_edu_tagihan_email') or []" t-as="tagihan">
+            <td t-out="tagihan.nti_edu_siswa_id.name or ''">Nama Siswa</td>
+            <td>
+                <t t-out="tagihan.nti_edu_komponen_id.name or ''">SPP</t>
+                <t t-if="tagihan.nti_edu_periode" t-out="format_date(tagihan.nti_edu_periode, date_format='MMMM y')">Agustus 2026</t>
+                (<t t-out="tagihan.name or ''">INV/2026/00001</t>)
+            </td>
+            <td t-out="format_date(tagihan.nti_edu_jatuh_tempo_terbuka or tagihan.invoice_date_due)">10/08/2026</td>
+            <td t-out="format_amount(tagihan.amount_residual, tagihan.currency_id)">Rp 150.000</td>
+        </tr>
+    </table>
+    <p>Rincian dan cara pembayaran dapat dilihat di portal sekolah.</p>
+    <p>Terima kasih.</p>
+</div>
+        </field>
+    </record>
+
+    <record id="mail_template_pengingat_jatuh_tempo" model="mail.template">
+        <field name="name">Keuangan Sekolah: Pengingat Jatuh Tempo</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="subject">Pengingat Jatuh Tempo Tagihan {{ ctx.get('nti_edu_unit') and ctx['nti_edu_unit'].name or '' }}</field>
+        <field name="email_from">{{ (ctx.get('nti_edu_unit') and ctx['nti_edu_unit'].email_formatted) or user.email_formatted }}</field>
+        <field name="partner_to">{{ object.id }}</field>
+        <field name="lang">{{ object.lang }}</field>
+        <field name="auto_delete" eval="True"/>
+        <field name="description">Dikirim ke wali penerima beberapa hari sebelum tagihan jatuh tempo (pengaturan unit Pengingat).</field>
+        <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <p>Yth. <t t-out="object.name or ''">Bapak/Ibu</t>,</p>
+    <p>
+        Kami mengingatkan tagihan <t t-out="ctx.get('nti_edu_unit') and ctx['nti_edu_unit'].name or ''">unit sekolah</t>
+        berikut akan segera jatuh tempo:
+    </p>
+    <table style="border-collapse: collapse;" cellpadding="4" border="1">
+        <tr>
+            <th>Siswa</th>
+            <th>Tagihan</th>
+            <th>Jatuh Tempo</th>
+            <th>Sisa</th>
+        </tr>
+        <tr t-foreach="ctx.get('nti_edu_tagihan_email') or []" t-as="tagihan">
+            <td t-out="tagihan.nti_edu_siswa_id.name or ''">Nama Siswa</td>
+            <td>
+                <t t-out="tagihan.nti_edu_komponen_id.name or ''">SPP</t>
+                <t t-if="tagihan.nti_edu_periode" t-out="format_date(tagihan.nti_edu_periode, date_format='MMMM y')">Agustus 2026</t>
+                (<t t-out="tagihan.name or ''">INV/2026/00001</t>)
+            </td>
+            <td t-out="format_date(tagihan.nti_edu_jatuh_tempo_terbuka or tagihan.invoice_date_due)">10/08/2026</td>
+            <td t-out="format_amount(tagihan.amount_residual, tagihan.currency_id)">Rp 150.000</td>
+        </tr>
+    </table>
+    <p>Abaikan pesan ini bila tagihan sudah dibayar.</p>
+    <p>Terima kasih.</p>
+</div>
+        </field>
+    </record>
+
+    <record id="mail_template_ringkasan_tunggakan" model="mail.template">
+        <field name="name">Keuangan Sekolah: Ringkasan Tunggakan</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="subject">Ringkasan Tunggakan {{ ctx.get('nti_edu_unit') and ctx['nti_edu_unit'].name or '' }}</field>
+        <field name="email_from">{{ (ctx.get('nti_edu_unit') and ctx['nti_edu_unit'].email_formatted) or user.email_formatted }}</field>
+        <field name="partner_to">{{ object.id }}</field>
+        <field name="lang">{{ object.lang }}</field>
+        <field name="auto_delete" eval="True"/>
+        <field name="description">Ringkasan tunggakan ke wali penerima: berkala (pengaturan unit Ringkasan Tunggakan) dan dari tombol Kirim Pengingat Bendahara.</field>
+        <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <p>Yth. <t t-out="object.name or ''">Bapak/Ibu</t>,</p>
+    <p>
+        Berikut tagihan <t t-out="ctx.get('nti_edu_unit') and ctx['nti_edu_unit'].name or ''">unit sekolah</t>
+        yang belum lunas:
+    </p>
+    <table style="border-collapse: collapse;" cellpadding="4" border="1">
+        <tr>
+            <th>Siswa</th>
+            <th>Tagihan</th>
+            <th>Jatuh Tempo</th>
+            <th>Sisa</th>
+        </tr>
+        <tr t-foreach="ctx.get('nti_edu_tagihan_email') or []" t-as="tagihan">
+            <td t-out="tagihan.nti_edu_siswa_id.name or ''">Nama Siswa</td>
+            <td>
+                <t t-out="tagihan.nti_edu_komponen_id.name or ''">SPP</t>
+                <t t-if="tagihan.nti_edu_periode" t-out="format_date(tagihan.nti_edu_periode, date_format='MMMM y')">Agustus 2026</t>
+                (<t t-out="tagihan.name or ''">INV/2026/00001</t>)
+            </td>
+            <td t-out="format_date(tagihan.nti_edu_jatuh_tempo_terbuka or tagihan.invoice_date_due)">10/08/2026</td>
+            <td t-out="format_amount(tagihan.amount_residual, tagihan.currency_id)">Rp 150.000</td>
+        </tr>
+    </table>
+    <p>Mohon segera melakukan pembayaran. Abaikan pesan ini bila tagihan sudah dibayar.</p>
+    <p>Terima kasih.</p>
+</div>
+        </field>
+    </record>
 </odoo>

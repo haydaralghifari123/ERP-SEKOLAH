@@ -145,4 +145,11 @@
         <field name="perm_create" eval="False"/>
         <field name="perm_unlink" eval="False"/>
     </record>
+
+    <!-- Tunggakan Rombel Saya: tiap user hanya melihat baris miliknya (baris dibuat sudo setelah cek wali kelas). -->
+    <record id="rule_tunggakan_wali_milik_sendiri" model="ir.rule">
+        <field name="name">Tunggakan rombel wali kelas: milik sendiri</field>
+        <field name="model_id" ref="model_nti_edu_tagihan_tunggakan_wali"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+    </record>
 </odoo>

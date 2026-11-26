@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Akar terlihat semua pengguna sekolah karena menu Tunggakan Rombel Saya (wali kelas, spec §4.10); menu lain
+         dibatasi grup tagihan. -->
     <menuitem id="menu_tagihan_root" name="Keuangan Sekolah" sequence="45"
-              groups="nti_edu_tagihan.group_tagihan_pemantau"/>
+              groups="nti_edu_base.group_base_pengguna"/>
 
     <menuitem id="menu_tagihan" name="Tagihan" parent="menu_tagihan_root"
-              action="action_tagihan" sequence="10"/>
+              action="action_tagihan" sequence="10" groups="nti_edu_tagihan.group_tagihan_pemantau"/>
     <menuitem id="menu_konfirmasi" name="Konfirmasi Transfer" parent="menu_tagihan_root"
-              action="action_konfirmasi" sequence="15"/>
+              action="action_konfirmasi" sequence="15" groups="nti_edu_tagihan.group_tagihan_pemantau"/>
     <menuitem id="menu_pembayaran" name="Pembayaran" parent="menu_tagihan_root"
-              action="action_pembayaran" sequence="20"/>
+              action="action_pembayaran" sequence="20" groups="nti_edu_tagihan.group_tagihan_pemantau"/>
+    <menuitem id="menu_tunggakan" name="Tunggakan" parent="menu_tagihan_root"
+              action="action_tunggakan" sequence="25" groups="nti_edu_tagihan.group_tagihan_pemantau"/>
+    <menuitem id="menu_tunggakan_rombel_saya" name="Tunggakan Rombel Saya" parent="menu_tagihan_root"
+              action="action_tunggakan_rombel_saya" sequence="27" groups="nti_edu_base.group_base_pengguna"/>
     <menuitem id="menu_potongan" name="Potongan Siswa" parent="menu_tagihan_root"
-              action="action_potongan" sequence="30"/>
+              action="action_potongan" sequence="30" groups="nti_edu_tagihan.group_tagihan_pemantau"/>
 
     <menuitem id="menu_tagihan_proses" name="Proses" parent="menu_tagihan_root" sequence="40"
               groups="nti_edu_tagihan.group_tagihan_bendahara"/>

@@ -10,3 +10,4 @@ from . import account_payment
 from . import mesin
 from . import res_partner
 from . import konfirmasi
+from . import tunggakan

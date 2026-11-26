@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tab Keuangan di form siswa base (spec §4.7): hanya grup tagihan; field ringkasan dibaca sebagai superuser,
+         daftar tagihan dengan hak pembaca. -->
+    <record id="view_siswa_form_keuangan" model="ir.ui.view">
+        <field name="name">nti_edu.siswa.form.keuangan</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="nti_edu_base.view_siswa_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Keuangan" name="page_keuangan" groups="nti_edu_tagihan.group_tagihan_pemantau"
+                      invisible="not nti_edu_is_siswa">
+                    <div class="mb-3" invisible="not id">
+                        <button name="%(nti_edu_tagihan.action_report_kartu_spp)d" type="action"
+                                string="Kartu SPP" icon="fa-print" class="btn-secondary me-2"/>
+                        <button name="%(nti_edu_tagihan.action_bayar_wizard)d" type="action"
+                                string="Terima Pembayaran" class="btn-primary"
+                                groups="nti_edu_tagihan.group_tagihan_bendahara"
+                                context="{'default_siswa_id': id}"/>
+                    </div>
+                    <group>
+                        <group string="Ringkasan">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="nti_edu_sisa_tagihan"/>
+                            <field name="nti_edu_tunggakan" decoration-danger="nti_edu_tunggakan &gt; 0"/>
+                            <field name="nti_edu_saldo_kredit"/>
+                        </group>
+                    </group>
+                    <separator string="Potongan Aktif"/>
+                    <field name="nti_edu_potongan_ids" readonly="1" nolabel="1">
+                        <list>
+                            <field name="jenis_id"/>
+                            <field name="tipe" optional="hide"/>
+                            <field name="nilai"/>
+                            <field name="tanggal_mulai"/>
+                            <field name="tanggal_selesai"/>
+                        </list>
+                    </field>
+                    <separator string="Tagihan"/>
+                    <field name="nti_edu_tagihan_ids" readonly="1" nolabel="1"
+                           context="{'form_view_ref': 'nti_edu_tagihan.view_tagihan_form'}">
+                        <list decoration-danger="nti_edu_umur_tunggakan">
+                            <field name="name"/>
+                            <field name="nti_edu_komponen_id"/>
+                            <field name="nti_edu_periode"/>
+                            <field name="nti_edu_jatuh_tempo_terbuka" string="Jatuh Tempo Terbuka" optional="show"/>
+                            <field name="invoice_date_due" string="Jatuh Tempo" optional="hide"/>
+                            <field name="nti_edu_umur_tunggakan" optional="show"/>
+                            <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="amount_total" string="Total" sum="Total"/>
+                            <field name="amount_residual" string="Sisa" sum="Sisa"/>
+                            <field name="payment_state" widget="badge" string="Pembayaran"
+                                   decoration-success="payment_state in ('paid', 'in_payment')"
+                                   decoration-warning="payment_state == 'partial'"
+                                   decoration-danger="payment_state == 'not_paid'"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -8,3 +8,4 @@ from . import test_pembayaran
 from . import test_konfirmasi
 from . import test_cicilan
 from . import test_denda
+from . import test_laporan

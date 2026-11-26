@@ -67,6 +67,10 @@ class BayarWizard(models.TransientModel):
     @api.depends('siswa_id')
     def _compute_tagihan_ids(self):
         Move = self.env['account.move']
+        if not self.env.user._is_superuser():
+            # Field tersimpan dihitung sebagai superuser: cari dengan hak pemanggil agar tagihan unit lain (mis. siswa
+            # unit lain yang id-nya diselipkan) tidak ikut terisi.
+            Move = Move.sudo(False)
         for rec in self:
             # Pilihan yang sudah ada (mis. dari daftar tagihan) dipertahankan selama siswanya sama.
             if rec.tagihan_ids and rec.tagihan_ids._origin.nti_edu_siswa_id == rec.siswa_id._origin:
@@ -114,13 +118,16 @@ class BayarWizard(models.TransientModel):
         # Grup lebih dahulu; unit diperiksa sesudah tagihan dipastikan milik siswa (unit tagihan, bukan unit siswa
         # saat ini: siswa bisa sudah pindah unit), dan sekali lagi oleh `_bayar`.
         Akses._nti_edu_cek_hak(GRUP_BENDAHARA, self.env['res.company'])
+        # Nama siswa hanya disebut bila pemanggil boleh membacanya (mis. bukan siswa unit lain yang id-nya diselipkan).
+        nama_siswa = siswa.name if self.siswa_id.has_access('read') else _('yang dipilih')
         if not self.tagihan_ids:
-            raise UserError(_('Siswa %s tidak punya tagihan terbuka yang dipilih.', siswa.name))
+            Akses._nti_edu_cek_hak(GRUP_BENDAHARA, siswa.company_id)
+            raise UserError(_('Siswa %s tidak punya tagihan terbuka yang dipilih.', nama_siswa))
         lain = self.tagihan_ids.sudo().filtered(lambda m: m.nti_edu_siswa_id != siswa)
         if lain:
             # Hanya tagihan yang boleh dibaca pemanggil yang disebut namanya (mis. bukan tagihan unit lain).
             raise UserError(_('Tagihan %(tagihan)s bukan milik siswa %(siswa)s.',
-                              tagihan=self.env['account.move']._nti_edu_nama_terlihat(lain), siswa=siswa.name))
+                              tagihan=self.env['account.move']._nti_edu_nama_terlihat(lain), siswa=nama_siswa))
         Akses._nti_edu_cek_hak(GRUP_BENDAHARA, self.tagihan_ids.sudo().company_id)
         payments = self.env['nti_edu.tagihan.mesin']._bayar(
             self.tagihan_ids, self.nominal, self.rekening_id, self.tanggal, self.memo, siswa_kelebihan=siswa)

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import calendar
+import contextvars
 import logging
+from contextlib import contextmanager
 from datetime import timedelta
 
 import psycopg2
@@ -13,6 +15,19 @@ from odoo.tools import float_round
 _logger = logging.getLogger(__name__)
 
 GRUP_BENDAHARA = 'nti_edu_tagihan.group_tagihan_bendahara'
+
+# Penanda "payment ini dibuat `_bayar_baris`" untuk wizard pembayaran Odoo. Sengaja bukan kunci konteks Odoo yang bisa
+# dikirim bebas lewat RPC; ContextVar hanya bisa dipasang kode server.
+_BAYAR_TAGIHAN = contextvars.ContextVar('nti_edu_bayar_tagihan', default=False)
+
+
+@contextmanager
+def _bayar_tagihan():
+    token = _BAYAR_TAGIHAN.set(True)
+    try:
+        yield
+    finally:
+        _BAYAR_TAGIHAN.reset(token)
 
 
 def _bulatkan_satuan(mata_uang, nilai):
@@ -470,7 +485,7 @@ class TagihanMesin(models.AbstractModel):
         nominal di atas total sisa baris tetap terbuka sebagai kredit siswa."""
         company = baris.company_id
         Register = self.env['account.payment.register'].sudo().with_company(company).with_context(
-            active_model='account.move.line', active_ids=baris.ids, nti_edu_bayar_tagihan=True)
+            active_model='account.move.line', active_ids=baris.ids)
         nilai = {
             'amount': nominal,
             'journal_id': rekening.journal_id.id,
@@ -487,7 +502,8 @@ class TagihanMesin(models.AbstractModel):
             raise UserError(_(
                 'Tagihan %s tidak dapat dibayar dalam satu pembayaran (akun piutang atau mata uang berbeda).',
                 siswa.name))
-        return wizard._create_payments()
+        with _bayar_tagihan():
+            return wizard._create_payments()
 
     @api.model
     def _bayar_sebagai_kredit(self, siswa, company, jumlah, rekening, tanggal, memo):

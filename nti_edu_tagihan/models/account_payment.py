@@ -2,6 +2,7 @@
 from odoo import _, fields, models
 
 from .account_move import _field_cek_tanpa_partner
+from .mesin import _BAYAR_TAGIHAN
 
 
 class AccountPayment(models.Model):
@@ -31,16 +32,17 @@ class AccountPayment(models.Model):
 class AccountPaymentRegister(models.TransientModel):
     _inherit = 'account.payment.register'
 
-    # Payment dari wizard ini ditandai sekolah sejak dibuat (bukan sesudahnya) bila dipanggil `_bayar_baris` dengan
-    # konteks `nti_edu_bayar_tagihan`, agar pemeriksaan unit partner siswa pindah unit sudah berlaku saat create.
+    # Payment dari wizard ini ditandai sekolah sejak dibuat (bukan sesudahnya) bila dipanggil `_bayar_baris`
+    # (ContextVar `_BAYAR_TAGIHAN`, bukan kunci konteks yang bisa dikirim lewat RPC), agar pemeriksaan unit partner
+    # siswa pindah unit sudah berlaku saat create.
     def _create_payment_vals_from_wizard(self, batch_result):
         vals = super()._create_payment_vals_from_wizard(batch_result)
-        if self.env.context.get('nti_edu_bayar_tagihan'):
+        if _BAYAR_TAGIHAN.get():
             vals['nti_edu_dari_tagihan'] = True
         return vals
 
     def _create_payment_vals_from_batch(self, batch_result):
         vals = super()._create_payment_vals_from_batch(batch_result)
-        if self.env.context.get('nti_edu_bayar_tagihan'):
+        if _BAYAR_TAGIHAN.get():
             vals['nti_edu_dari_tagihan'] = True
         return vals

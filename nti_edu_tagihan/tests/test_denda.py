@@ -285,24 +285,71 @@ class TestDenda(NtiTagihanCommon):
         Move = self.Move.with_company(self.unit_smp)
         # (c) Invoice biasa: partner bukan siswa dari unit lain, atau siswa tetapi bukan dokumen sekolah.
         for partner in (mitra_sma, self.siswa_a):
-            with self.assertRaisesRegex(UserError, 'Incompatible companies'):
+            with self.assertRaises(UserError) as galat:
                 Move.create({
                     'move_type': 'out_invoice', 'company_id': self.unit_smp.id, 'journal_id': jurnal.id,
                     'partner_id': partner.id, 'invoice_line_ids': baris})
+            self.assertIn('Incompatible companies', str(galat.exception))
+        # Dokumen sekolah dengan partner bukan siswa dari unit lain tetap ditolak.
+        with self.assertRaises(UserError) as galat:
+            Move.create({
+                'move_type': 'out_invoice', 'company_id': self.unit_smp.id, 'journal_id': jurnal.id,
+                'partner_id': mitra_sma.id, 'nti_edu_siswa_id': self.siswa_a.id,
+                'nti_edu_komponen_id': self.spp.id, 'invoice_line_ids': baris})
+        self.assertIn('Incompatible companies', str(galat.exception))
         # Payment biasa (bukan dari modul) untuk siswa unit lain juga tetap ditolak.
-        with self.assertRaisesRegex(UserError, 'Incompatible companies'):
+        with self.assertRaises(UserError) as galat:
             self.env['account.payment'].with_company(self.unit_smp).create({
                 'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': self.siswa_a.id,
                 'company_id': self.unit_smp.id, 'journal_id': self.rekening_smp.journal_id.id,
                 'amount': 1000, 'date': date(2026, 8, 20)})
+        self.assertIn('Incompatible companies', str(galat.exception))
         # Dokumen sekolah tetap memeriksa field lain: jurnal milik unit lain ditolak.
         jurnal_sma = self.env['account.journal'].create({
             'name': 'Penjualan SMA Tes', 'code': 'PSMA', 'type': 'sale', 'company_id': self.unit_sma.id})
-        with self.assertRaisesRegex(UserError, 'Incompatible companies'):
+        with self.assertRaises(UserError) as galat:
             Move.create({
                 'move_type': 'out_invoice', 'company_id': self.unit_smp.id, 'journal_id': jurnal_sma.id,
                 'partner_id': self.siswa_a.id, 'nti_edu_siswa_id': self.siswa_a.id,
                 'nti_edu_komponen_id': self.spp.id, 'invoice_line_ids': baris})
+        self.assertIn('Incompatible companies', str(galat.exception))
+
+    def test_penanda_register_bukan_kunci_konteks(self):
+        # Kunci konteks lama `nti_edu_bayar_tagihan` lewat wizard pembayaran Odoo biasa tidak menandai payment sekolah.
+        tagihan = self._terbitkan()
+        piutang = tagihan.line_ids.filtered(lambda b: b.account_id.account_type == 'asset_receivable')
+        wizard = self.env['account.payment.register'].with_context(
+            active_model='account.move.line', active_ids=piutang.ids, nti_edu_bayar_tagihan=True).create({
+                'journal_id': self.rekening_smp.journal_id.id, 'payment_date': date(2026, 8, 20)})
+        payment = wizard._create_payments()
+        self.assertTrue(payment)
+        self.assertFalse(payment.nti_edu_dari_tagihan)
+        # Pembayaran lewat mesin tetap ditandai (penandaan saat create diuji di tes siswa pindah unit).
+        lain = self._terbitkan(siswa=self.siswa_b)
+        self.assertTrue(self.Mesin._bayar(lain, 150000, self.rekening_smp, date(2026, 8, 20), 'Mesin')
+                        .nti_edu_dari_tagihan)
+
+    def test_wizard_bayar_tidak_bocor_nama_siswa_unit_lain(self):
+        # Bendahara SMP menyelipkan id siswa SMA ke wizard Terima Pembayaran lewat RPC.
+        self.Move._nti_edu_terbitkan(
+            self.siswa_c, self.spp, 150000, date(2026, 8, 1), date(2026, 8, 10), periode=date(2026, 8, 1))
+        Wizard = self.env['nti_edu.tagihan.bayar.wizard'].with_user(self.bendahara_smp)
+        wizard = Wizard.create({
+            'siswa_id': self.siswa_c.id, 'rekening_id': self.rekening_smp.id, 'tanggal': date(2026, 8, 20)})
+        self.assertFalse(wizard.tagihan_ids)
+        with self.assertRaises(AccessError) as galat:
+            wizard.action_bayar()
+        self.assertNotIn(self.siswa_c.name, str(galat.exception))
+        # Dengan tagihan SMP milik siswa lain: ditolak tanpa menyebut nama siswa SMA.
+        tagihan_a = self._terbitkan()
+        wizard = Wizard.create({
+            'siswa_id': self.siswa_c.id, 'rekening_id': self.rekening_smp.id, 'tanggal': date(2026, 8, 20),
+            'tagihan_ids': [(6, 0, tagihan_a.ids)], 'nominal': 150000})
+        with self.assertRaises(UserError) as galat:
+            wizard.action_bayar()
+        self.assertIn('bukan milik', str(galat.exception))
+        self.assertNotIn(self.siswa_c.name, str(galat.exception))
+        self.assertEqual(tagihan_a.amount_residual, 150000)
 
     def test_cron_terdaftar_dan_commit(self):
         cron = self.env.ref('nti_edu_tagihan.cron_denda')

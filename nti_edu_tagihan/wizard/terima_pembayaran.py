@@ -55,10 +55,12 @@ class BayarWizard(models.TransientModel):
                 res['siswa_id'] = partner.id
         return res
 
-    @api.depends('siswa_id')
+    @api.depends('siswa_id', 'tagihan_ids')
     def _compute_company_id(self):
         for rec in self:
-            company = rec.siswa_id.sudo().company_id
+            # Unit tagihan yang dibayar (siswa bisa sudah pindah unit); tanpa tagihan: unit siswa saat ini.
+            unit_tagihan = rec.tagihan_ids.sudo().company_id
+            company = unit_tagihan if len(unit_tagihan) == 1 else rec.siswa_id.sudo().company_id
             rec.company_id = company
             rec.currency_id = company.currency_id or self.env.company.currency_id
 
@@ -92,13 +94,13 @@ class BayarWizard(models.TransientModel):
         for rec in self:
             rec.kelebihan = max(rec.nominal - rec.total_sisa, 0.0)
 
-    @api.depends('siswa_id')
+    @api.depends('siswa_id', 'tagihan_ids')
     def _compute_rekening_boleh_ids(self):
         Rekening = self.env['nti_edu.tagihan.rekening']
         for rec in self:
             rec.rekening_boleh_ids = Rekening._untuk_unit(rec.company_id) if rec.company_id else Rekening
 
-    @api.depends('siswa_id')
+    @api.depends('siswa_id', 'tagihan_ids')
     def _compute_rekening_id(self):
         for rec in self:
             boleh = rec.rekening_boleh_ids._origin
@@ -108,7 +110,10 @@ class BayarWizard(models.TransientModel):
     def action_bayar(self):
         self.ensure_one()
         siswa = self.siswa_id.sudo()
-        self.env['nti_edu.tagihan.akses']._nti_edu_cek_hak(GRUP_BENDAHARA, siswa.company_id)
+        Akses = self.env['nti_edu.tagihan.akses']
+        # Grup lebih dahulu; unit diperiksa sesudah tagihan dipastikan milik siswa (unit tagihan, bukan unit siswa
+        # saat ini: siswa bisa sudah pindah unit), dan sekali lagi oleh `_bayar`.
+        Akses._nti_edu_cek_hak(GRUP_BENDAHARA, self.env['res.company'])
         if not self.tagihan_ids:
             raise UserError(_('Siswa %s tidak punya tagihan terbuka yang dipilih.', siswa.name))
         lain = self.tagihan_ids.sudo().filtered(lambda m: m.nti_edu_siswa_id != siswa)
@@ -116,6 +121,7 @@ class BayarWizard(models.TransientModel):
             # Hanya tagihan yang boleh dibaca pemanggil yang disebut namanya (mis. bukan tagihan unit lain).
             raise UserError(_('Tagihan %(tagihan)s bukan milik siswa %(siswa)s.',
                               tagihan=self.env['account.move']._nti_edu_nama_terlihat(lain), siswa=siswa.name))
+        Akses._nti_edu_cek_hak(GRUP_BENDAHARA, self.tagihan_ids.sudo().company_id)
         payments = self.env['nti_edu.tagihan.mesin']._bayar(
             self.tagihan_ids, self.nominal, self.rekening_id, self.tanggal, self.memo, siswa_kelebihan=siswa)
         # Kuitansi = laporan tanda terima pembayaran Odoo (judul "Kuitansi Pembayaran", kop unit payment).

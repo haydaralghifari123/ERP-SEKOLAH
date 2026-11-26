@@ -26,9 +26,17 @@ FIELD_SEKOLAH = (
     'denda_bulan_ke', 'saldo_awal', 'sumber',
 )
 
-# Field partner tagihan yang boleh beda unit dengan tagihannya: siswa yang pindah unit tetap ditagih denda di unit
-# tagihan asal (lihat `_nti_edu_terbitkan(company=...)`).
+# Field partner dokumen sekolah yang boleh beda unit dengan dokumennya: siswa yang pindah unit dalam yayasan tetap
+# punya tunggakan, denda, dan pembayaran di unit lama (lihat `_check_company`).
 FIELD_PARTNER_SISWA = ('partner_id', 'commercial_partner_id', 'partner_shipping_id')
+
+
+def _field_cek_tanpa_partner(records, fnames, field_partner):
+    """Daftar field yang diperiksa `_check_company` Odoo untuk `fnames`, tanpa `field_partner`."""
+    if fnames is None or {'company_id', 'company_ids'} & set(fnames):
+        fnames = list(records._fields)
+    return [f for f in fnames if f not in field_partner + ('company_id', 'company_ids')]
+
 
 # Indeks unik parsial pencegah tagihan ganda (spec §4.3); tagihan yang dibatalkan tidak dihitung.
 INDEKS_UNIK = {
@@ -109,19 +117,25 @@ class AccountMove(models.Model):
                 f"WHERE state != 'cancel' AND {syarat}")
 
     def _check_company(self, fnames=None):
-        """Hanya saat `_nti_edu_terbitkan` menerbitkan tagihan di unit selain unit siswa saat ini (konteks
-        `nti_edu_partner_lintas_unit`): partner siswa tagihan sekolah tidak diperiksa unitnya; field lain tetap."""
-        if not self.env.context.get('nti_edu_partner_lintas_unit'):
-            return super()._check_company(fnames)
-        lintas = self.filtered(lambda m: m.nti_edu_is_tagihan and m.partner_id == m.nti_edu_siswa_id)
-        if self - lintas:
-            super(AccountMove, self - lintas)._check_company(fnames)
-        if lintas:
-            if fnames is None or {'company_id', 'company_ids'} & set(fnames):
-                fnames = list(self._fields)
-            sisa = [f for f in fnames if f not in FIELD_PARTNER_SISWA + ('company_id', 'company_ids')]
-            if sisa:
-                super(AccountMove, lintas)._check_company(sisa)
+        """Siswa yang pindah unit dalam yayasan tetap bisa ditagih dan membayar tunggakan unit lamanya: untuk dokumen
+        sekolah (`_nti_edu_partner_siswa_lintas_unit`) unit field partner tidak diperiksa; field lain dan dokumen lain
+        tetap diperiksa Odoo seperti biasa."""
+        sekolah = self.filtered(lambda m: m._nti_edu_partner_siswa_lintas_unit())
+        if self - sekolah:
+            super(AccountMove, self - sekolah)._check_company(fnames)
+        if sekolah:
+            super(AccountMove, sekolah)._check_company(_field_cek_tanpa_partner(self, fnames, FIELD_PARTNER_SISWA))
+
+    def _nti_edu_partner_siswa_lintas_unit(self):
+        """True bila ini dokumen sekolah — tagihan/denda/nota potongan (`nti_edu_komponen_id` diisi) atau entri
+        payment sekolah (`origin_payment_id.nti_edu_dari_tagihan`) — dan semua field partnernya siswa yang sama."""
+        self.ensure_one()
+        move = self.sudo()
+        if not (move.nti_edu_komponen_id or move.origin_payment_id.nti_edu_dari_tagihan):
+            return False
+        partner = move.partner_id
+        return bool(partner.nti_edu_is_siswa) and all(
+            move[f] in (partner, partner.browse()) for f in FIELD_PARTNER_SISWA)
 
     @api.depends('nti_edu_komponen_id')
     def _compute_nti_edu_is_tagihan(self):
@@ -208,8 +222,6 @@ class AccountMove(models.Model):
             vals['nti_edu_' + nama] = nilai.id if isinstance(nilai, models.BaseModel) else nilai
 
         Move = self.sudo().with_company(company)
-        if company != siswa.sudo().company_id:
-            Move = Move.with_context(nti_edu_partner_lintas_unit=True)
         try:
             with self.env.cr.savepoint():
                 # Kolom indeks unik tagihan semuanya ditulis saat INSERT; log SQL hanya dibisukan di sini.

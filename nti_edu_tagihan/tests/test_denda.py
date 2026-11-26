@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+import base64
 from datetime import date
 from unittest.mock import patch
 
+from odoo import Command
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import freeze_time, tagged
 from odoo.tools import mute_logger
@@ -9,6 +11,7 @@ from odoo.tools import mute_logger
 from .common import NtiTagihanCommon
 
 LOGGER_MESIN = 'odoo.addons.nti_edu_tagihan.models.mesin'
+PNG = b'\x89PNG\r\n\x1a\n' + b'\x00' * 64
 
 
 @tagged('post_install', '-at_install')
@@ -219,14 +222,87 @@ class TestDenda(NtiTagihanCommon):
     def test_denda_di_unit_tagihan_asal(self):
         asal = self._terbitkan()
         # Siswa pindah ke SMA sesudah tagihan SMP terbit.
-        anggota = self.env['nti_edu.rombel.anggota'].search([('siswa_id', '=', self.siswa_a.id)])
-        anggota.tanggal_keluar = date(2026, 8, 15)
-        self.siswa_a.company_id = self.unit_sma
+        self._pindahkan_ke_sma(self.siswa_a)
         self._cron('2026-08-18')
         denda = self._denda(asal)
         self.assertEqual(len(denda), 1)
         self.assertEqual(denda.company_id, self.unit_smp)
         self.assertEqual(denda.nti_edu_siswa_id, self.siswa_a)
+
+    def _pindahkan_ke_sma(self, siswa):
+        anggota = self.env['nti_edu.rombel.anggota'].search([('siswa_id', '=', siswa.id)])
+        anggota.tanggal_keluar = date(2026, 8, 15)
+        siswa.company_id = self.unit_sma
+
+    def test_pindah_unit_tunggakan_tetap_bisa_dibayar(self):
+        asal = self._terbitkan()
+        self._cron('2026-08-18')
+        denda = self._denda(asal)
+        self.assertEqual(len(denda), 1)
+        self._pindahkan_ke_sma(self.siswa_a)
+
+        # (a) Bendahara SMP menerima pembayaran tunggakan SMP lewat mesin...
+        payment = self.Mesin.with_user(self.bendahara_smp)._bayar(
+            asal, 150000, self.rekening_smp, date(2026, 8, 20), 'Tunggakan SMP')
+        self.assertEqual(asal.amount_residual, 0)
+        self.assertEqual(payment.sudo().company_id, self.unit_smp)
+        self.assertEqual(payment.sudo().partner_id, self.siswa_a)
+        self.assertTrue(payment.sudo().nti_edu_dari_tagihan)
+        self.assertEqual(payment.sudo().move_id.company_id, self.unit_smp)
+
+        # ... dan lewat wizard Terima Pembayaran (unit wizard = unit tagihan), termasuk kelebihan menjadi kredit.
+        wizard = self.env['nti_edu.tagihan.bayar.wizard'].with_user(self.bendahara_smp).with_context(
+            active_model='account.move', active_ids=denda.ids).create({})
+        self.assertEqual(wizard.company_id, self.unit_smp)
+        self.assertEqual(wizard.tagihan_ids, denda)
+        self.assertEqual(wizard.rekening_id, self.rekening_smp)
+        wizard.nominal = 15000
+        wizard.action_bayar()
+        self.assertEqual(denda.amount_residual, 0)
+        kredit = self.env['account.payment'].search([
+            ('partner_id', '=', self.siswa_a.id), ('nti_edu_dari_tagihan', '=', True)])
+        self.assertEqual(kredit.company_id, self.unit_smp)
+        self.assertEqual(sum(kredit.mapped('amount')), 165000)
+
+    def test_pindah_unit_konfirmasi_diterima(self):
+        tagihan = self._terbitkan()
+        self._pindahkan_ke_sma(self.siswa_a)
+        # (b) Wali mengonfirmasi transfer untuk tagihan SMP; Bendahara SMP menerimanya.
+        konf = self.env['nti_edu.tagihan.konfirmasi']._buat_dari_portal(self.user_wali_x, tagihan.ids, {
+            'tanggal_transfer': date(2026, 8, 20), 'nominal': 150000, 'rekening_id': self.rekening_smp.id,
+            'nama_rekening_pengirim': 'Wali X', 'bukti': base64.b64encode(PNG), 'bukti_nama': 'bukti.png'})
+        self.assertEqual(konf.company_id, self.unit_smp)
+        konf.with_user(self.bendahara_smp).action_terima()
+        self.assertEqual(konf.state, 'diterima')
+        self.assertEqual(tagihan.amount_residual, 0)
+        self.assertEqual(konf.payment_ids.company_id, self.unit_smp)
+
+    def test_pindah_unit_dokumen_lain_tetap_diperiksa(self):
+        self._pindahkan_ke_sma(self.siswa_a)
+        jurnal = self.unit_smp._nti_edu_jurnal_tagihan()
+        baris = [Command.create({'name': 'Lain', 'quantity': 1, 'price_unit': 1000, 'tax_ids': [Command.clear()]})]
+        mitra_sma = self.env['res.partner'].create({'name': 'Mitra SMA Tes', 'company_id': self.unit_sma.id})
+        Move = self.Move.with_company(self.unit_smp)
+        # (c) Invoice biasa: partner bukan siswa dari unit lain, atau siswa tetapi bukan dokumen sekolah.
+        for partner in (mitra_sma, self.siswa_a):
+            with self.assertRaisesRegex(UserError, 'Incompatible companies'):
+                Move.create({
+                    'move_type': 'out_invoice', 'company_id': self.unit_smp.id, 'journal_id': jurnal.id,
+                    'partner_id': partner.id, 'invoice_line_ids': baris})
+        # Payment biasa (bukan dari modul) untuk siswa unit lain juga tetap ditolak.
+        with self.assertRaisesRegex(UserError, 'Incompatible companies'):
+            self.env['account.payment'].with_company(self.unit_smp).create({
+                'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': self.siswa_a.id,
+                'company_id': self.unit_smp.id, 'journal_id': self.rekening_smp.journal_id.id,
+                'amount': 1000, 'date': date(2026, 8, 20)})
+        # Dokumen sekolah tetap memeriksa field lain: jurnal milik unit lain ditolak.
+        jurnal_sma = self.env['account.journal'].create({
+            'name': 'Penjualan SMA Tes', 'code': 'PSMA', 'type': 'sale', 'company_id': self.unit_sma.id})
+        with self.assertRaisesRegex(UserError, 'Incompatible companies'):
+            Move.create({
+                'move_type': 'out_invoice', 'company_id': self.unit_smp.id, 'journal_id': jurnal_sma.id,
+                'partner_id': self.siswa_a.id, 'nti_edu_siswa_id': self.siswa_a.id,
+                'nti_edu_komponen_id': self.spp.id, 'invoice_line_ids': baris})
 
     def test_cron_terdaftar_dan_commit(self):
         cron = self.env.ref('nti_edu_tagihan.cron_denda')

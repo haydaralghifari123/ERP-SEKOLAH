@@ -470,7 +470,7 @@ class TagihanMesin(models.AbstractModel):
         nominal di atas total sisa baris tetap terbuka sebagai kredit siswa."""
         company = baris.company_id
         Register = self.env['account.payment.register'].sudo().with_company(company).with_context(
-            active_model='account.move.line', active_ids=baris.ids)
+            active_model='account.move.line', active_ids=baris.ids, nti_edu_bayar_tagihan=True)
         nilai = {
             'amount': nominal,
             'journal_id': rekening.journal_id.id,

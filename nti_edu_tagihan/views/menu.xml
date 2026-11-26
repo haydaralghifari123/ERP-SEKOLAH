@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_tagihan_root" name="Keuangan Sekolah" sequence="45"
+              groups="nti_edu_tagihan.group_tagihan_pemantau"/>
+
+    <menuitem id="menu_tagihan_konfigurasi" name="Konfigurasi" parent="menu_tagihan_root" sequence="90"
+              groups="nti_edu_tagihan.group_tagihan_admin"/>
+    <menuitem id="menu_komponen" name="Komponen Biaya" parent="menu_tagihan_konfigurasi"
+              action="action_komponen" sequence="10"/>
+    <menuitem id="menu_periode_jenis" name="Periode Tagihan" parent="menu_tagihan_konfigurasi"
+              action="action_periode_jenis" sequence="40"/>
+    <menuitem id="menu_aturan_denda" name="Aturan Denda" parent="menu_tagihan_konfigurasi"
+              action="action_aturan_denda" sequence="50"/>
+    <menuitem id="menu_aturan_cicilan" name="Aturan Cicilan" parent="menu_tagihan_konfigurasi"
+              action="action_aturan_cicilan" sequence="60"/>
+    <menuitem id="menu_aturan_masuk" name="Aturan Siswa Masuk Tengah" parent="menu_tagihan_konfigurasi"
+              action="action_aturan_masuk" sequence="70"/>
+    <menuitem id="menu_rekening" name="Rekening Pembayaran" parent="menu_tagihan_konfigurasi"
+              action="action_rekening" sequence="80"/>
+    <menuitem id="menu_alasan_tolak" name="Alasan Penolakan Transfer" parent="menu_tagihan_konfigurasi"
+              action="action_alasan_tolak" sequence="90"/>
+    <menuitem id="menu_alasan_hapus" name="Alasan Penghapusan Denda" parent="menu_tagihan_konfigurasi"
+              action="action_alasan_hapus" sequence="100"/>
+</odoo>

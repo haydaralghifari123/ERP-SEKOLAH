@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Data awal (spec §4.12): contoh master yang bisa diubah atau diarsipkan Admin Keuangan. -->
+    <record id="bulan_01" model="nti_edu.tagihan.bulan">
+        <field name="name">Januari</field>
+        <field name="nomor">1</field>
+    </record>
+    <record id="bulan_02" model="nti_edu.tagihan.bulan">
+        <field name="name">Februari</field>
+        <field name="nomor">2</field>
+    </record>
+    <record id="bulan_03" model="nti_edu.tagihan.bulan">
+        <field name="name">Maret</field>
+        <field name="nomor">3</field>
+    </record>
+    <record id="bulan_04" model="nti_edu.tagihan.bulan">
+        <field name="name">April</field>
+        <field name="nomor">4</field>
+    </record>
+    <record id="bulan_05" model="nti_edu.tagihan.bulan">
+        <field name="name">Mei</field>
+        <field name="nomor">5</field>
+    </record>
+    <record id="bulan_06" model="nti_edu.tagihan.bulan">
+        <field name="name">Juni</field>
+        <field name="nomor">6</field>
+    </record>
+    <record id="bulan_07" model="nti_edu.tagihan.bulan">
+        <field name="name">Juli</field>
+        <field name="nomor">7</field>
+    </record>
+    <record id="bulan_08" model="nti_edu.tagihan.bulan">
+        <field name="name">Agustus</field>
+        <field name="nomor">8</field>
+    </record>
+    <record id="bulan_09" model="nti_edu.tagihan.bulan">
+        <field name="name">September</field>
+        <field name="nomor">9</field>
+    </record>
+    <record id="bulan_10" model="nti_edu.tagihan.bulan">
+        <field name="name">Oktober</field>
+        <field name="nomor">10</field>
+    </record>
+    <record id="bulan_11" model="nti_edu.tagihan.bulan">
+        <field name="name">November</field>
+        <field name="nomor">11</field>
+    </record>
+    <record id="bulan_12" model="nti_edu.tagihan.bulan">
+        <field name="name">Desember</field>
+        <field name="nomor">12</field>
+    </record>
+
+    <!-- Periode tagihan -->
+    <record id="periode_bulanan" model="nti_edu.tagihan.periode.jenis">
+        <field name="name">Bulanan</field>
+        <field name="sequence">10</field>
+        <field name="dasar">bulan</field>
+        <field name="jumlah_bulan">1</field>
+    </record>
+    <record id="periode_semester" model="nti_edu.tagihan.periode.jenis">
+        <field name="name">Semester</field>
+        <field name="sequence">20</field>
+        <field name="dasar">semester</field>
+    </record>
+    <record id="periode_tahunan" model="nti_edu.tagihan.periode.jenis">
+        <field name="name">Tahunan</field>
+        <field name="sequence">30</field>
+        <field name="dasar">tahun_ajaran</field>
+    </record>
+    <record id="periode_sekali" model="nti_edu.tagihan.periode.jenis">
+        <field name="name">Sekali</field>
+        <field name="sequence">40</field>
+        <field name="dasar">sekali</field>
+    </record>
+
+    <!-- Aturan siswa masuk tengah -->
+    <record id="aturan_masuk_penuh" model="nti_edu.tagihan.aturan.masuk">
+        <field name="name">Tagih penuh</field>
+        <field name="sequence">10</field>
+        <field name="cara">penuh</field>
+    </record>
+    <record id="aturan_masuk_berikutnya" model="nti_edu.tagihan.aturan.masuk">
+        <field name="name">Mulai periode berikutnya</field>
+        <field name="sequence">20</field>
+        <field name="cara">berikutnya</field>
+    </record>
+    <record id="aturan_masuk_prorata" model="nti_edu.tagihan.aturan.masuk">
+        <field name="name">Prorata per bulan</field>
+        <field name="sequence">30</field>
+        <field name="cara">prorata</field>
+    </record>
+
+    <!-- Aturan cicilan -->
+    <record id="aturan_cicilan_4_bulanan" model="nti_edu.tagihan.aturan.cicilan">
+        <field name="name">Cicil 4× bulanan</field>
+        <field name="sequence">10</field>
+        <field name="maks_kali">4</field>
+        <field name="jarak">1</field>
+        <field name="jarak_satuan">bulan</field>
+    </record>
+    <record id="aturan_cicilan_2_per_6_bulan" model="nti_edu.tagihan.aturan.cicilan">
+        <field name="name">Cicil 2× per 6 bulan</field>
+        <field name="sequence">20</field>
+        <field name="maks_kali">2</field>
+        <field name="jarak">6</field>
+        <field name="jarak_satuan">bulan</field>
+    </record>
+
+    <!-- Komponen denda bawaan; produk layanannya dibuat otomatis. -->
+    <record id="kategori_produk_biaya_sekolah" model="product.category">
+        <field name="name">Biaya Sekolah</field>
+    </record>
+    <record id="komponen_denda" model="nti_edu.tagihan.komponen">
+        <field name="name">Denda Keterlambatan</field>
+        <field name="kode">DENDA</field>
+        <field name="sequence">100</field>
+        <field name="jenis">denda</field>
+    </record>
+
+    <!-- Aturan denda contoh (tidak terpasang ke komponen mana pun) -->
+    <record id="aturan_denda_contoh" model="nti_edu.tagihan.aturan.denda">
+        <field name="name">Denda Rp10.000 per bulan, tenggang 7 hari</field>
+        <field name="tipe">tetap</field>
+        <field name="nilai">10000</field>
+        <field name="berulang">per_bulan</field>
+        <field name="tenggang_hari">7</field>
+        <field name="maks">0</field>
+        <field name="komponen_denda_id" ref="komponen_denda"/>
+    </record>
+
+    <!-- Alasan penolakan transfer -->
+    <record id="alasan_tolak_tidak_terbaca" model="nti_edu.tagihan.alasan.tolak">
+        <field name="name">Bukti tidak terbaca</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="alasan_tolak_nominal" model="nti_edu.tagihan.alasan.tolak">
+        <field name="name">Nominal tidak sesuai</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="alasan_tolak_tidak_ditemukan" model="nti_edu.tagihan.alasan.tolak">
+        <field name="name">Transfer tidak ditemukan di rekening</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="alasan_tolak_lainnya" model="nti_edu.tagihan.alasan.tolak">
+        <field name="name">Lainnya</field>
+        <field name="sequence">90</field>
+        <field name="perlu_catatan" eval="True"/>
+    </record>
+
+    <!-- Alasan penghapusan denda -->
+    <record id="alasan_hapus_kebijakan" model="nti_edu.tagihan.alasan.hapus">
+        <field name="name">Kebijakan sekolah</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="alasan_hapus_kesalahan" model="nti_edu.tagihan.alasan.hapus">
+        <field name="name">Kesalahan sistem</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="alasan_hapus_lainnya" model="nti_edu.tagihan.alasan.hapus">
+        <field name="name">Lainnya</field>
+        <field name="sequence">90</field>
+        <field name="perlu_catatan" eval="True"/>
+    </record>
+</odoo>

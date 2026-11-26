@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Periode tagihan -->
+    <record id="view_periode_jenis_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.periode.jenis.list</field>
+        <field name="model">nti_edu.tagihan.periode.jenis</field>
+        <field name="arch" type="xml">
+            <list string="Periode Tagihan">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="dasar"/>
+                <field name="jumlah_bulan" invisible="dasar != 'bulan'"/>
+                <field name="hari_terbit"/>
+                <field name="hari_jatuh_tempo"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_periode_jenis_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.periode.jenis.form</field>
+        <field name="model">nti_edu.tagihan.periode.jenis</field>
+        <field name="arch" type="xml">
+            <form string="Periode Tagihan">
+                <sheet>
+                    <widget name="web_ribbon" title="Diarsipkan" bg_color="text-bg-danger" invisible="active"/>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="dasar"/>
+                            <field name="jumlah_bulan" invisible="dasar != 'bulan'"/>
+                            <field name="bulan_libur_ids" widget="many2many_tags" invisible="dasar != 'bulan'"/>
+                        </group>
+                        <group>
+                            <field name="hari_terbit"/>
+                            <field name="hari_jatuh_tempo"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_periode_jenis" model="ir.actions.act_window">
+        <field name="name">Periode Tagihan</field>
+        <field name="res_model">nti_edu.tagihan.periode.jenis</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Aturan denda -->
+    <record id="view_aturan_denda_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.aturan.denda.list</field>
+        <field name="model">nti_edu.tagihan.aturan.denda</field>
+        <field name="arch" type="xml">
+            <list string="Aturan Denda">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="tipe"/>
+                <field name="nilai"/>
+                <field name="berulang"/>
+                <field name="tenggang_hari"/>
+                <field name="maks"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_aturan_denda_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.aturan.denda.form</field>
+        <field name="model">nti_edu.tagihan.aturan.denda</field>
+        <field name="arch" type="xml">
+            <form string="Aturan Denda">
+                <sheet>
+                    <widget name="web_ribbon" title="Diarsipkan" bg_color="text-bg-danger" invisible="active"/>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="tipe"/>
+                            <field name="nilai"/>
+                            <field name="berulang"/>
+                        </group>
+                        <group>
+                            <field name="tenggang_hari"/>
+                            <field name="maks"/>
+                            <field name="komponen_denda_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_aturan_denda" model="ir.actions.act_window">
+        <field name="name">Aturan Denda</field>
+        <field name="res_model">nti_edu.tagihan.aturan.denda</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Aturan cicilan -->
+    <record id="view_aturan_cicilan_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.aturan.cicilan.list</field>
+        <field name="model">nti_edu.tagihan.aturan.cicilan</field>
+        <field name="arch" type="xml">
+            <list string="Aturan Cicilan" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="maks_kali"/>
+                <field name="jarak"/>
+                <field name="jarak_satuan"/>
+                <field name="uang_muka_persen"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_aturan_cicilan" model="ir.actions.act_window">
+        <field name="name">Aturan Cicilan</field>
+        <field name="res_model">nti_edu.tagihan.aturan.cicilan</field>
+        <field name="view_mode">list</field>
+    </record>
+
+    <!-- Aturan siswa masuk tengah -->
+    <record id="view_aturan_masuk_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.aturan.masuk.list</field>
+        <field name="model">nti_edu.tagihan.aturan.masuk</field>
+        <field name="arch" type="xml">
+            <list string="Aturan Siswa Masuk Tengah" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="cara"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_aturan_masuk" model="ir.actions.act_window">
+        <field name="name">Aturan Siswa Masuk Tengah</field>
+        <field name="res_model">nti_edu.tagihan.aturan.masuk</field>
+        <field name="view_mode">list</field>
+    </record>
+
+    <!-- Rekening pembayaran -->
+    <record id="view_rekening_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.rekening.list</field>
+        <field name="model">nti_edu.tagihan.rekening</field>
+        <field name="arch" type="xml">
+            <list string="Rekening Pembayaran">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="bank"/>
+                <field name="nomor"/>
+                <field name="atas_nama"/>
+                <field name="company_ids" widget="many2many_tags" groups="base.group_multi_company"/>
+                <field name="journal_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_rekening_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.rekening.form</field>
+        <field name="model">nti_edu.tagihan.rekening</field>
+        <field name="arch" type="xml">
+            <form string="Rekening Pembayaran">
+                <sheet>
+                    <widget name="web_ribbon" title="Diarsipkan" bg_color="text-bg-danger" invisible="active"/>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="bank"/>
+                            <field name="nomor"/>
+                            <field name="atas_nama"/>
+                        </group>
+                        <group>
+                            <field name="journal_id"/>
+                            <field name="company_ids" widget="many2many_tags" groups="base.group_multi_company"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                    <label for="instruksi"/>
+                    <field name="instruksi"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_rekening" model="ir.actions.act_window">
+        <field name="name">Rekening Pembayaran</field>
+        <field name="res_model">nti_edu.tagihan.rekening</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Alasan penolakan transfer & penghapusan denda -->
+    <record id="view_alasan_tolak_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.alasan.tolak.list</field>
+        <field name="model">nti_edu.tagihan.alasan.tolak</field>
+        <field name="arch" type="xml">
+            <list string="Alasan Penolakan Transfer" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="perlu_catatan"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_alasan_tolak" model="ir.actions.act_window">
+        <field name="name">Alasan Penolakan Transfer</field>
+        <field name="res_model">nti_edu.tagihan.alasan.tolak</field>
+        <field name="view_mode">list</field>
+    </record>
+
+    <record id="view_alasan_hapus_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.alasan.hapus.list</field>
+        <field name="model">nti_edu.tagihan.alasan.hapus</field>
+        <field name="arch" type="xml">
+            <list string="Alasan Penghapusan Denda" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="perlu_catatan"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_alasan_hapus" model="ir.actions.act_window">
+        <field name="name">Alasan Penghapusan Denda</field>
+        <field name="res_model">nti_edu.tagihan.alasan.hapus</field>
+        <field name="view_mode">list</field>
+    </record>
+</odoo>

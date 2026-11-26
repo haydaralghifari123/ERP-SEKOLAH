@@ -1,0 +1,19 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+akses_bulan_pemantau,nti_edu.tagihan.bulan pemantau,model_nti_edu_tagihan_bulan,group_tagihan_pemantau,1,0,0,0
+akses_periode_jenis_pemantau,nti_edu.tagihan.periode.jenis pemantau,model_nti_edu_tagihan_periode_jenis,group_tagihan_pemantau,1,0,0,0
+akses_periode_jenis_admin,nti_edu.tagihan.periode.jenis admin,model_nti_edu_tagihan_periode_jenis,group_tagihan_admin,1,1,1,1
+akses_aturan_denda_pemantau,nti_edu.tagihan.aturan.denda pemantau,model_nti_edu_tagihan_aturan_denda,group_tagihan_pemantau,1,0,0,0
+akses_aturan_denda_admin,nti_edu.tagihan.aturan.denda admin,model_nti_edu_tagihan_aturan_denda,group_tagihan_admin,1,1,1,1
+akses_aturan_cicilan_pemantau,nti_edu.tagihan.aturan.cicilan pemantau,model_nti_edu_tagihan_aturan_cicilan,group_tagihan_pemantau,1,0,0,0
+akses_aturan_cicilan_admin,nti_edu.tagihan.aturan.cicilan admin,model_nti_edu_tagihan_aturan_cicilan,group_tagihan_admin,1,1,1,1
+akses_aturan_masuk_pemantau,nti_edu.tagihan.aturan.masuk pemantau,model_nti_edu_tagihan_aturan_masuk,group_tagihan_pemantau,1,0,0,0
+akses_aturan_masuk_admin,nti_edu.tagihan.aturan.masuk admin,model_nti_edu_tagihan_aturan_masuk,group_tagihan_admin,1,1,1,1
+akses_rekening_pemantau,nti_edu.tagihan.rekening pemantau,model_nti_edu_tagihan_rekening,group_tagihan_pemantau,1,0,0,0
+akses_rekening_admin,nti_edu.tagihan.rekening admin,model_nti_edu_tagihan_rekening,group_tagihan_admin,1,1,1,1
+akses_alasan_tolak_pemantau,nti_edu.tagihan.alasan.tolak pemantau,model_nti_edu_tagihan_alasan_tolak,group_tagihan_pemantau,1,0,0,0
+akses_alasan_tolak_admin,nti_edu.tagihan.alasan.tolak admin,model_nti_edu_tagihan_alasan_tolak,group_tagihan_admin,1,1,1,1
+akses_alasan_hapus_pemantau,nti_edu.tagihan.alasan.hapus pemantau,model_nti_edu_tagihan_alasan_hapus,group_tagihan_pemantau,1,0,0,0
+akses_alasan_hapus_admin,nti_edu.tagihan.alasan.hapus admin,model_nti_edu_tagihan_alasan_hapus,group_tagihan_admin,1,1,1,1
+akses_komponen_pemantau,nti_edu.tagihan.komponen pemantau,model_nti_edu_tagihan_komponen,group_tagihan_pemantau,1,0,0,0
+akses_komponen_admin,nti_edu.tagihan.komponen admin,model_nti_edu_tagihan_komponen,group_tagihan_admin,1,1,1,1
+akses_account_journal_pemantau,account.journal pemantau keuangan,account.model_account_journal,group_tagihan_pemantau,1,0,0,0

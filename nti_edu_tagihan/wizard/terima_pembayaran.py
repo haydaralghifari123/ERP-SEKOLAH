@@ -113,8 +113,9 @@ class BayarWizard(models.TransientModel):
             raise UserError(_('Siswa %s tidak punya tagihan terbuka yang dipilih.', siswa.name))
         lain = self.tagihan_ids.sudo().filtered(lambda m: m.nti_edu_siswa_id != siswa)
         if lain:
+            # Hanya tagihan yang boleh dibaca pemanggil yang disebut namanya (mis. bukan tagihan unit lain).
             raise UserError(_('Tagihan %(tagihan)s bukan milik siswa %(siswa)s.',
-                              tagihan=', '.join(lain.mapped('name')), siswa=siswa.name))
+                              tagihan=self.env['account.move']._nti_edu_nama_terlihat(lain), siswa=siswa.name))
         payments = self.env['nti_edu.tagihan.mesin']._bayar(
             self.tagihan_ids, self.nominal, self.rekening_id, self.tanggal, self.memo, siswa_kelebihan=siswa)
         # Kuitansi = laporan tanda terima pembayaran Odoo (judul "Kuitansi Pembayaran", kop unit payment).

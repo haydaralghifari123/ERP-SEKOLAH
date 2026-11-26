@@ -226,6 +226,44 @@ class TestPembayaran(NtiTagihanCommon):
         with self.assertRaisesRegex(UserError, 'bukan milik'):
             wizard.action_bayar()
 
+    def test_wizard_tagihan_unit_lain_tidak_bocor(self):
+        """Tagihan unit lain yang diselipkan ke wizard ditolak tanpa menyebut namanya."""
+        t_c = self._terbitkan(siswa=self.siswa_c)
+        wizard = self._wizard(self.bendahara_smp, tagihan_ids=[(6, 0, t_c.ids)], nominal=100000)
+        with self.assertRaises(UserError) as galat:
+            wizard.action_bayar()
+        pesan = str(galat.exception)
+        self.assertIn('bukan milik', pesan)
+        self.assertIn('dokumen lain', pesan)
+        self.assertNotIn(t_c.name, pesan)
+        self.assertEqual(t_c.amount_residual, 200000)
+
+    def test_tanpa_akun_penampung_ditolak(self):
+        """Payment tanpa entri jurnal (metode tanpa akun penampung, mode Accountant) tidak boleh tercatat diam-diam:
+        `_bayar` gagal dan tidak ada yang dibayar."""
+        agu = self._terbitkan(periode=date(2026, 8, 1))
+        sep = self._terbitkan(periode=date(2026, 9, 1))
+        self.Mesin._bayar(agu, 200000, self.rekening_smp, date(2026, 8, 5), 'Lunas')
+        self.assertTrue(agu.nti_edu_lunas)
+        jumlah_payment = self.Payment.search_count([('partner_id', '=', self.siswa_a.id)])
+        # Mode "in_payment" (modul Accountant): Odoo tidak memakai akun penampung cadangan.
+        self.patch(type(self.env['account.move']), '_get_invoice_in_payment_state', lambda self: 'in_payment')
+        self.rekening_smp.journal_id.inbound_payment_method_line_ids.write({'payment_account_id': False})
+        # Lewat wizard pembayaran Odoo (tagihan terbuka, dengan kelebihan).
+        # assertRaises (bukan assertRaisesRegex) Odoo memakai savepoint: tulisan sebelum galat ikut dibatalkan.
+        with self.assertRaises(UserError) as galat:
+            self.Mesin._bayar(sep, 300000, self.rekening_smp, date(2026, 9, 5), 'Tanpa entri')
+        self.assertIn('akun penampung', str(galat.exception))
+        # Payment langsung (seluruhnya kelebihan, tagihan sudah lunas).
+        with self.assertRaises(UserError) as galat:
+            self.Mesin._bayar(agu, 50000, self.rekening_smp, date(2026, 9, 5), 'Kredit')
+        self.assertIn('akun penampung', str(galat.exception))
+        self.env.invalidate_all()
+        self.assertEqual(sep.amount_residual, 200000)
+        self.assertFalse(sep.matched_payment_ids)
+        self.assertEqual(self.Payment.search_count([('partner_id', '=', self.siswa_a.id)]), jumlah_payment)
+        self.assertEqual(self._saldo(self.siswa_a), 0)
+
     @freeze_time('2026-09-05')
     def test_hak(self):
         agu = self._terbitkan(periode=date(2026, 8, 1))

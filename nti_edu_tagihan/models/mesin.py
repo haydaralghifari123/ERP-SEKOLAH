@@ -365,6 +365,14 @@ class TagihanMesin(models.AbstractModel):
                 payments |= self._bayar_baris(siswa, baris, nominal, rekening, tanggal, memo)
             else:
                 payments |= self._bayar_kredit(siswa, company, nominal, rekening, tanggal, memo)
+        # Odoo 18 tidak membuat entri jurnal untuk payment tanpa akun penampung: tagihan tidak berkurang dan
+        # kelebihan tidak menjadi kredit. Batalkan semuanya (UserError → transaksi dibatalkan) daripada diam-diam.
+        tanpa_entri = payments.filtered(lambda p: not p.move_id)
+        if tanpa_entri:
+            raise UserError(_(
+                'Pembayaran tidak dapat dicatat: metode pembayaran masuk jurnal "%s" belum punya akun penampung '
+                '(Outstanding Receipts). Hubungi bagian akuntansi untuk mengisinya.',
+                rekening.journal_id.name))
         payments.write({'nti_edu_dari_tagihan': True})
         return payments.with_env(self.env)
 
@@ -378,6 +386,7 @@ class TagihanMesin(models.AbstractModel):
         nilai = {
             'amount': nominal,
             'journal_id': rekening.journal_id.id,
+            'payment_method_line_id': rekening._nti_edu_metode_masuk().id,
             'payment_date': tanggal,
             'group_payment': True,
             'payment_difference_handling': 'open',
@@ -401,6 +410,7 @@ class TagihanMesin(models.AbstractModel):
             'partner_id': siswa.id,
             'company_id': company.id,
             'journal_id': rekening.journal_id.id,
+            'payment_method_line_id': rekening._nti_edu_metode_masuk().id,
             'amount': nominal,
             'date': tanggal,
             'memo': memo or False,

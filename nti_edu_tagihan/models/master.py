@@ -182,6 +182,45 @@ class TagihanRekening(models.Model):
                     raise ValidationError(_(
                         'Jurnal "%(jurnal)s" pada rekening "%(rekening)s" tidak bisa dipakai unit %(unit)s.',
                         jurnal=jurnal.name, rekening=rec.name, unit=company.name))
+            # Payment Odoo 18 tanpa akun penampung (outstanding) tidak punya entri jurnal sehingga tidak bisa
+            # direkonsiliasi dengan tagihan; rekening seperti itu ditolak sejak disimpan.
+            if not rec._nti_edu_metode_masuk():
+                raise ValidationError(_(
+                    'Jurnal "%(jurnal)s" pada rekening "%(rekening)s" tidak punya metode pembayaran masuk.',
+                    jurnal=jurnal.name, rekening=rec.name))
+            if not rec._nti_edu_akun_penampung():
+                raise ValidationError(_(
+                    'Metode pembayaran masuk jurnal "%(jurnal)s" pada rekening "%(rekening)s" belum punya akun '
+                    'penampung (Outstanding Receipts); isi akun itu di jurnal agar pembayaran tercatat.',
+                    jurnal=jurnal.name, rekening=rec.name))
+
+    def _nti_edu_metode_masuk(self):
+        """Metode pembayaran masuk jurnal rekening yang dipakai modul: yang berakun penampung lebih dahulu, lalu
+        urutan bawaan jurnal (sama dengan pilihan bawaan wizard pembayaran Odoo)."""
+        self.ensure_one()
+        baris = self.journal_id.sudo()._get_available_payment_method_lines('inbound')
+        return (baris.filtered('payment_account_id') or baris)[:1]
+
+    def _nti_edu_akun_penampung(self):
+        """Akun penampung (outstanding) yang akan dipakai payment ke rekening ini; kosong bila Odoo tidak akan
+        membuat entri jurnal untuk payment itu.
+
+        Semantik Odoo 18 (`account.payment.create`): akun penampung = akun metode pembayaran. Bila kosong dan
+        status "in_payment" tidak dipakai (Community, tanpa modul Accountant), Odoo memakai cadangan
+        `_get_outstanding_account`: akun "Outstanding Receipts" bagan akun (company induk) atau akun transfer
+        company. Dengan modul Accountant tidak ada cadangan.
+        """
+        self.ensure_one()
+        baris = self._nti_edu_metode_masuk()
+        if baris.payment_account_id:
+            return baris.payment_account_id
+        Akun = self.env['account.account'].sudo()
+        if not baris or self.env['account.move']._get_invoice_in_payment_state() == 'in_payment':
+            return Akun
+        company = self.journal_id.sudo().company_id
+        Template = self.env['account.chart.template'].sudo().with_context(allowed_company_ids=company.root_id.ids)
+        return Template.ref('account_journal_payment_debit_account_id', raise_if_not_found=False) \
+            or company.transfer_account_id or Akun
 
     @api.model
     def _untuk_unit(self, company):

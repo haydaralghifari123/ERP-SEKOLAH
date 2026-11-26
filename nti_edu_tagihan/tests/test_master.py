@@ -179,3 +179,36 @@ class TestMaster(NtiTagihanCommon):
             'name': 'Bank SMP Tes', 'code': 'BSMPT', 'type': 'bank', 'company_id': self.unit_smp.id})
         with self.assertRaises(ValidationError):
             khusus_sma.journal_id = jurnal_smp
+
+    def test_rekening_akun_penampung(self):
+        """Rekening hanya boleh memakai jurnal yang payment-nya pasti punya entri jurnal (akun penampung)."""
+        jurnal = self.env['account.journal'].search([
+            ('company_id', '=', self.yayasan.id), ('type', '=', 'bank')], limit=1)
+        metode = jurnal.inbound_payment_method_line_ids
+        akun = self.env['account.chart.template'].with_company(self.yayasan).ref(
+            'account_journal_payment_debit_account_id')
+        metode.write({'payment_account_id': False})
+        Rekening = self.env['nti_edu.tagihan.rekening']
+        vals = {'name': 'Rekening Penampung', 'bank': 'Bank Tes', 'nomor': '222', 'atas_nama': 'Yayasan Tes',
+                'journal_id': jurnal.id}
+        # Community: Odoo memakai akun "Outstanding Receipts" bagan akun sebagai cadangan.
+        rekening = Rekening.create(vals)
+        self.assertEqual(rekening._nti_edu_akun_penampung(), akun)
+        # Mode Accountant ("in_payment"): tanpa cadangan, metode tanpa akun penampung ditolak.
+        self.patch(type(self.env['account.move']), '_get_invoice_in_payment_state', lambda self: 'in_payment')
+        with self.assertRaises(ValidationError) as galat:
+            Rekening.create(dict(vals, name='Rekening Kedua'))
+        self.assertIn('akun penampung', str(galat.exception))
+        with self.assertRaises(ValidationError) as galat:
+            rekening.company_ids = self.unit_smp
+        self.assertIn('akun penampung', str(galat.exception))
+        metode[:1].payment_account_id = akun
+        self.assertEqual(rekening._nti_edu_metode_masuk(), metode[:1])
+        Rekening.create(dict(vals, name='Rekening Ketiga'))
+        # Jurnal tanpa metode pembayaran masuk ditolak.
+        jurnal_kosong = self.env['account.journal'].create({
+            'name': 'Bank Kosong Tes', 'code': 'BKOST', 'type': 'bank', 'company_id': self.yayasan.id})
+        jurnal_kosong.inbound_payment_method_line_ids.unlink()
+        with self.assertRaises(ValidationError) as galat:
+            Rekening.create(dict(vals, name='Rekening Keempat', journal_id=jurnal_kosong.id))
+        self.assertIn('metode pembayaran masuk', str(galat.exception))

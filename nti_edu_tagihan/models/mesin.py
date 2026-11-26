@@ -12,6 +12,8 @@ from odoo.tools import float_round
 
 _logger = logging.getLogger(__name__)
 
+GRUP_BENDAHARA = 'nti_edu_tagihan.group_tagihan_bendahara'
+
 
 def _bulatkan_satuan(mata_uang, nilai):
     """Bulatkan ke satuan utuh mata uang (rupiah, spec §4.2); mata uang yang pembulatannya sudah ≥ 1 memakai
@@ -286,3 +288,123 @@ class TagihanMesin(models.AbstractModel):
             if commit:
                 Cron._notify_progress(done=selesai, remaining=len(pekerjaan) - selesai)
                 self.env.cr.commit()
+
+    # --- pembayaran --------------------------------------------------------------------------
+
+    @api.model
+    def _bayar(self, tagihan, jumlah, rekening, tanggal, memo, siswa_kelebihan=None):
+        """Catat pembayaran `jumlah` atas `tagihan` (spec §4.6) ke jurnal `rekening`, lalu rekonsiliasi.
+
+        Semua tagihan harus tagihan sekolah terbit dari satu unit; pemanggil harus Bendahara unit itu (atau
+        superuser). Alokasi urut jatuh tempo (lalu id), hanya sampai sisa tiap tagihan. Per siswa dibuat satu
+        payment lewat wizard pembayaran standar Odoo dan direkonsiliasi dengan tagihan siswa itu. Kelebihan
+        (`jumlah` − total sisa) ditambahkan ke payment `siswa_kelebihan` (bawaan: siswa pertama menurut nama)
+        sehingga menjadi kredit tak terpakai siswa itu (saldo kredit). Penulisan sebagai superuser; uid pemanggil
+        tetap tercatat. Mengembalikan payment yang dibuat (env pemanggil).
+        """
+        semua = tagihan.sudo()
+        if not semua:
+            raise UserError(_('Pilih minimal satu tagihan yang dibayar.'))
+        company = semua.company_id
+        if len(company) != 1:
+            raise UserError(_('Tagihan yang dibayar sekaligus harus dari satu unit.'))
+        self.env['nti_edu.tagihan.akses']._nti_edu_cek_hak(GRUP_BENDAHARA, company)
+        if semua.filtered(lambda m: m.move_type != 'out_invoice' or not m.nti_edu_is_tagihan):
+            raise UserError(_('Dokumen yang dipilih bukan tagihan sekolah.'))
+        belum = semua.filtered(lambda m: m.state != 'posted')
+        if belum:
+            raise UserError(_('Tagihan %s tidak berstatus terbit sehingga tidak dapat dibayar.',
+                              ', '.join(belum.mapped('name'))))
+        mata_uang = company.currency_id
+        if semua.currency_id != mata_uang:
+            raise UserError(_('Tagihan dengan mata uang selain mata uang unit tidak dapat dibayar di sini.'))
+        if mata_uang.compare_amounts(jumlah or 0.0, 0.0) <= 0:
+            raise UserError(_('Nominal pembayaran harus lebih dari nol.'))
+        rekening = rekening.sudo()
+        if not rekening:
+            raise UserError(_('Pilih rekening atau kas penerima pembayaran.'))
+        if rekening not in rekening._untuk_unit(company):
+            raise UserError(_('Rekening "%(rekening)s" tidak berlaku untuk unit %(unit)s.',
+                              rekening=rekening.name, unit=company.name))
+        daftar_siswa = semua.nti_edu_siswa_id.sorted(lambda s: (s.name or '', s.id))
+        if siswa_kelebihan:
+            siswa_kelebihan = siswa_kelebihan.sudo()
+            if siswa_kelebihan not in daftar_siswa:
+                raise UserError(_('Siswa penerima kelebihan bukan siswa pada tagihan yang dibayar.'))
+        else:
+            siswa_kelebihan = daftar_siswa[:1]
+
+        # Alokasi ke sisa tagihan, jatuh tempo paling lama lebih dahulu.
+        sisa_uang = mata_uang.round(jumlah)
+        alokasi = {}
+        baris_siswa = {}
+        for item in semua.sorted(lambda m: (m.invoice_date_due or m.invoice_date, m.id)):
+            if mata_uang.compare_amounts(sisa_uang, 0.0) <= 0:
+                break
+            if mata_uang.compare_amounts(item.amount_residual, 0.0) <= 0:
+                continue
+            bagian = min(sisa_uang, item.amount_residual)
+            siswa_id = item.nti_edu_siswa_id.id
+            alokasi[siswa_id] = alokasi.get(siswa_id, 0.0) + bagian
+            piutang = item.line_ids.filtered(
+                lambda b: b.account_id.account_type == 'asset_receivable' and not b.reconciled)
+            baris_siswa[siswa_id] = baris_siswa.get(siswa_id, piutang.browse()) | piutang
+            sisa_uang = mata_uang.round(sisa_uang - bagian)
+        kelebihan = max(sisa_uang, 0.0)
+
+        payments = self.env['account.payment'].sudo()
+        for siswa in daftar_siswa:
+            nominal = alokasi.get(siswa.id, 0.0)
+            if siswa == siswa_kelebihan:
+                nominal += kelebihan
+            nominal = mata_uang.round(nominal)
+            if mata_uang.compare_amounts(nominal, 0.0) <= 0:
+                continue
+            baris = baris_siswa.get(siswa.id)
+            if baris:
+                payments |= self._bayar_baris(siswa, baris, nominal, rekening, tanggal, memo)
+            else:
+                payments |= self._bayar_kredit(siswa, company, nominal, rekening, tanggal, memo)
+        payments.write({'nti_edu_dari_tagihan': True})
+        return payments.with_env(self.env)
+
+    @api.model
+    def _bayar_baris(self, siswa, baris, nominal, rekening, tanggal, memo):
+        """Satu payment `nominal` untuk baris piutang `baris` milik `siswa` lewat `account.payment.register`;
+        nominal di atas total sisa baris tetap terbuka sebagai kredit siswa."""
+        company = baris.company_id
+        Register = self.env['account.payment.register'].sudo().with_company(company).with_context(
+            active_model='account.move.line', active_ids=baris.ids)
+        nilai = {
+            'amount': nominal,
+            'journal_id': rekening.journal_id.id,
+            'payment_date': tanggal,
+            'group_payment': True,
+            'payment_difference_handling': 'open',
+        }
+        if memo:
+            nilai['communication'] = memo
+        wizard = Register.create(nilai)
+        if not wizard.can_edit_wizard:
+            # Tanpa mode sunting, wizard Odoo membayar penuh seluruh baris dan mengabaikan nominal.
+            raise UserError(_(
+                'Tagihan %s tidak dapat dibayar dalam satu pembayaran (akun piutang atau mata uang berbeda).',
+                siswa.name))
+        return wizard._create_payments()
+
+    @api.model
+    def _bayar_kredit(self, siswa, company, nominal, rekening, tanggal, memo):
+        """Payment `nominal` untuk `siswa` tanpa tagihan terbuka: seluruhnya menjadi kredit siswa."""
+        payment = self.env['account.payment'].sudo().with_company(company).create({
+            'payment_type': 'inbound',
+            'partner_type': 'customer',
+            'partner_id': siswa.id,
+            'company_id': company.id,
+            'journal_id': rekening.journal_id.id,
+            'amount': nominal,
+            'date': tanggal,
+            'memo': memo or False,
+            'nti_edu_dari_tagihan': True,
+        })
+        payment.action_post()
+        return payment

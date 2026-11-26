@@ -150,6 +150,54 @@ class TestKoreksi(NtiTagihanCommon):
         self.assertEqual(hasil['res_model'], 'nti_edu.tagihan.saldo.awal.wizard')
         self.assertEqual(hasil['res_id'], wizard.id)
 
+    def test_saldo_awal_setelah_tagihan_mulai(self):
+        """Tunggakan awal harus sebelum Tagihan Mulai unit (periode, atau tanggal untuk komponen sekali)."""
+        self.unit_smp.nti_edu_tagihan_mulai = date(2026, 7, 1)
+        Wizard = self.env['nti_edu.tagihan.saldo.awal.wizard'].with_user(self.admin_keu)
+        wizard = Wizard.create({'baris_ids': [
+            (0, 0, {'siswa_id': self.siswa_a.id, 'komponen_id': self.spp.id, 'periode': date(2026, 7, 1),
+                    'nominal': 100000}),
+            (0, 0, {'siswa_id': self.siswa_a.id, 'komponen_id': self.spp.id, 'periode': date(2026, 6, 1),
+                    'nominal': 100000}),
+            (0, 0, {'siswa_id': self.siswa_b.id, 'komponen_id': self.pangkal.id, 'periode': date(2026, 8, 1),
+                    'nominal': 500000}),
+            (0, 0, {'siswa_id': self.siswa_b.id, 'komponen_id': self.pangkal.id, 'jatuh_tempo': date(2026, 7, 5),
+                    'nominal': 500000}),
+            # Unit SMA tanpa Tagihan Mulai: tidak dibatasi.
+            (0, 0, {'siswa_id': self.siswa_c.id, 'komponen_id': self.spp.id, 'periode': date(2026, 9, 1),
+                    'nominal': 100000}),
+        ]})
+        wizard.action_simpan()
+        self.assertEqual(len(wizard.baris_ids), 3)
+        for baris in wizard.baris_ids:
+            self.assertIn('sebelum tanggal mulai tagih', baris.galat)
+        juni = self.Move.search([('nti_edu_siswa_id', '=', self.siswa_a.id)])
+        self.assertEqual(juni.nti_edu_periode, date(2026, 6, 1))
+        self.assertFalse(self.Move.search([('nti_edu_siswa_id', '=', self.siswa_b.id)]))
+        self.assertTrue(self.Move.search([('nti_edu_siswa_id', '=', self.siswa_c.id)]).nti_edu_saldo_awal)
+
+    def test_batal_bukan_tagihan_tidak_bocor(self):
+        """Hak diperiksa lebih dulu; nama dokumen yang tidak boleh dibaca pemanggil tidak muncul di pesan galat."""
+        bukan = self.Move.create({
+            'move_type': 'out_invoice', 'company_id': self.unit_smp.id, 'partner_id': self.siswa_a.id,
+            'journal_id': self.unit_smp._nti_edu_jurnal_tagihan().id,
+            'invoice_line_ids': [(0, 0, {'name': 'Rahasia', 'quantity': 1, 'price_unit': 1000})]})
+        bukan.action_post()
+        self.assertTrue(bukan.name)
+        with self.assertRaises(AccessError):
+            bukan.with_user(self.pemantau_smp)._nti_edu_batalkan('x')
+        with self.assertRaises(AccessError):
+            bukan.with_user(self.bendahara_sma)._nti_edu_batalkan('x')
+        with self.assertRaises(UserError) as galat:
+            bukan.with_user(self.bendahara_smp)._nti_edu_batalkan('x')
+        self.assertNotIn(bukan.name, str(galat.exception))
+        self.assertIn('bukan tagihan sekolah', str(galat.exception))
+        # Admin Sistem boleh membaca semua entri: nama disebut.
+        with self.assertRaises(UserError) as galat:
+            bukan.with_user(self.sysadmin)._nti_edu_batalkan('x')
+        self.assertIn(bukan.name, str(galat.exception))
+        self.assertEqual(bukan.state, 'posted')
+
     def test_saldo_awal_hak(self):
         Wizard = self.env['nti_edu.tagihan.saldo.awal.wizard']
         vals = {'baris_ids': [(0, 0, {

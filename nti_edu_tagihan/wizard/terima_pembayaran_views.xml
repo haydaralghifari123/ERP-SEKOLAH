@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_bayar_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.bayar.wizard.form</field>
+        <field name="model">nti_edu.tagihan.bayar.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Terima Pembayaran">
+                <field name="company_id" invisible="1"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="rekening_boleh_ids" invisible="1"/>
+                <group>
+                    <group>
+                        <field name="siswa_id" options="{'no_create': True}"/>
+                        <field name="tanggal"/>
+                        <field name="rekening_id" options="{'no_create': True}"/>
+                        <field name="memo"/>
+                    </group>
+                    <group>
+                        <field name="total_sisa"/>
+                        <field name="nominal"/>
+                        <field name="kelebihan" invisible="not kelebihan" decoration-info="kelebihan"/>
+                    </group>
+                </group>
+                <field name="tagihan_ids" options="{'no_create': True}">
+                    <list default_order="invoice_date_due, id">
+                        <field name="name"/>
+                        <field name="nti_edu_komponen_id"/>
+                        <field name="nti_edu_periode"/>
+                        <field name="invoice_date_due" string="Jatuh Tempo"/>
+                        <field name="currency_id" column_invisible="1"/>
+                        <field name="amount_total" string="Total"/>
+                        <field name="amount_residual" string="Sisa" sum="Sisa"/>
+                    </list>
+                </field>
+                <p class="text-muted">
+                    Pembayaran dialokasikan ke tagihan terpilih mulai jatuh tempo paling lama. Kelebihan menjadi
+                    saldo kredit siswa dan dapat diterapkan ke tagihan berikutnya dengan tombol Terapkan Kredit.
+                </p>
+                <footer>
+                    <button string="Terima &amp; Cetak Kuitansi" name="action_bayar" type="object"
+                            class="btn-primary"/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_bayar_wizard" model="ir.actions.act_window">
+        <field name="name">Terima Pembayaran</field>
+        <field name="res_model">nti_edu.tagihan.bayar.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="groups_id" eval="[(4, ref('nti_edu_tagihan.group_tagihan_bendahara'))]"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+</odoo>

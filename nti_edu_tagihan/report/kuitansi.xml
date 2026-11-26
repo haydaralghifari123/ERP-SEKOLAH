@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Kuitansi pembayaran sekolah = laporan tanda terima pembayaran Odoo (spec §4.6). Kop mengikuti unit payment
+         (web.external_layout memakai o.company_id), judul "Kuitansi Pembayaran" dari payment_receipt_title; di sini
+         hanya label pihak pembayar menjadi "Siswa" untuk payment modul ini. Node asli dipertahankan (hanya
+         atributnya diubah) agar terjemahan bawaan "Customer:"/"Vendor:" tetap berlaku. -->
+    <template id="report_payment_receipt_document_kuitansi" inherit_id="account.report_payment_receipt_document">
+        <xpath expr="//t[@t-if=&quot;o.partner_type == 'customer'&quot;]" position="before">
+            <t t-if="o.nti_edu_dari_tagihan">Siswa:</t>
+        </xpath>
+        <xpath expr="//t[@t-if=&quot;o.partner_type == 'customer'&quot;]" position="attributes">
+            <attribute name="t-if">o.partner_type == 'customer' and not o.nti_edu_dari_tagihan</attribute>
+        </xpath>
+        <xpath expr="//t[@t-else=&quot;o.partner_type == 'supplier'&quot;]" position="attributes">
+            <attribute name="t-else"/>
+            <attribute name="t-elif">o.partner_type == 'supplier' and not o.nti_edu_dari_tagihan</attribute>
+        </xpath>
+    </template>
+</odoo>

@@ -12,6 +12,8 @@
 
     <menuitem id="menu_tagihan_proses" name="Proses" parent="menu_tagihan_root" sequence="40"
               groups="nti_edu_tagihan.group_tagihan_bendahara"/>
+    <menuitem id="menu_terima_pembayaran" name="Terima Pembayaran" parent="menu_tagihan_proses"
+              action="action_bayar_wizard" sequence="5"/>
     <menuitem id="menu_buat_tagihan" name="Buat Tagihan" parent="menu_tagihan_proses"
               action="action_buat_tagihan_wizard" sequence="10"/>
     <menuitem id="menu_saldo_awal" name="Tunggakan Awal" parent="menu_tagihan_proses"

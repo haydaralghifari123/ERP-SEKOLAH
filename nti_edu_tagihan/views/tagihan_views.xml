@@ -39,6 +39,15 @@
         <field name="arch" type="xml">
             <form string="Tagihan" create="0" edit="0" delete="0">
                 <header>
+                    <button name="%(nti_edu_tagihan.action_bayar_wizard)d" type="action"
+                            string="Terima Pembayaran" class="btn-primary"
+                            groups="nti_edu_tagihan.group_tagihan_bendahara"
+                            invisible="state != 'posted' or nti_edu_lunas"/>
+                    <button name="action_nti_edu_terapkan_kredit" type="object" string="Terapkan Kredit"
+                            groups="nti_edu_tagihan.group_tagihan_bendahara"
+                            invisible="state != 'posted' or nti_edu_lunas or not nti_edu_ada_kredit"
+                            confirm="Terapkan saldo kredit siswa ke tagihan ini?"/>
+                    <field name="nti_edu_ada_kredit" invisible="1"/>
                     <button name="%(nti_edu_tagihan.action_batal_tagihan_wizard)d" type="action"
                             string="Batalkan" groups="nti_edu_tagihan.group_tagihan_bendahara"
                             invisible="state != 'posted' or amount_residual != amount_total"/>

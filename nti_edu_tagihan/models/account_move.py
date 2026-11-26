@@ -71,6 +71,9 @@ class AccountMove(models.Model):
     nti_edu_is_tagihan = fields.Boolean(
         string='Tagihan Sekolah', compute='_compute_nti_edu_is_tagihan', store=True, index=True)
     nti_edu_lunas = fields.Boolean(string='Lunas', compute='_compute_nti_edu_lunas')
+    nti_edu_ada_kredit = fields.Boolean(
+        string='Ada Kredit Siswa', compute='_compute_nti_edu_ada_kredit',
+        help='Siswa punya pembayaran atau nota kredit yang belum terpakai yang bisa diterapkan ke tagihan ini.')
 
     def init(self):
         super().init()
@@ -182,10 +185,11 @@ class AccountMove(models.Model):
         if not (alasan or '').strip():
             raise UserError(_('Alasan pembatalan wajib diisi.'))
         semua = self.sudo()
+        # Hak lebih dahulu, agar pemanggil tanpa hak tidak mendapat informasi apa pun tentang dokumennya.
+        self.env['nti_edu.tagihan.akses']._nti_edu_cek_hak(GRUP_BENDAHARA, semua.company_id)
         bukan = semua.filtered(lambda m: m.move_type != 'out_invoice' or not m.nti_edu_is_tagihan)
         if bukan:
-            raise UserError(_('%s bukan tagihan sekolah.', ', '.join(bukan.mapped('display_name'))))
-        self.env['nti_edu.tagihan.akses']._nti_edu_cek_hak(GRUP_BENDAHARA, semua.company_id)
+            raise UserError(_('%s bukan tagihan sekolah.', self._nti_edu_nama_terlihat(bukan)))
         for tagihan in semua:
             if tagihan.state != 'posted':
                 raise UserError(_('Tagihan %s tidak berstatus terbit sehingga tidak dapat dibatalkan.',
@@ -199,6 +203,79 @@ class AccountMove(models.Model):
             tagihan.button_draft()
             tagihan.button_cancel()
             tagihan.message_post(body=_('Tagihan dibatalkan. Alasan: %s', alasan), author_id=penulis)
+        return True
+
+    @api.model
+    def _nti_edu_nama_terlihat(self, moves):
+        """Nama `moves` untuk pesan galat: hanya dokumen yang boleh dibaca pemanggil yang disebut namanya,
+        sisanya cukup dihitung."""
+        terlihat = self.browse(moves.ids)._filtered_access('read')
+        nama = terlihat.mapped('display_name')
+        lain = len(moves) - len(terlihat)
+        if lain:
+            nama.append(_('%s dokumen lain', lain))
+        return ', '.join(nama)
+
+    def _nti_edu_terbuka(self):
+        """True bila ini tagihan sekolah terbit yang masih bersisa."""
+        self.ensure_one()
+        return self.move_type == 'out_invoice' and self.nti_edu_is_tagihan and self.state == 'posted' \
+            and self.currency_id.compare_amounts(self.amount_residual, 0.0) > 0
+
+    # --- kredit siswa -----------------------------------------------------------------------
+
+    @api.depends('state', 'move_type', 'amount_residual', 'commercial_partner_id')
+    def _compute_nti_edu_ada_kredit(self):
+        for move in self:
+            move.nti_edu_ada_kredit = bool(
+                move.id and move.nti_edu_is_tagihan and move._nti_edu_kredit_terbuka())
+
+    def _nti_edu_kredit_terbuka(self):
+        """Baris piutang kredit terbuka (pembayaran atau nota kredit yang belum terpakai) milik siswa tagihan ini
+        yang bisa diterapkan ke tagihan ini, urut tanggal; dibaca sebagai superuser. Kosong bila tagihan bukan
+        invoice terbit yang masih bersisa. Domain mengikuti widget "Outstanding credits" Odoo."""
+        self.ensure_one()
+        move = self.sudo()
+        Baris = self.env['account.move.line'].sudo()
+        if move.move_type != 'out_invoice' or move.state != 'posted' \
+                or move.currency_id.compare_amounts(move.amount_residual, 0.0) <= 0:
+            return Baris
+        piutang = move.line_ids.filtered(lambda b: b.account_id.account_type == 'asset_receivable')
+        if not piutang:
+            return Baris
+        return Baris.search([
+            ('account_id', 'in', piutang.account_id.ids),
+            ('parent_state', '=', 'posted'),
+            '|', *move._check_company_domain(move.company_id), ('company_id', 'child_of', move.company_id.id),
+            ('partner_id', '=', move.commercial_partner_id.id),
+            ('reconciled', '=', False),
+            ('balance', '<', 0.0),
+            ('amount_residual', '!=', 0.0),
+        ], order='date, id')
+
+    def action_nti_edu_terapkan_kredit(self):
+        """Tombol "Terapkan Kredit" (Bendahara unit): pakai kredit terbuka siswa yang sama untuk melunasi tagihan
+        ini, kredit tertua lebih dahulu."""
+        semua = self.sudo()
+        self.env['nti_edu.tagihan.akses']._nti_edu_cek_hak(GRUP_BENDAHARA, semua.company_id)
+        if semua.filtered(lambda m: m.move_type != 'out_invoice' or not m.nti_edu_is_tagihan):
+            raise UserError(_('Kredit siswa hanya dapat diterapkan ke tagihan sekolah.'))
+        penulis = self.env.user.partner_id.id
+        diterapkan = False
+        for tagihan in semua:
+            sebelum = tagihan.amount_residual
+            for baris in tagihan._nti_edu_kredit_terbuka():
+                if tagihan.currency_id.compare_amounts(tagihan.amount_residual, 0.0) <= 0:
+                    break
+                tagihan.js_assign_outstanding_line(baris.id)
+            terpakai = sebelum - tagihan.amount_residual
+            if tagihan.currency_id.compare_amounts(terpakai, 0.0) > 0:
+                diterapkan = True
+                tagihan.message_post(body=_(
+                    'Kredit siswa sebesar %s diterapkan ke tagihan ini.',
+                    format_amount(self.env, terpakai, tagihan.currency_id)), author_id=penulis)
+        if not diterapkan:
+            raise UserError(_('Tidak ada kredit siswa yang dapat diterapkan ke tagihan ini.'))
         return True
 
     @api.model

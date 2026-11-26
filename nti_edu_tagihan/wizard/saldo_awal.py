@@ -109,6 +109,11 @@ class SaldoAwalWizardBaris(models.TransientModel):
             raise UserError(_('Isi periode atau jatuh tempo.'))
         periode = False if sekali else self.periode
         tanggal = self.periode or jatuh_tempo
+        mulai = unit.nti_edu_tagihan_mulai
+        if mulai and tanggal >= mulai:
+            # Periode sejak Tagihan Mulai ditagih oleh mesin tagihan, bukan sebagai tunggakan awal.
+            raise UserError(_('Tunggakan awal harus sebelum tanggal mulai tagih unit %(unit)s (%(mulai)s).',
+                              unit=unit.name, mulai=format_date(self.env, mulai)))
         sekolah = {'periode': periode, 'saldo_awal': True}
         if periode:
             ta = self.env['nti_edu.tahun.ajaran'].sudo().search([

@@ -38,3 +38,4 @@ akses_buat_tagihan_wizard_bendahara,nti_edu.tagihan.buat.wizard bendahara,model_
 akses_batal_wizard_bendahara,nti_edu.tagihan.batal.wizard bendahara,model_nti_edu_tagihan_batal_wizard,group_tagihan_bendahara,1,1,1,1
 akses_saldo_awal_wizard_bendahara,nti_edu.tagihan.saldo.awal.wizard bendahara,model_nti_edu_tagihan_saldo_awal_wizard,group_tagihan_bendahara,1,1,1,1
 akses_saldo_awal_wizard_baris_bendahara,nti_edu.tagihan.saldo.awal.wizard.baris bendahara,model_nti_edu_tagihan_saldo_awal_wizard_baris,group_tagihan_bendahara,1,1,1,1
+akses_bayar_wizard_bendahara,nti_edu.tagihan.bayar.wizard bendahara,model_nti_edu_tagihan_bayar_wizard,group_tagihan_bendahara,1,1,1,1

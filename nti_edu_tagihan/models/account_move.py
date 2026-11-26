@@ -132,6 +132,10 @@ class AccountMove(models.Model):
         UMUR_TUNGGAKAN, string='Umur Tunggakan', compute='_compute_nti_edu_umur_tunggakan', store=True,
         help='Lama keterlambatan sejak jatuh tempo terbuka; kosong bila belum lewat jatuh tempo atau lunas. '
              'Diperbarui jadwal harian dan saat pembayaran.')
+    # Hanya ditulis mesin (sudo); grup tagihan tidak punya hak tulis account.move.
+    nti_edu_email_terbit_antre = fields.Boolean(
+        string='Antre Email Terbit', readonly=True, copy=False, index=True,
+        help='Tagihan baru yang email terbitnya belum diantrekan; dihapus saat email diantrekan.')
 
     def init(self):
         super().init()

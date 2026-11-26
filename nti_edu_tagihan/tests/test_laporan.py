@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 from datetime import date
+from unittest.mock import patch
+
+import psycopg2
 
 from odoo.exceptions import AccessError
 from odoo.tests import freeze_time, tagged
@@ -246,6 +249,8 @@ class TestLaporan(NtiTagihanCommon):
         self.assertNotIn(lain_hari.name, ringkasan.body_html)  # jatuh tempo 10 September belum lewat
         self.Mesin._cron_pengingat(hari_ini=date(2026, 10, 1))
         self.assertEqual(len(self._email(self.wali_x, 'Tunggakan')), 2)
+        # Pengingat dan dua ringkasan berkala memuat spp_b, tetapi catatan "tidak terkirim" hanya sekali.
+        self.assertEqual(len(self._catatan(spp_b, 'Email tidak terkirim')), 1)
 
         # Kirim Pengingat manual (Bendahara): satu email per penerima.
         tunggakan = spp_a | lain_hari | spp_b
@@ -302,7 +307,72 @@ class TestLaporan(NtiTagihanCommon):
         wizard.action_terbitkan()
         self.assertEqual(len(self._email(self.wali_x, 'Tagihan Baru')), 2)
 
+    def test_email_terbit_lanjut_setelah_gagal(self):
+        # Jadwal berhenti di tengah unit sesudah pekerjaan pertama di-commit: email tagihan pekerjaan itu tidak
+        # hilang, melainkan dikirim di awal jalan berikutnya, tepat sekali.
+        self.env['nti_edu.tagihan.skema'].create({
+            'company_id': self.unit_smp.id, 'tahun_ajaran_id': self.ta.id, 'state': 'aktif',
+            'baris_ids': [(0, 0, {'komponen_id': self.spp.id, 'nominal': 150000})]})
+        self.unit_smp.write({
+            'nti_edu_tagihan_mulai': date(2026, 7, 1), 'nti_edu_tagihan_otomatis': True,
+            'nti_edu_email_tagihan_terbit': True})
+        Mesin = type(self.Mesin)
+        terbitkan_asli = Mesin._terbitkan
+        panggilan = []
+
+        def terbitkan_mati(self_mesin, *args, **kwargs):
+            panggilan.append(args)
+            if len(panggilan) == 2:
+                raise psycopg2.OperationalError('Koneksi putus')
+            return terbitkan_asli(self_mesin, *args, **kwargs)
+
+        # Bukan assertRaises: savepoint-nya akan membatalkan pekerjaan yang (pura-pura) sudah di-commit.
+        mati = False
+        with patch('odoo.addons.nti_edu_tagihan.models.mesin._boleh_commit', return_value=True), \
+                patch.object(self.env.cr, 'commit') as commit, patch.object(Mesin, '_terbitkan', terbitkan_mati):
+            try:
+                self.Mesin._cron_buat_tagihan(hari_ini=date(2026, 8, 1))
+            except psycopg2.OperationalError:
+                mati = True
+        self.assertTrue(mati)
+        self.assertEqual(commit.call_count, 1)
+        juli = self.Move.search([('nti_edu_komponen_id', '=', self.spp.id)])
+        self.assertEqual(set(juli.mapped('nti_edu_periode')), {date(2026, 7, 1)})
+        self.assertTrue(all(juli.mapped('nti_edu_email_terbit_antre')))
+        self.assertFalse(self._email(self.wali_x, 'Tagihan Baru'))
+
+        self.Mesin._cron_buat_tagihan(hari_ini=date(2026, 8, 1))
+        email = self._email(self.wali_x, 'Tagihan Baru')
+        self.assertEqual(len(email), 2)  # antrean tertinggal (Juli), lalu tagihan baru jalan ini (Agustus)
+        juli_a = juli.filtered(lambda m: m.nti_edu_siswa_id == self.siswa_a)
+        self.assertEqual(len(email.filtered(lambda m: juli_a.name in m.body_html)), 1)
+        semua = self.Move.search([('nti_edu_komponen_id', '=', self.spp.id)])
+        self.assertEqual(len(semua), 4)
+        self.assertFalse(any(semua.mapped('nti_edu_email_terbit_antre')))
+
+        self.Mesin._cron_buat_tagihan(hari_ini=date(2026, 8, 2))
+        self.assertEqual(len(self._email(self.wali_x, 'Tagihan Baru')), 2)
+
+        # Pengaturan mati saat terbit: tagihan tidak masuk antrean.
+        self.unit_smp.nti_edu_email_tagihan_terbit = False
+        self.Mesin._cron_buat_tagihan(hari_ini=date(2026, 9, 1))
+        september = self.Move.search([('nti_edu_periode', '=', date(2026, 9, 1))])
+        self.assertTrue(september)
+        self.assertFalse(any(september.mapped('nti_edu_email_terbit_antre')))
+
     # --- wali kelas --------------------------------------------------------------------------
+
+    def test_menu_tunggakan_rombel(self):
+        Menu = self.env['ir.ui.menu']
+        akar = self.env.ref('nti_edu_tagihan.menu_tagihan_root')
+        item = self.env.ref('nti_edu_tagihan.menu_tunggakan_rombel_saya')
+        self.assertEqual(item.parent_id, self.env.ref('nti_edu_base.menu_data_sekolah'))
+        terlihat_guru = Menu.with_user(self.user_guru_smp)._visible_menu_ids()
+        self.assertNotIn(akar.id, terlihat_guru)
+        self.assertIn(item.id, terlihat_guru)
+        terlihat_pemantau = Menu.with_user(self.pemantau_smp)._visible_menu_ids()
+        self.assertIn(akar.id, terlihat_pemantau)
+        self.assertIn(item.id, terlihat_pemantau)
 
     def test_tunggakan_wali_kelas(self):
         Wali = self.env['nti_edu.tagihan.tunggakan.wali']

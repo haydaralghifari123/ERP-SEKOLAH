@@ -231,8 +231,9 @@ class TagihanMesin(models.AbstractModel):
     @api.model
     def _terbitkan(self, company, komponen, info, rombel=None, kirim_email=True):
         """Terbitkan tagihan sesuai `_rencana`. Tiap siswa diproses dalam savepoint sendiri: galat satu siswa
-        dicatat di `lewati` dan tidak menghentikan siswa lain. Bila `kirim_email`, di akhir dikirim email tagihan
-        terbit (satu per wali penerima untuk semua tagihan baru jalan ini, lihat `_kirim_email_terbit`).
+        dicatat di `lewati` dan tidak menghentikan siswa lain. Bila pengaturan unit `nti_edu_email_tagihan_terbit`
+        menyala, tagihan baru ditandai antre email terbit (`nti_edu_email_terbit_antre`, dalam transaksi yang sama
+        dengan penerbitannya); bila `kirim_email`, di akhir antrean unit itu dikirim (`_kirim_email_terbit`).
 
         Mengembalikan dict `buat` (recordset `account.move`) dan `lewati` (daftar `(siswa, alasan)`).
         """
@@ -261,8 +262,10 @@ class TagihanMesin(models.AbstractModel):
                     komponen.sudo().name, info['periode'] or '-', siswa.sudo().name, siswa.id, alasan,
                     exc_info=not galat_pengguna)
                 lewati.append((siswa, alasan))
+        if tagihan and company.sudo().nti_edu_email_tagihan_terbit:
+            tagihan.sudo().write({'nti_edu_email_terbit_antre': True})
         if kirim_email:
-            self._kirim_email_terbit(company, tagihan)
+            self._kirim_email_terbit(company)
         return {'buat': tagihan, 'lewati': lewati}
 
     # --- jadwal ------------------------------------------------------------------------------
@@ -274,7 +277,8 @@ class TagihanMesin(models.AbstractModel):
 
         Di jalur jadwal sungguhan, hasil tiap (unit, komponen, periode) di-commit agar penerbitan awal tahun ajaran
         yang besar tidak hilang seluruhnya bila melewati batas waktu cron; di tes tidak pernah commit. Email tagihan
-        terbit dikirim sekali per unit di akhir jalan unit itu (satu email per wali untuk semua tagihan barunya)."""
+        terbit dikirim per unit di akhir pekerjaan unit itu (satu email per wali untuk semua tagihan barunya), dan
+        di awal jalan untuk antrean yang tertinggal bila jalan sebelumnya berhenti di tengah unit."""
         hari_ini = hari_ini or fields.Date.context_today(self)
         ta = self.env['nti_edu.tahun.ajaran'].sudo()._get_aktif()
         if not ta:
@@ -295,7 +299,12 @@ class TagihanMesin(models.AbstractModel):
 
         commit = _boleh_commit()
         Cron = self.env['ir.cron']
-        baru = self.env['account.move'].sudo()
+        # Lanjutkan email terbit yang tertinggal (jalan sebelumnya berhenti sesudah commit pekerjaan, sebelum email).
+        tertinggal = self.env['account.move'].sudo().search([('nti_edu_email_terbit_antre', '=', True)]).company_id
+        for company in tertinggal:
+            self._kirim_email_terbit(company)
+        if tertinggal and commit:
+            self.env.cr.commit()
         for selesai, (company, komponen, info) in enumerate(pekerjaan, start=1):
             try:
                 with self.env.cr.savepoint():
@@ -306,15 +315,13 @@ class TagihanMesin(models.AbstractModel):
                 _logger.exception(
                     'Tagihan otomatis %s %s periode %s gagal', company.name, komponen.name, info['periode'] or '-')
             else:
-                baru |= hasil['buat']
                 if hasil['buat']:
                     _logger.info(
                         'Tagihan otomatis %s %s periode %s: %s terbit, %s dilewati', company.name,
                         komponen.name, info['periode'] or '-', len(hasil['buat']), len(hasil['lewati']))
-            # Pekerjaan urut per unit: di pekerjaan terakhir suatu unit, kirim email tagihan baru unit itu.
+            # Pekerjaan urut per unit: di pekerjaan terakhir suatu unit, kirim antrean email terbit unit itu.
             if selesai == len(pekerjaan) or pekerjaan[selesai][0] != company:
-                self._kirim_email_terbit(company, baru)
-                baru = baru.browse()
+                self._kirim_email_terbit(company)
             if commit:
                 Cron._notify_progress(done=selesai, remaining=len(pekerjaan) - selesai)
                 self.env.cr.commit()
@@ -326,7 +333,8 @@ class TagihanMesin(models.AbstractModel):
         """Antrekan email `template_xmlid` (model `res.partner`, dirender untuk penerima) berisi daftar `tagihan`:
         satu email per (unit tagihan, wali penerima `_nti_edu_peta_penerima_tagihan`) memuat tagihan semua anaknya.
         Daftar tagihan dan unit diberikan ke templat lewat konteks `nti_edu_tagihan_email` / `nti_edu_unit`.
-        Tagihan siswa tanpa penerima (atau bila templat dihapus) dicatat di chatter tagihan. Sebagai superuser.
+        Tagihan siswa tanpa penerima (atau bila templat dihapus) dicatat di chatter tagihan, paling banyak sekali per
+        tagihan. Sebagai superuser.
 
         Mengembalikan dict `email` (jumlah email) dan `tanpa_penerima` (tagihan yang tidak dikirimi email).
         """
@@ -348,8 +356,13 @@ class TagihanMesin(models.AbstractModel):
         if hasil['tanpa_penerima']:
             alasan = (_('Email tidak terkirim: wali tanpa email.') if template
                       else _('Email tidak terkirim: templat email tidak ditemukan.'))
+            # Paling banyak satu catatan yang sama per tagihan, agar pengingat/ringkasan berkala tidak membanjiri chatter.
+            sudah = set(self.env['mail.message'].sudo().search([
+                ('model', '=', 'account.move'), ('res_id', 'in', hasil['tanpa_penerima'].ids),
+                ('body', 'ilike', alasan)]).mapped('res_id'))
             for item in hasil['tanpa_penerima']:
-                item.message_post(body=alasan, subtype_xmlid='mail.mt_note')
+                if item.id not in sudah:
+                    item.message_post(body=alasan, subtype_xmlid='mail.mt_note')
         for (company, partner), daftar in kelompok.items():
             daftar = daftar.sorted(lambda m: (
                 m.nti_edu_siswa_id.name or '', m.nti_edu_jatuh_tempo_terbuka or m.invoice_date_due or m.invoice_date,
@@ -360,14 +373,22 @@ class TagihanMesin(models.AbstractModel):
         return hasil
 
     @api.model
-    def _kirim_email_terbit(self, company, tagihan):
-        """Email tagihan terbit untuk `tagihan` baru unit `company` bila pengaturan unit
-        `nti_edu_email_tagihan_terbit` menyala. Galat pengiriman tidak membatalkan tagihan yang sudah terbit."""
-        if not tagihan or not company.sudo().nti_edu_email_tagihan_terbit:
+    def _kirim_email_terbit(self, company):
+        """Kirim antrean email tagihan terbit unit `company`: semua tagihan unit itu yang masih bertanda
+        `nti_edu_email_terbit_antre`, satu email per (unit, wali penerima). Tanda dihapus dalam transaksi yang sama
+        dengan pengantrean email, sehingga tiap tagihan dikirim tepat sekali. Tagihan yang sudah batal, atau bila
+        pengaturan unit kini mati, hanya dihapus tandanya. Galat pengiriman tidak membatalkan tagihan yang sudah
+        terbit (tanda tetap, dicoba lagi di jalan berikutnya)."""
+        company = company.sudo()
+        antre = self.env['account.move'].sudo().search([
+            ('company_id', '=', company.id), ('nti_edu_email_terbit_antre', '=', True)], order='id')
+        if not antre:
             return
         try:
             with self.env.cr.savepoint():
-                self._kirim_email_tagihan(TEMPLAT_TERBIT, tagihan)
+                if company.nti_edu_email_tagihan_terbit:
+                    self._kirim_email_tagihan(TEMPLAT_TERBIT, antre.filtered(lambda m: m.state == 'posted'))
+                antre.write({'nti_edu_email_terbit_antre': False})
         except psycopg2.OperationalError:
             raise
         except Exception:  # noqa: BLE001 - email gagal tidak boleh membatalkan penerbitan

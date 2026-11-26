@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Akar terlihat semua pengguna sekolah karena menu Tunggakan Rombel Saya (wali kelas, spec §4.10); menu lain
-         dibatasi grup tagihan. -->
+    <!-- "-group_base_pengguna": groups menuitem hanya ditambahkan saat pembaruan modul; hapus grup pengguna yang
+         sempat dipasang pada akar ini (versi sebelumnya), agar app ini hanya terlihat grup tagihan. -->
     <menuitem id="menu_tagihan_root" name="Keuangan Sekolah" sequence="45"
-              groups="nti_edu_base.group_base_pengguna"/>
+              groups="nti_edu_tagihan.group_tagihan_pemantau,-nti_edu_base.group_base_pengguna"/>
 
     <menuitem id="menu_tagihan" name="Tagihan" parent="menu_tagihan_root"
               action="action_tagihan" sequence="10" groups="nti_edu_tagihan.group_tagihan_pemantau"/>
@@ -13,10 +13,13 @@
               action="action_pembayaran" sequence="20" groups="nti_edu_tagihan.group_tagihan_pemantau"/>
     <menuitem id="menu_tunggakan" name="Tunggakan" parent="menu_tagihan_root"
               action="action_tunggakan" sequence="25" groups="nti_edu_tagihan.group_tagihan_pemantau"/>
-    <menuitem id="menu_tunggakan_rombel_saya" name="Tunggakan Rombel Saya" parent="menu_tagihan_root"
-              action="action_tunggakan_rombel_saya" sequence="27" groups="nti_edu_base.group_base_pengguna"/>
     <menuitem id="menu_potongan" name="Potongan Siswa" parent="menu_tagihan_root"
               action="action_potongan" sequence="30" groups="nti_edu_tagihan.group_tagihan_pemantau"/>
+
+    <!-- Wali kelas (bukan grup tagihan) membuka tunggakan rombelnya dari app Data Sekolah; app Keuangan Sekolah
+         hanya untuk grup tagihan. -->
+    <menuitem id="menu_tunggakan_rombel_saya" name="Tunggakan Rombel Saya" parent="nti_edu_base.menu_data_sekolah"
+              action="action_tunggakan_rombel_saya" sequence="25" groups="nti_edu_base.group_base_pengguna"/>
 
     <menuitem id="menu_tagihan_proses" name="Proses" parent="menu_tagihan_root" sequence="40"
               groups="nti_edu_tagihan.group_tagihan_bendahara"/>

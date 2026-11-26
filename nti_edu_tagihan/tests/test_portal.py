@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import base64
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from odoo import http
+from odoo.exceptions import AccessError
 from odoo.tests import HttpCase, tagged
 from odoo.tests.common import new_test_user
 from odoo.tools import mute_logger
@@ -172,28 +174,50 @@ class TestPortal(NtiTagihanCommon, HttpCase):
         self.assertEqual(konf.catatan, 'SPP Agustus')
         self.assertIn(konf.name, r.text)  # daftar konfirmasi setelah kirim
 
-        # Tagihan anak orang lain: ditolak di server, tanpa konfirmasi baru.
-        r = self._post_konfirmasi(self.tagihan_b)
+        # Tagihan anak orang lain: ditolak di server, tanpa konfirmasi baru; isian sebelumnya dipertahankan.
+        r = self._post_konfirmasi(self.tagihan_b, nama_rekening_pengirim='Rekening Ibu Q')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(self._konfirmasi_wali(), konf)
-        self.assertIn('bukan tagihan anak Anda', r.text)
-        self.assertIn('Wali X', r.text)  # isian sebelumnya dipertahankan
+        with self.subTest('pesan galat'):
+            self.assertIn('Tagihan yang dipilih tidak ditemukan atau bukan tagihan anak Anda.', r.text)
+        with self.subTest('isian dipertahankan'):
+            self.assertIn('value="Rekening Ibu Q"', r.text)
 
     def test_konfirmasi_berkas_ditolak(self):
         self.unit_smp.nti_edu_bukti_ukuran_maks_mb = 1
         self.authenticate('tg_wali_x', 'tg_wali_x')
         besar = PNG + b'\x00' * (1024 * 1024)
-        r = self._post_konfirmasi(self.tagihan_a, berkas=('besar.png', besar, 'image/png'))
-        self.assertIn('melebihi batas 1 MB', r.text)
-        r = self._post_konfirmasi(self.tagihan_a, berkas=('bukti.txt', b'teks biasa', 'text/plain'))
-        self.assertIn('JPG, PNG, atau PDF', r.text)
-        r = self._post_konfirmasi(self.tagihan_a, nominal='abc')
-        self.assertIn('Nominal', r.text)
+        # Pesan galat persis (bukan teks bantuan/label form yang selalu tampil).
+        for nama, kiriman, pesan in (
+                ('terlalu besar', {'berkas': ('besar.png', besar, 'image/png')},
+                 'Ukuran bukti transfer melebihi batas 1 MB.'),
+                ('jenis salah', {'berkas': ('bukti.txt', b'teks biasa', 'text/plain')},
+                 'Bukti transfer harus berkas JPG, PNG, atau PDF.'),
+                ('nominal salah', {'nominal': 'abc'}, 'Nominal transfer tidak valid.')):
+            with self.subTest(nama):
+                r = self._post_konfirmasi(self.tagihan_a, **kiriman)
+                self.assertEqual(r.status_code, 200)
+                self.assertIn(pesan, r.text)
         # Tanpa token CSRF: ditolak.
         with mute_logger('odoo.http'):
             r = self.url_open('/my/tagihan/konfirmasi', data={'tagihan_ids': str(self.tagihan_a.id)},
                               files={'bukti': ('bukti.png', PNG, 'image/png')})
         self.assertEqual(r.status_code, 400)
+        self.assertFalse(self._konfirmasi_wali())
+
+    def test_konfirmasi_access_error_tidak_bocor(self):
+        """AccessError dari server tidak ditampilkan apa adanya di portal; diganti pesan umum."""
+        Konfirmasi = type(self.env['nti_edu.tagihan.konfirmasi'])
+
+        def _gagal(*args, **kwargs):
+            raise AccessError('RAHASIA_INTERNAL model account.move id 42')
+
+        self.authenticate('tg_wali_x', 'tg_wali_x')
+        with patch.object(Konfirmasi, '_buat_dari_portal', _gagal):
+            r = self._post_konfirmasi(self.tagihan_a)
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('RAHASIA_INTERNAL', r.text)
+        self.assertIn('Konfirmasi transfer tidak dapat diproses', r.text)
         self.assertFalse(self._konfirmasi_wali())
 
     def test_konfirmasi_ditolak_tampil(self):

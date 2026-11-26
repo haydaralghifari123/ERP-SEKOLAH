@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 import base64
+import logging
 import math
 import re
 
 from odoo import _, fields
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.http import content_disposition, request, route
 
 from odoo.addons.nti_edu_base.controllers.portal import NtiEduPortal
+
+_logger = logging.getLogger(__name__)
 
 # Ruang untuk isian form dan pembungkus multipart di atas batas ukuran bukti unit.
 CADANGAN_PERMINTAAN = 1024 * 1024
@@ -152,7 +155,13 @@ class NtiEduTagihanPortal(NtiEduPortal):
                 # Savepoint: galat di tengah pembuatan tidak meninggalkan data setengah jadi.
                 with request.env.cr.savepoint():
                     konfirmasi = self._nti_edu_kirim_konfirmasi(terbuka, pilihan_ids, isian)
+            except AccessError:
+                # Pesan AccessError bisa memuat nama model/record internal: tidak ditampilkan ke portal.
+                _logger.info('Konfirmasi transfer portal ditolak hak akses (user %s).', request.env.uid,
+                             exc_info=True)
+                galat = _('Konfirmasi transfer tidak dapat diproses; hubungi Bendahara sekolah.')
             except UserError as e:
+                # UserError/ValidationError: pesan untuk pengguna dari pemeriksaan server.
                 galat = e.args[0]
             else:
                 return request.redirect('/my/tagihan/konfirmasi?terkirim=%d' % konfirmasi.id)

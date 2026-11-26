@@ -22,4 +22,108 @@
         <field name="model_id" ref="model_nti_edu_tagihan_potongan_jenis"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
     </record>
+
+    <!-- Cakupan pembukuan (spec §4.11): Pemantau Keuangan dan turunannya hanya melihat dokumen modul ini, kecuali
+         unit dokumen ber-akses_pembukuan "semua". Rule grup digabung OR, jadi akuntan (rule "lihat semua" grup
+         akuntansi) tetap melihat semuanya. Rule company global account tetap berlaku (AND). -->
+    <record id="rule_account_move_pemantau" model="ir.rule">
+        <field name="name">Keuangan Sekolah: cakupan pembukuan (entri)</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="groups" eval="[(4, ref('group_tagihan_pemantau'))]"/>
+        <field name="domain_force">['|', ('company_id.nti_edu_akses_pembukuan', '=', 'semua'), '|', ('nti_edu_is_tagihan', '=', True), ('origin_payment_id.nti_edu_dari_tagihan', '=', True)]</field>
+    </record>
+    <record id="rule_account_move_line_pemantau" model="ir.rule">
+        <field name="name">Keuangan Sekolah: cakupan pembukuan (baris entri)</field>
+        <field name="model_id" ref="account.model_account_move_line"/>
+        <field name="groups" eval="[(4, ref('group_tagihan_pemantau'))]"/>
+        <field name="domain_force">['|', ('move_id.company_id.nti_edu_akses_pembukuan', '=', 'semua'), '|', ('move_id.nti_edu_is_tagihan', '=', True), ('move_id.origin_payment_id.nti_edu_dari_tagihan', '=', True)]</field>
+    </record>
+    <record id="rule_account_payment_pemantau" model="ir.rule">
+        <field name="name">Keuangan Sekolah: cakupan pembukuan (pembayaran)</field>
+        <field name="model_id" ref="account.model_account_payment"/>
+        <field name="groups" eval="[(4, ref('group_tagihan_pemantau'))]"/>
+        <field name="domain_force">['|', ('company_id.nti_edu_akses_pembukuan', '=', 'semua'), ('nti_edu_dari_tagihan', '=', True)]</field>
+    </record>
+    <!-- Rekonsiliasi: terlihat bila salah satu sisinya dokumen yang terlihat menurut cakupan di atas. -->
+    <record id="rule_account_partial_reconcile_pemantau" model="ir.rule">
+        <field name="name">Keuangan Sekolah: cakupan pembukuan (rekonsiliasi sebagian)</field>
+        <field name="model_id" ref="account.model_account_partial_reconcile"/>
+        <field name="groups" eval="[(4, ref('group_tagihan_pemantau'))]"/>
+        <field name="domain_force">['|', '|', '|', '|', ('company_id.nti_edu_akses_pembukuan', '=', 'semua'), ('debit_move_id.move_id.nti_edu_is_tagihan', '=', True), ('credit_move_id.move_id.nti_edu_is_tagihan', '=', True), ('debit_move_id.move_id.origin_payment_id.nti_edu_dari_tagihan', '=', True), ('credit_move_id.move_id.origin_payment_id.nti_edu_dari_tagihan', '=', True)]</field>
+    </record>
+    <record id="rule_account_full_reconcile_pemantau" model="ir.rule">
+        <field name="name">Keuangan Sekolah: cakupan pembukuan (rekonsiliasi penuh)</field>
+        <field name="model_id" ref="account.model_account_full_reconcile"/>
+        <field name="groups" eval="[(4, ref('group_tagihan_pemantau'))]"/>
+        <field name="domain_force">['|', '|', ('reconciled_line_ids.company_id.nti_edu_akses_pembukuan', '=', 'semua'), ('reconciled_line_ids.move_id.nti_edu_is_tagihan', '=', True), ('reconciled_line_ids.move_id.origin_payment_id.nti_edu_dari_tagihan', '=', True)]</field>
+    </record>
+
+    <!-- Modul account tidak punya rule grup "lihat semua" untuk model berikut; tanpa rule ini akuntan yang juga
+         anggota grup tagihan akan ikut terbatas oleh rule cakupan di atas. -->
+    <record id="rule_account_payment_akuntan" model="ir.rule">
+        <field name="name">Keuangan Sekolah: akuntan melihat semua pembayaran</field>
+        <field name="model_id" ref="account.model_account_payment"/>
+        <field name="groups" eval="[(4, ref('account.group_account_invoice')), (4, ref('account.group_account_readonly'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_account_partial_reconcile_akuntan" model="ir.rule">
+        <field name="name">Keuangan Sekolah: akuntan melihat semua rekonsiliasi sebagian</field>
+        <field name="model_id" ref="account.model_account_partial_reconcile"/>
+        <field name="groups" eval="[(4, ref('account.group_account_invoice')), (4, ref('account.group_account_readonly'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_account_full_reconcile_akuntan" model="ir.rule">
+        <field name="name">Keuangan Sekolah: akuntan melihat semua rekonsiliasi penuh</field>
+        <field name="model_id" ref="account.model_account_full_reconcile"/>
+        <field name="groups" eval="[(4, ref('account.group_account_invoice')), (4, ref('account.group_account_readonly'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+
+    <!-- Admin Sistem (otomatis Admin Keuangan) tidak dibatasi cakupan pembukuan (spec §4.2). Hanya baca: hak tulis
+         tetap mengikuti ACL. -->
+    <record id="rule_account_move_admin_sistem" model="ir.rule">
+        <field name="name">Keuangan Sekolah: Admin Sistem melihat semua entri</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_account_move_line_admin_sistem" model="ir.rule">
+        <field name="name">Keuangan Sekolah: Admin Sistem melihat semua baris entri</field>
+        <field name="model_id" ref="account.model_account_move_line"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_account_payment_admin_sistem" model="ir.rule">
+        <field name="name">Keuangan Sekolah: Admin Sistem melihat semua pembayaran</field>
+        <field name="model_id" ref="account.model_account_payment"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_account_partial_reconcile_admin_sistem" model="ir.rule">
+        <field name="name">Keuangan Sekolah: Admin Sistem melihat semua rekonsiliasi sebagian</field>
+        <field name="model_id" ref="account.model_account_partial_reconcile"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_account_full_reconcile_admin_sistem" model="ir.rule">
+        <field name="name">Keuangan Sekolah: Admin Sistem melihat semua rekonsiliasi penuh</field>
+        <field name="model_id" ref="account.model_account_full_reconcile"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
 </odoo>

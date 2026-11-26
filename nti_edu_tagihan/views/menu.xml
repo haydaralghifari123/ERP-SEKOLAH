@@ -3,6 +3,10 @@
     <menuitem id="menu_tagihan_root" name="Keuangan Sekolah" sequence="45"
               groups="nti_edu_tagihan.group_tagihan_pemantau"/>
 
+    <menuitem id="menu_tagihan" name="Tagihan" parent="menu_tagihan_root"
+              action="action_tagihan" sequence="10"/>
+    <menuitem id="menu_pembayaran" name="Pembayaran" parent="menu_tagihan_root"
+              action="action_pembayaran" sequence="20"/>
     <menuitem id="menu_potongan" name="Potongan Siswa" parent="menu_tagihan_root"
               action="action_potongan" sequence="30"/>
 
@@ -28,4 +32,6 @@
               action="action_alasan_tolak" sequence="90"/>
     <menuitem id="menu_alasan_hapus" name="Alasan Penghapusan Denda" parent="menu_tagihan_konfigurasi"
               action="action_alasan_hapus" sequence="100"/>
+    <menuitem id="menu_pengaturan" name="Pengaturan" parent="menu_tagihan_konfigurasi"
+              action="action_pengaturan" sequence="200"/>
 </odoo>

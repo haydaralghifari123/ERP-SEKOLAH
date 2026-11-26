@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Pengaturan kebijakan tagihan per unit (spec §4.2): dilihat Admin Keuangan, diubah hanya Admin Sistem.
+         Penjaga sebenarnya ada di res.company.write; view hanya membuat field readonly bagi selain Admin Sistem. -->
+    <record id="view_pengaturan_list" model="ir.ui.view">
+        <field name="name">res.company.list.nti_edu_tagihan_pengaturan</field>
+        <field name="model">res.company</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="Pengaturan Keuangan Sekolah" create="0" edit="0" delete="0">
+                <field name="name" string="Unit Sekolah"/>
+                <field name="nti_edu_akses_pembukuan"/>
+                <field name="nti_edu_tagihan_otomatis"/>
+                <field name="nti_edu_tagihan_mulai"/>
+                <field name="nti_edu_tagihan_jurnal_id" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pengaturan_form" model="ir.ui.view">
+        <field name="name">res.company.form.nti_edu_tagihan_pengaturan</field>
+        <field name="model">res.company</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <form string="Pengaturan Keuangan Sekolah" create="0" delete="0">
+                <sheet>
+                    <field name="nti_edu_boleh_atur_tagihan" invisible="1"/>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <div class="alert alert-info" role="status">
+                        Pengaturan ini hanya dapat diubah Admin Sistem.
+                    </div>
+                    <group>
+                        <group string="Penerbitan Tagihan">
+                            <field name="nti_edu_tagihan_otomatis" readonly="not nti_edu_boleh_atur_tagihan"/>
+                            <field name="nti_edu_tagihan_mulai" readonly="not nti_edu_boleh_atur_tagihan"
+                                   required="nti_edu_tagihan_otomatis"/>
+                            <field name="nti_edu_tagihan_jurnal_id" readonly="not nti_edu_boleh_atur_tagihan"
+                                   options="{'no_create': True}"
+                                   domain="[('type', '=', 'sale'), ('company_id', 'parent_of', id)]"/>
+                            <field name="nti_edu_email_tagihan_terbit" readonly="not nti_edu_boleh_atur_tagihan"/>
+                        </group>
+                        <group string="Akses">
+                            <field name="nti_edu_akses_pembukuan" readonly="not nti_edu_boleh_atur_tagihan" widget="radio"/>
+                            <field name="nti_edu_wali_kelas_lihat_tunggakan" readonly="not nti_edu_boleh_atur_tagihan"/>
+                        </group>
+                        <group string="Denda">
+                            <field name="nti_edu_denda_saldo_awal" readonly="not nti_edu_boleh_atur_tagihan"/>
+                            <field name="nti_edu_denda_hapus_perlu_admin" readonly="not nti_edu_boleh_atur_tagihan"/>
+                        </group>
+                        <group string="Pengingat dan Bukti Transfer">
+                            <field name="nti_edu_pengingat_hari" readonly="not nti_edu_boleh_atur_tagihan"/>
+                            <field name="nti_edu_pengingat_tunggakan" readonly="not nti_edu_boleh_atur_tagihan"/>
+                            <field name="nti_edu_bukti_ukuran_maks_mb" readonly="not nti_edu_boleh_atur_tagihan"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_pengaturan" model="ir.actions.act_window">
+        <field name="name">Pengaturan</field>
+        <field name="res_model">res.company</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('nti_edu_jenis', '=', 'unit')]</field>
+        <field name="context">{'create': False}</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_pengaturan_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_pengaturan_form')})]"/>
+    </record>
+</odoo>

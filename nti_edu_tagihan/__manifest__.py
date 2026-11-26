@@ -23,6 +23,8 @@ Tagihan dan pembayaran siswa NTI Edu (app Keuangan Sekolah).
         'views/komponen_views.xml',
         'views/skema_views.xml',
         'views/potongan_views.xml',
+        'views/tagihan_views.xml',
+        'views/pengaturan_views.xml',
         'views/menu.xml',
     ],
     'installable': True,

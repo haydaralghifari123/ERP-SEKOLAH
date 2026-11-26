@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tampilan tagihan sekolah (spec §4.10): view sendiri berprioritas rendah sehingga form invoice standar
+         Akuntansi tetap menjadi bawaan bagi akuntan. Semua perubahan lewat metode modul, bukan edit langsung. -->
+    <record id="view_tagihan_list" model="ir.ui.view">
+        <field name="name">account.move.list.nti_edu_tagihan</field>
+        <field name="model">account.move</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="Tagihan" create="0" edit="0" delete="0" default_order="invoice_date_due desc, id desc"
+                  decoration-muted="state == 'cancel'"
+                  decoration-danger="state == 'posted' and not nti_edu_lunas and invoice_date_due &lt; current_date">
+                <field name="name"/>
+                <field name="nti_edu_siswa_id"/>
+                <field name="nti_edu_komponen_id"/>
+                <field name="nti_edu_periode"/>
+                <field name="nti_edu_rombel_id" optional="show"/>
+                <field name="invoice_date" optional="hide"/>
+                <field name="invoice_date_due"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="nti_edu_lunas" column_invisible="1"/>
+                <field name="amount_total" string="Total" sum="Total"/>
+                <field name="amount_residual" string="Sisa" sum="Sisa"/>
+                <field name="payment_state" widget="badge" string="Pembayaran"
+                       decoration-success="payment_state in ('paid', 'in_payment')"
+                       decoration-warning="payment_state == 'partial'"
+                       decoration-danger="payment_state == 'not_paid'"/>
+                <field name="state" widget="badge" optional="show"
+                       decoration-success="state == 'posted'" decoration-muted="state == 'cancel'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_tagihan_form" model="ir.ui.view">
+        <field name="name">account.move.form.nti_edu_tagihan</field>
+        <field name="model">account.move</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <form string="Tagihan" create="0" edit="0" delete="0">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="posted,cancel"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Lunas" bg_color="text-bg-success" invisible="not nti_edu_lunas"/>
+                    <widget name="web_ribbon" title="Dibatalkan" bg_color="text-bg-danger" invisible="state != 'cancel'"/>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Siswa">
+                            <field name="nti_edu_siswa_id"/>
+                            <field name="nti_edu_rombel_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="nti_edu_saldo_awal" invisible="not nti_edu_saldo_awal"/>
+                        </group>
+                        <group string="Tagihan">
+                            <field name="nti_edu_komponen_id"/>
+                            <field name="nti_edu_periode" invisible="not nti_edu_periode"/>
+                            <field name="nti_edu_tahun_ajaran_id" invisible="not nti_edu_tahun_ajaran_id"/>
+                            <field name="nti_edu_semester_id" invisible="not nti_edu_semester_id"/>
+                            <field name="nti_edu_tagihan_asal_id" invisible="not nti_edu_tagihan_asal_id"/>
+                            <field name="invoice_date" string="Tanggal Terbit"/>
+                            <field name="invoice_date_due" string="Jatuh Tempo"/>
+                        </group>
+                    </group>
+                    <field name="invoice_line_ids" readonly="1">
+                        <list string="Rincian">
+                            <field name="name"/>
+                            <field name="quantity" optional="hide"/>
+                            <field name="price_unit" string="Nominal"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="price_subtotal" string="Jumlah"/>
+                        </list>
+                    </field>
+                    <group class="oe_subtotal_footer">
+                        <field name="currency_id" invisible="1"/>
+                        <field name="nti_edu_lunas" invisible="1"/>
+                        <field name="amount_total" string="Total"/>
+                        <field name="amount_residual" string="Sisa" class="oe_subtotal_footer_separator"/>
+                        <field name="payment_state" string="Status Pembayaran"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_tagihan_search" model="ir.ui.view">
+        <field name="name">account.move.search.nti_edu_tagihan</field>
+        <field name="model">account.move</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <search string="Tagihan">
+                <field name="nti_edu_siswa_id"/>
+                <field name="name"/>
+                <field name="nti_edu_komponen_id"/>
+                <field name="nti_edu_rombel_id"/>
+                <filter name="belum_lunas" string="Belum Lunas"
+                        domain="[('state', '=', 'posted'), ('payment_state', 'in', ('not_paid', 'partial'))]"/>
+                <filter name="lewat_jatuh_tempo" string="Lewat Jatuh Tempo"
+                        domain="[('state', '=', 'posted'), ('payment_state', 'in', ('not_paid', 'partial')), ('invoice_date_due', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter name="lunas" string="Lunas" domain="[('payment_state', 'in', ('paid', 'in_payment'))]"/>
+                <separator/>
+                <filter name="aktif" string="Tidak Dibatalkan" domain="[('state', '!=', 'cancel')]"/>
+                <filter name="batal" string="Dibatalkan" domain="[('state', '=', 'cancel')]"/>
+                <separator/>
+                <filter name="periode" string="Periode" date="nti_edu_periode"/>
+                <group expand="0" string="Kelompokkan">
+                    <filter name="per_siswa" string="Siswa" context="{'group_by': 'nti_edu_siswa_id'}"/>
+                    <filter name="per_komponen" string="Komponen" context="{'group_by': 'nti_edu_komponen_id'}"/>
+                    <filter name="per_rombel" string="Rombel" context="{'group_by': 'nti_edu_rombel_id'}"/>
+                    <filter name="per_periode" string="Periode" context="{'group_by': 'nti_edu_periode:month'}"/>
+                    <filter name="per_unit" string="Unit" context="{'group_by': 'company_id'}"
+                            groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_tagihan" model="ir.actions.act_window">
+        <field name="name">Tagihan</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('move_type', '=', 'out_invoice'), ('nti_edu_is_tagihan', '=', True)]</field>
+        <field name="context">{'create': False, 'search_default_aktif': 1}</field>
+        <field name="search_view_id" ref="view_tagihan_search"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_tagihan_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_tagihan_form')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Belum ada tagihan</p>
+            <p>Tagihan siswa diterbitkan oleh jadwal harian atau tombol Buat Tagihan.</p>
+        </field>
+    </record>
+
+    <!-- Pembayaran yang dibuat modul ini. -->
+    <record id="view_pembayaran_list" model="ir.ui.view">
+        <field name="name">account.payment.list.nti_edu_tagihan</field>
+        <field name="model">account.payment</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="Pembayaran" create="0" edit="0" delete="0" decoration-muted="state == 'canceled'">
+                <field name="date"/>
+                <field name="name"/>
+                <field name="partner_id" string="Siswa"/>
+                <field name="journal_id"/>
+                <field name="memo" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount" sum="Total"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pembayaran_form" model="ir.ui.view">
+        <field name="name">account.payment.form.nti_edu_tagihan</field>
+        <field name="model">account.payment</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <form string="Pembayaran" create="0" edit="0" delete="0">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id" string="Siswa"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount"/>
+                            <field name="date"/>
+                        </group>
+                        <group>
+                            <field name="journal_id"/>
+                            <field name="memo"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pembayaran_search" model="ir.ui.view">
+        <field name="name">account.payment.search.nti_edu_tagihan</field>
+        <field name="model">account.payment</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <search string="Pembayaran">
+                <field name="partner_id" string="Siswa"/>
+                <field name="name"/>
+                <field name="journal_id"/>
+                <filter name="tanggal" string="Tanggal" date="date"/>
+                <group expand="0" string="Kelompokkan">
+                    <filter name="per_siswa" string="Siswa" context="{'group_by': 'partner_id'}"/>
+                    <filter name="per_jurnal" string="Jurnal" context="{'group_by': 'journal_id'}"/>
+                    <filter name="per_tanggal" string="Tanggal" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pembayaran" model="ir.actions.act_window">
+        <field name="name">Pembayaran</field>
+        <field name="res_model">account.payment</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('nti_edu_dari_tagihan', '=', True)]</field>
+        <field name="context">{'create': False}</field>
+        <field name="search_view_id" ref="view_pembayaran_search"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_pembayaran_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_pembayaran_form')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Belum ada pembayaran</p>
+            <p>Pembayaran tagihan sekolah dicatat lewat tombol Terima Pembayaran atau verifikasi konfirmasi transfer.</p>
+        </field>
+    </record>
+</odoo>

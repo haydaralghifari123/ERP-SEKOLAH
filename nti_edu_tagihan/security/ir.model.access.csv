@@ -26,3 +26,11 @@ akses_potongan_jenis_admin,nti_edu.tagihan.potongan.jenis admin,model_nti_edu_ta
 akses_potongan_pemantau,nti_edu.tagihan.potongan pemantau,model_nti_edu_tagihan_potongan,group_tagihan_pemantau,1,0,0,0
 akses_potongan_bendahara,nti_edu.tagihan.potongan bendahara,model_nti_edu_tagihan_potongan,group_tagihan_bendahara,1,1,1,1
 akses_potongan_admin,nti_edu.tagihan.potongan admin,model_nti_edu_tagihan_potongan,group_tagihan_admin,1,1,1,1
+akses_account_move_pemantau,account.move pemantau keuangan,account.model_account_move,group_tagihan_pemantau,1,0,0,0
+akses_account_move_line_pemantau,account.move.line pemantau keuangan,account.model_account_move_line,group_tagihan_pemantau,1,0,0,0
+akses_account_payment_pemantau,account.payment pemantau keuangan,account.model_account_payment,group_tagihan_pemantau,1,0,0,0
+akses_account_partial_reconcile_pemantau,account.partial.reconcile pemantau keuangan,account.model_account_partial_reconcile,group_tagihan_pemantau,1,0,0,0
+akses_account_full_reconcile_pemantau,account.full.reconcile pemantau keuangan,account.model_account_full_reconcile,group_tagihan_pemantau,1,0,0,0
+akses_account_payment_term_pemantau,account.payment.term pemantau keuangan,account.model_account_payment_term,group_tagihan_pemantau,1,0,0,0
+akses_account_payment_term_line_pemantau,account.payment.term.line pemantau keuangan,account.model_account_payment_term_line,group_tagihan_pemantau,1,0,0,0
+akses_account_tax_pemantau,account.tax pemantau keuangan,account.model_account_tax,group_tagihan_pemantau,1,0,0,0

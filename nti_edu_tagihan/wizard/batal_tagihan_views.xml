@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_batal_tagihan_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.batal.wizard.form</field>
+        <field name="model">nti_edu.tagihan.batal.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Batalkan Tagihan">
+                <p class="text-muted">
+                    Hanya tagihan yang belum dibayar sama sekali yang dapat dibatalkan. Tagihan yang sudah dibayar
+                    dikoreksi dengan nota kredit.
+                </p>
+                <group>
+                    <field name="tagihan_ids" widget="many2many_tags"/>
+                    <field name="alasan" placeholder="mis. nominal salah, siswa sudah keluar sebelum periode"/>
+                </group>
+                <footer>
+                    <button string="Batalkan Tagihan" name="action_batal" type="object" class="btn-primary"/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_batal_tagihan_wizard" model="ir.actions.act_window">
+        <field name="name">Batalkan Tagihan</field>
+        <field name="res_model">nti_edu.tagihan.batal.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="groups_id" eval="[(4, ref('nti_edu_tagihan.group_tagihan_bendahara'))]"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_view_types">list</field>
+    </record>
+</odoo>

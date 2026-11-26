@@ -14,6 +14,8 @@
               groups="nti_edu_tagihan.group_tagihan_bendahara"/>
     <menuitem id="menu_buat_tagihan" name="Buat Tagihan" parent="menu_tagihan_proses"
               action="action_buat_tagihan_wizard" sequence="10"/>
+    <menuitem id="menu_saldo_awal" name="Tunggakan Awal" parent="menu_tagihan_proses"
+              action="action_saldo_awal_wizard" sequence="20"/>
 
     <menuitem id="menu_tagihan_konfigurasi" name="Konfigurasi" parent="menu_tagihan_root" sequence="90"
               groups="nti_edu_tagihan.group_tagihan_admin"/>

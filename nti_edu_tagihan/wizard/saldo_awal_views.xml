@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_saldo_awal_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.saldo.awal.wizard.form</field>
+        <field name="model">nti_edu.tagihan.saldo.awal.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tunggakan Awal">
+                <p class="text-muted">
+                    Masukkan tunggakan siswa dari sebelum sistem dipakai. Tiap baris menjadi tagihan biasa bertanda
+                    Tunggakan Awal. Untuk komponen sekali, Periode menjadi tanggal terbit.
+                </p>
+                <div class="alert alert-warning" role="alert" invisible="not ada_galat">
+                    Baris di bawah gagal diterbitkan; baris lain sudah tersimpan. Perbaiki lalu simpan ulang.
+                </div>
+                <field name="ada_galat" invisible="1"/>
+                <field name="baris_ids">
+                    <list editable="bottom" decoration-danger="galat">
+                        <field name="siswa_id" options="{'no_create': True}"/>
+                        <field name="komponen_id" options="{'no_create': True}"/>
+                        <field name="periode"/>
+                        <field name="jatuh_tempo" required="not periode"/>
+                        <field name="nominal"/>
+                        <field name="galat" optional="show"/>
+                    </list>
+                </field>
+                <footer>
+                    <button string="Simpan" name="action_simpan" type="object" class="btn-primary"
+                            confirm="Terbitkan tagihan tunggakan awal? Tagihan langsung menjadi piutang."/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_saldo_awal_wizard" model="ir.actions.act_window">
+        <field name="name">Tunggakan Awal</field>
+        <field name="res_model">nti_edu.tagihan.saldo.awal.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

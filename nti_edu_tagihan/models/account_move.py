@@ -5,7 +5,9 @@ from psycopg2 import errors
 
 from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import mute_logger
+from odoo.tools import format_amount, mute_logger
+
+GRUP_BENDAHARA = 'nti_edu_tagihan.group_tagihan_bendahara'
 
 # Nilai `**sekolah` yang boleh diberikan ke `_nti_edu_terbitkan`, dipetakan ke field `nti_edu_<nama>`.
 FIELD_SEKOLAH = (
@@ -122,7 +124,8 @@ class AccountMove(models.Model):
         baris = [Command.create(dict(nilai_baris, name=keterangan or komponen.name, price_unit=nominal))]
         for jenis, jumlah in potongan:
             baris.append(Command.create(dict(
-                nilai_baris, name=_('Potongan %s', jenis.name), price_unit=-jumlah)))
+                nilai_baris, name=_('Potongan %s', jenis.name), price_unit=-jumlah,
+                nti_edu_potongan_jenis_id=jenis.id)))
 
         vals = {
             'move_type': 'out_invoice',
@@ -168,6 +171,134 @@ class AccountMove(models.Model):
         return _('Tagihan ini sudah ada: %(komponen)s untuk %(siswa)s pada periode yang sama.',
                  komponen=komponen.name, siswa=siswa.display_name)
 
+    # --- koreksi ----------------------------------------------------------------------------
+
+    def _nti_edu_batalkan(self, alasan):
+        """Batalkan tagihan yang belum dibayar sama sekali; alasan dicatat di chatter atas nama pemanggil.
+
+        Hanya Bendahara unit tagihan (atau Admin Keuangan). Tagihan yang sudah dibayar sebagian/lunas dikoreksi
+        dengan nota kredit standar (spec §4.3).
+        """
+        if not (alasan or '').strip():
+            raise UserError(_('Alasan pembatalan wajib diisi.'))
+        semua = self.sudo()
+        bukan = semua.filtered(lambda m: m.move_type != 'out_invoice' or not m.nti_edu_is_tagihan)
+        if bukan:
+            raise UserError(_('%s bukan tagihan sekolah.', ', '.join(bukan.mapped('display_name'))))
+        self.env['nti_edu.tagihan.akses']._nti_edu_cek_hak(GRUP_BENDAHARA, semua.company_id)
+        for tagihan in semua:
+            if tagihan.state != 'posted':
+                raise UserError(_('Tagihan %s tidak berstatus terbit sehingga tidak dapat dibatalkan.',
+                                  tagihan.name))
+            if tagihan.currency_id.compare_amounts(tagihan.amount_residual, tagihan.amount_total) != 0:
+                raise UserError(_(
+                    'Tagihan %s sudah dibayar atau dikoreksi sebagian sehingga tidak dapat dibatalkan; gunakan '
+                    'nota kredit.', tagihan.name))
+        penulis = self.env.user.partner_id.id
+        for tagihan in semua:
+            tagihan.button_draft()
+            tagihan.button_cancel()
+            tagihan.message_post(body=_('Tagihan dibatalkan. Alasan: %s', alasan), author_id=penulis)
+        return True
+
+    @api.model
+    def _nti_edu_terapkan_potongan(self, potongan):
+        """Nota kredit `potongan` (aktif) untuk tagihan terbit siswanya yang belum lunas dalam rentang tanggalnya.
+
+        Per tagihan: jumlah = potongan ini saja atas nominal komponen − potongan jenis yang sama yang sudah ada
+        (baris minus tagihan + nota kredit potongan jenis itu), dibatasi sisa tagihan; hanya bila > 0. Nota kredit
+        di-post dan direkonsiliasi dengan tagihan; hak pemanggil diperiksa oleh pemanggil.
+        """
+        potongan.ensure_one()
+        pot = potongan.sudo()
+        jenis = pot.jenis_id
+        Move = self.sudo()
+        kandidat = Move.search([
+            ('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('nti_edu_siswa_id', '=', pot.siswa_id.id),
+            ('nti_edu_komponen_id', 'in', jenis.komponen_ids.ids), ('nti_edu_sumber', '=', False),
+            ('nti_edu_tagihan_asal_id', '=', False), ('amount_residual', '>', 0),
+        ], order='invoice_date, id')
+        kandidat = kandidat.filtered(lambda m: pot.tanggal_mulai <= (m.nti_edu_periode or m.invoice_date) and (
+            not pot.tanggal_selesai or (m.nti_edu_periode or m.invoice_date) <= pot.tanggal_selesai))
+        if not kandidat:
+            return self.browse()
+        nota_lama = Move.search([
+            ('move_type', '=', 'out_refund'), ('state', '!=', 'cancel'), ('reversed_entry_id', 'in', kandidat.ids),
+            ('nti_edu_potongan_id.jenis_id', '=', jenis.id)])
+        penulis = self.env.user.partner_id.id
+        hari_ini = fields.Date.context_today(self)
+        hasil = Move.browse()
+        for tagihan in kandidat:
+            nota_tagihan = nota_lama.filtered(lambda n: n.reversed_entry_id == tagihan)
+            if pot in nota_tagihan.nti_edu_potongan_id:
+                continue
+            mata_uang = tagihan.currency_id
+            baris = tagihan.invoice_line_ids
+            nominal = sum(baris.filtered(lambda b: b.price_subtotal > 0).mapped('price_subtotal'))
+            sudah = -sum(baris.filtered(lambda b: b.nti_edu_potongan_jenis_id == jenis).mapped('price_subtotal'))
+            sudah += sum(nota_tagihan.mapped('amount_total'))
+            jumlah = min(pot._jumlah(nominal, mata_uang) - sudah, tagihan.amount_residual)
+            if mata_uang.compare_amounts(jumlah, 0) <= 0:
+                continue
+            nota = tagihan._nti_edu_buat_nota_potongan(pot, jumlah, hari_ini)
+            hasil |= nota
+            nilai = format_amount(self.env, jumlah, mata_uang)
+            tagihan.message_post(body=_(
+                'Potongan %(jenis)s diterapkan lewat nota kredit %(nota)s sebesar %(nilai)s.',
+                jenis=jenis.name, nota=nota.name, nilai=nilai), author_id=penulis)
+        if hasil:
+            pot.message_post(body=_(
+                'Diterapkan ke tagihan terbit: %s.', ', '.join(
+                    '%s (%s)' % (n.reversed_entry_id.name, format_amount(self.env, n.amount_total, n.currency_id))
+                    for n in hasil)), author_id=penulis)
+        return hasil.with_env(self.env)
+
+    def _nti_edu_buat_nota_potongan(self, potongan, jumlah, tanggal):
+        """Nota kredit sebesar `jumlah` atas tagihan ini untuk `potongan`, di-post lalu direkonsiliasi (sudo)."""
+        self.ensure_one()
+        tagihan = self.sudo()
+        komponen = tagihan.nti_edu_komponen_id
+        nilai_baris = {
+            'product_id': komponen.product_id.id,
+            'name': _('Potongan %s', potongan.jenis_id.name),
+            'quantity': 1,
+            'price_unit': jumlah,
+            'tax_ids': [Command.clear()],
+            'nti_edu_potongan_jenis_id': potongan.jenis_id.id,
+        }
+        if komponen.akun_pendapatan_id:
+            nilai_baris['account_id'] = komponen.akun_pendapatan_id.id
+        vals = {
+            'move_type': 'out_refund',
+            'company_id': tagihan.company_id.id,
+            'journal_id': tagihan.journal_id.id,
+            'partner_id': tagihan.partner_id.id,
+            'invoice_date': tanggal,
+            'invoice_payment_term_id': False,
+            'reversed_entry_id': tagihan.id,
+            'invoice_origin': tagihan.name,
+            'ref': _('Potongan %(jenis)s atas %(tagihan)s', jenis=potongan.jenis_id.name, tagihan=tagihan.name),
+            'invoice_line_ids': [Command.create(nilai_baris)],
+            'nti_edu_siswa_id': tagihan.nti_edu_siswa_id.id,
+            'nti_edu_komponen_id': komponen.id,
+            'nti_edu_potongan_id': potongan.id,
+        }
+        try:
+            with self.env.cr.savepoint():
+                with mute_logger('odoo.sql_db'):
+                    nota = tagihan.with_company(tagihan.company_id).create(vals)
+                nota.action_post()
+        except errors.UniqueViolation as e:
+            pesan = self._nti_edu_pesan_ganda(e.diag.constraint_name, tagihan.nti_edu_siswa_id, komponen)
+            if not pesan:
+                raise
+            raise UserError(pesan) from None
+        piutang = nota.line_ids.filtered(
+            lambda b: b.account_id.account_type == 'asset_receivable' and not b.reconciled)
+        if piutang:
+            tagihan.js_assign_outstanding_line(piutang[0].id)
+        return nota
+
     @api.model
     def _nti_edu_buat_tagihan(self, siswa, komponen, nominal, sumber, keterangan=None):
         """API jembatan bagi modul lain: tagihan untuk dokumen `sumber` tanpa skema dan potongan.
@@ -181,3 +312,12 @@ class AccountMove(models.Model):
         return self._nti_edu_terbitkan(
             siswa, komponen, nominal, hari_ini, hari_ini + timedelta(days=hari), keterangan=keterangan,
             sumber='%s,%s' % (sumber._name, sumber.id))
+
+
+class AccountMoveLine(models.Model):
+    _inherit = 'account.move.line'
+
+    nti_edu_potongan_jenis_id = fields.Many2one(
+        'nti_edu.tagihan.potongan.jenis', string='Jenis Potongan', readonly=True, copy=False,
+        index='btree_not_null', ondelete='restrict',
+        help='Jenis potongan siswa yang menjadi dasar baris potongan tagihan atau nota kredit ini.')

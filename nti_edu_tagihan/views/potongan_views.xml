@@ -83,6 +83,9 @@
                             invisible="state != 'menunggu'" groups="nti_edu_tagihan.group_tagihan_admin"/>
                     <button name="action_tolak" type="object" string="Tolak" invisible="state != 'menunggu'"
                             groups="nti_edu_tagihan.group_tagihan_admin"/>
+                    <button name="action_terapkan_terbit" type="object" string="Terapkan ke Tagihan Terbit"
+                            invisible="state != 'aktif'" groups="nti_edu_tagihan.group_tagihan_bendahara"
+                            confirm="Buat nota kredit potongan ini untuk tagihan terbit yang belum lunas dalam rentang tanggal potongan?"/>
                     <button name="action_akhiri" type="object" string="Akhiri" invisible="state != 'aktif'"
                             groups="nti_edu_tagihan.group_tagihan_bendahara"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,menunggu,aktif,berakhir"/>

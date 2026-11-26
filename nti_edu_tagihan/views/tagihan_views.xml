@@ -39,6 +39,9 @@
         <field name="arch" type="xml">
             <form string="Tagihan" create="0" edit="0" delete="0">
                 <header>
+                    <button name="%(nti_edu_tagihan.action_batal_tagihan_wizard)d" type="action"
+                            string="Batalkan" groups="nti_edu_tagihan.group_tagihan_bendahara"
+                            invisible="state != 'posted' or amount_residual != amount_total"/>
                     <field name="state" widget="statusbar" statusbar_visible="posted,cancel"/>
                 </header>
                 <sheet>

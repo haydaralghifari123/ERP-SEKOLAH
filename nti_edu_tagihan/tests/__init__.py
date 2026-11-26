@@ -5,3 +5,4 @@ from . import test_akses_pembukuan
 from . import test_mesin
 from . import test_koreksi
 from . import test_pembayaran
+from . import test_konfirmasi

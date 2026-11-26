@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Email hasil verifikasi konfirmasi transfer ke pengirimnya (spec §4.6); bisa diedit admin. -->
+    <record id="mail_template_konfirmasi_diterima" model="mail.template">
+        <field name="name">Keuangan Sekolah: Konfirmasi Transfer Diterima</field>
+        <field name="model_id" ref="nti_edu_tagihan.model_nti_edu_tagihan_konfirmasi"/>
+        <field name="subject">Konfirmasi Transfer {{ object.name }} Diterima</field>
+        <field name="email_from">{{ (object.company_id.email_formatted or user.email_formatted) }}</field>
+        <field name="partner_to">{{ object.pengirim_id.id }}</field>
+        <field name="lang">{{ object.pengirim_id.lang }}</field>
+        <field name="auto_delete" eval="True"/>
+        <field name="description">Dikirim ke pengirim saat Bendahara menerima konfirmasi transfer.</field>
+        <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <p>Yth. <t t-out="object.pengirim_id.name or ''">Bapak/Ibu</t>,</p>
+    <p>
+        Konfirmasi transfer <strong t-out="object.name or ''">KT/2026/00001</strong> telah
+        <strong>diterima</strong> oleh Bendahara <t t-out="object.company_id.name or ''">unit sekolah</t>.
+    </p>
+    <ul>
+        <li>Siswa: <t t-out="', '.join(object.siswa_ids.mapped('name'))">Nama Siswa</t></li>
+        <li>Tanggal transfer: <t t-out="format_date(object.tanggal_transfer)">01/08/2026</t></li>
+        <li>Nominal diterima:
+            <t t-out="format_amount(object.nominal_diterima or object.nominal, object.currency_id)">Rp 200.000</t></li>
+        <li>Tagihan: <t t-out="', '.join(object.tagihan_ids.mapped('name'))">INV/2026/00001</t></li>
+    </ul>
+    <p>Kelebihan pembayaran, bila ada, tercatat sebagai saldo kredit siswa untuk tagihan berikutnya.</p>
+    <p>Terima kasih.</p>
+</div>
+        </field>
+    </record>
+
+    <record id="mail_template_konfirmasi_ditolak" model="mail.template">
+        <field name="name">Keuangan Sekolah: Konfirmasi Transfer Ditolak</field>
+        <field name="model_id" ref="nti_edu_tagihan.model_nti_edu_tagihan_konfirmasi"/>
+        <field name="subject">Konfirmasi Transfer {{ object.name }} Ditolak</field>
+        <field name="email_from">{{ (object.company_id.email_formatted or user.email_formatted) }}</field>
+        <field name="partner_to">{{ object.pengirim_id.id }}</field>
+        <field name="lang">{{ object.pengirim_id.lang }}</field>
+        <field name="auto_delete" eval="True"/>
+        <field name="description">Dikirim ke pengirim saat Bendahara menolak konfirmasi transfer.</field>
+        <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <p>Yth. <t t-out="object.pengirim_id.name or ''">Bapak/Ibu</t>,</p>
+    <p>
+        Mohon maaf, konfirmasi transfer <strong t-out="object.name or ''">KT/2026/00001</strong>
+        <strong>ditolak</strong> oleh Bendahara <t t-out="object.company_id.name or ''">unit sekolah</t>.
+    </p>
+    <ul>
+        <li>Siswa: <t t-out="', '.join(object.siswa_ids.mapped('name'))">Nama Siswa</t></li>
+        <li>Tanggal transfer: <t t-out="format_date(object.tanggal_transfer)">01/08/2026</t></li>
+        <li>Nominal dilaporkan: <t t-out="format_amount(object.nominal, object.currency_id)">Rp 200.000</t></li>
+        <li>Alasan: <t t-out="object.alasan_tolak_id.name or ''">Bukti tidak terbaca</t></li>
+        <li t-if="object.catatan_tolak">Catatan: <t t-out="object.catatan_tolak">Catatan bendahara</t></li>
+    </ul>
+    <p>Silakan kirim konfirmasi transfer baru melalui portal dengan data yang benar.</p>
+    <p>Terima kasih.</p>
+</div>
+        </field>
+    </record>
+</odoo>

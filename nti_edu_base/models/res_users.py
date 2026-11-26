@@ -11,17 +11,21 @@ FIELD_USER_PARTNER_SISWA = FIELD_SISWA - {'company_id'}
 class ResUsers(models.Model):
     _inherit = 'res.users'
 
-    def _nti_edu_siswa_portal(self):
+    def _nti_edu_siswa_portal(self, termasuk_nonaktif=False):
         """Siswa aktif yang boleh dilihat user ini (hasil sudo).
 
         Partner user sendiri bila siswa, ditambah semua siswa dari baris wali dengan partner user ini.
         Dibaca lewat sudo (bukan record rule); berlaku untuk user portal maupun internal.
+        `termasuk_nonaktif`: ikut sertakan siswa yang status-nya bukan `aktif` (lulus/pindah/keluar) atau
+        diarsipkan, mis. untuk tagihan yang masih terbuka; tetap hanya siswa yang terhubung dengan user ini.
         """
         self.ensure_one()
         partner = self.sudo().partner_id
         Wali = self.env['nti_edu.siswa.wali'].sudo()
         siswa = Wali.search([('partner_id', '=', partner.id)]).siswa_id | partner.filtered('nti_edu_is_siswa')
-        return siswa.filtered(lambda s: s.active and s.nti_edu_status == 'aktif').sorted(lambda s: (s.name, s.id))
+        if not termasuk_nonaktif:
+            siswa = siswa.filtered(lambda s: s.active and s.nti_edu_status == 'aktif')
+        return siswa.sorted(lambda s: (s.name, s.id))
 
     def write(self, vals):
         # Jalur "preferensi saya" menulis lewat sudo dan akan melewati penjaga tulis siswa di res.partner.

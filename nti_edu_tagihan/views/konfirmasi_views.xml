@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Antrean verifikasi konfirmasi transfer (spec §4.6). Dibuat dari portal saja; status diubah lewat tombol
+         Terima/Tolak. -->
+    <record id="view_konfirmasi_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.konfirmasi.list</field>
+        <field name="model">nti_edu.tagihan.konfirmasi</field>
+        <field name="arch" type="xml">
+            <list string="Konfirmasi Transfer" create="0" delete="0"
+                  decoration-info="state == 'menunggu'" decoration-muted="state == 'ditolak'">
+                <field name="name"/>
+                <field name="create_date" string="Dikirim" optional="show"/>
+                <field name="pengirim_id"/>
+                <field name="siswa_ids" widget="many2many_tags"/>
+                <field name="tanggal_transfer"/>
+                <field name="rekening_id" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="nominal" sum="Total"/>
+                <field name="nominal_diterima" optional="hide"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'menunggu'" decoration-success="state == 'diterima'"
+                       decoration-danger="state == 'ditolak'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_konfirmasi_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.konfirmasi.form</field>
+        <field name="model">nti_edu.tagihan.konfirmasi</field>
+        <field name="arch" type="xml">
+            <form string="Konfirmasi Transfer" create="0" delete="0">
+                <header>
+                    <button name="action_terima" type="object" string="Terima" class="btn-primary"
+                            groups="nti_edu_tagihan.group_tagihan_bendahara" invisible="state != 'menunggu'"
+                            confirm="Terima transfer ini dan catat pembayarannya?"/>
+                    <button name="action_tolak" type="object" string="Tolak"
+                            groups="nti_edu_tagihan.group_tagihan_bendahara" invisible="state != 'menunggu'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Diterima" bg_color="text-bg-success"
+                            invisible="state != 'diterima'"/>
+                    <widget name="web_ribbon" title="Ditolak" bg_color="text-bg-danger"
+                            invisible="state != 'ditolak'"/>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Pengirim">
+                            <field name="pengirim_id"/>
+                            <field name="siswa_ids" widget="many2many_tags"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="create_date" string="Dikirim"/>
+                            <field name="catatan" invisible="not catatan"/>
+                        </group>
+                        <group string="Transfer">
+                            <field name="tanggal_transfer"/>
+                            <field name="rekening_id"/>
+                            <field name="nama_rekening_pengirim"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="nominal"/>
+                            <field name="nominal_diterima" readonly="state != 'menunggu'"
+                                   placeholder="Kosong = sama dengan nominal dilaporkan"/>
+                        </group>
+                    </group>
+                    <group string="Verifikasi" invisible="state == 'menunggu'">
+                        <group>
+                            <field name="diverifikasi_oleh_id"/>
+                            <field name="tanggal_verifikasi"/>
+                        </group>
+                        <group invisible="state != 'ditolak'">
+                            <field name="alasan_tolak_id"/>
+                            <field name="catatan_tolak" invisible="not catatan_tolak"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Bukti Transfer" name="bukti">
+                            <field name="bukti_is_gambar" invisible="1"/>
+                            <field name="bukti_nama" invisible="1"/>
+                            <field name="bukti" widget="image" options="{'size': [0, 600]}"
+                                   invisible="not bukti_is_gambar"/>
+                            <div invisible="bukti_is_gambar">
+                                <span>Unduh berkas bukti: </span>
+                                <field name="bukti" widget="binary" filename="bukti_nama" nolabel="1"/>
+                            </div>
+                        </page>
+                        <page string="Tagihan" name="tagihan">
+                            <field name="tagihan_ids" context="{'form_view_ref': 'nti_edu_tagihan.view_tagihan_form'}">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="nti_edu_siswa_id"/>
+                                    <field name="nti_edu_komponen_id"/>
+                                    <field name="nti_edu_periode"/>
+                                    <field name="invoice_date_due"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="amount_total" string="Total"/>
+                                    <field name="amount_residual" string="Sisa"/>
+                                    <field name="payment_state" widget="badge" string="Pembayaran"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Pembayaran" name="pembayaran" invisible="not payment_ids">
+                            <field name="payment_ids"
+                                   context="{'form_view_ref': 'nti_edu_tagihan.view_pembayaran_form'}">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="partner_id" string="Siswa"/>
+                                    <field name="date"/>
+                                    <field name="journal_id"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="amount"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_konfirmasi_search" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.konfirmasi.search</field>
+        <field name="model">nti_edu.tagihan.konfirmasi</field>
+        <field name="arch" type="xml">
+            <search string="Konfirmasi Transfer">
+                <field name="name"/>
+                <field name="siswa_ids"/>
+                <field name="pengirim_id"/>
+                <field name="nama_rekening_pengirim"/>
+                <filter name="menunggu" string="Menunggu Verifikasi" domain="[('state', '=', 'menunggu')]"/>
+                <filter name="diterima" string="Diterima" domain="[('state', '=', 'diterima')]"/>
+                <filter name="ditolak" string="Ditolak" domain="[('state', '=', 'ditolak')]"/>
+                <separator/>
+                <filter name="tanggal_transfer" string="Tanggal Transfer" date="tanggal_transfer"/>
+                <group expand="0" string="Kelompokkan">
+                    <filter name="per_status" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="per_rekening" string="Rekening" context="{'group_by': 'rekening_id'}"/>
+                    <filter name="per_unit" string="Unit" context="{'group_by': 'company_id'}"
+                            groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_konfirmasi" model="ir.actions.act_window">
+        <field name="name">Konfirmasi Transfer</field>
+        <field name="res_model">nti_edu.tagihan.konfirmasi</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_menunggu': 1}</field>
+        <field name="search_view_id" ref="view_konfirmasi_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Tidak ada konfirmasi transfer yang menunggu verifikasi</p>
+            <p>Wali mengirim konfirmasi transfer beserta bukti dari portal; Bendahara unit menerima atau menolaknya
+                di sini.</p>
+        </field>
+    </record>
+</odoo>

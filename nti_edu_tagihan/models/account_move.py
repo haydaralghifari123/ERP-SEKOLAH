@@ -74,6 +74,10 @@ class AccountMove(models.Model):
     nti_edu_ada_kredit = fields.Boolean(
         string='Ada Kredit Siswa', compute='_compute_nti_edu_ada_kredit',
         help='Siswa punya pembayaran atau nota kredit yang belum terpakai yang bisa diterapkan ke tagihan ini.')
+    nti_edu_menunggu_verifikasi = fields.Boolean(
+        string='Menunggu Verifikasi', compute='_compute_nti_edu_menunggu_verifikasi',
+        search='_search_nti_edu_menunggu_verifikasi',
+        help='Tagihan ini ada di konfirmasi transfer yang belum diverifikasi Bendahara; tetap bisa dibayar tunai.')
 
     def init(self):
         super().init()
@@ -91,6 +95,26 @@ class AccountMove(models.Model):
     def _compute_nti_edu_lunas(self):
         for move in self:
             move.nti_edu_lunas = move.state == 'posted' and move.currency_id.is_zero(move.amount_residual)
+
+    def _nti_edu_tagihan_menunggu(self):
+        """Tagihan yang termuat di konfirmasi transfer berstatus menunggu (dibaca sebagai superuser: pembaca
+        tagihan belum tentu berhak membaca konfirmasinya, mis. portal)."""
+        konfirmasi = self.env['nti_edu.tagihan.konfirmasi'].sudo().search([('state', '=', 'menunggu')])
+        return konfirmasi.tagihan_ids
+
+    def _compute_nti_edu_menunggu_verifikasi(self):
+        menunggu = set()
+        if self._origin.ids:
+            menunggu = set(self.env['nti_edu.tagihan.konfirmasi'].sudo().search([
+                ('state', '=', 'menunggu'), ('tagihan_ids', 'in', self._origin.ids)]).tagihan_ids.ids)
+        for move in self:
+            move.nti_edu_menunggu_verifikasi = move._origin.id in menunggu
+
+    def _search_nti_edu_menunggu_verifikasi(self, operator, value):
+        if operator not in ('=', '!=') or not isinstance(value, bool):
+            raise UserError(_('Operasi pencarian tidak didukung untuk Menunggu Verifikasi.'))
+        ada = (operator == '=') == value
+        return [('id', 'in' if ada else 'not in', self._nti_edu_tagihan_menunggu().ids)]
 
     # --- penerbitan --------------------------------------------------------------------------
 

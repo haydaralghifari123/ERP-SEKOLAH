@@ -25,3 +25,15 @@ class ResPartner(models.Model):
             saldo = {partner.id: -total for partner, total in data}
         for partner in self:
             partner.nti_edu_saldo_kredit = saldo.get(partner._origin.id, 0.0)
+
+    def _nti_edu_penerima_tagihan(self):
+        """Penerima email tagihan siswa-siswa ini (spec §4.9): per siswa, wali penanggung biaya yang punya email;
+        bila tidak ada, wali kontak utama yang punya email; bila tidak ada, tidak seorang pun. Baris wali dibaca
+        sebagai superuser; hasil dalam env pemanggil."""
+        penerima = self.browse()
+        Wali = self.env['nti_edu.siswa.wali'].sudo()
+        for siswa in self.sudo().filtered('nti_edu_is_siswa'):
+            baris = Wali.search([('siswa_id', '=', siswa.id)]).filtered(lambda w: w.partner_id.email)
+            pilihan = baris.filtered('is_penanggung_biaya') or baris.filtered('is_kontak_utama')
+            penerima |= pilihan.partner_id.with_env(self.env)
+        return penerima

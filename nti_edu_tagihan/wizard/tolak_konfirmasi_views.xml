@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_tolak_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.tolak.wizard.form</field>
+        <field name="model">nti_edu.tagihan.tolak.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tolak Konfirmasi Transfer">
+                <p class="text-muted">
+                    Alasan dan catatan ditampilkan kepada pengirim di portal dan dikirim lewat email. Konfirmasi yang
+                    ditolak tidak dapat diubah; pengirim membuat konfirmasi baru.
+                </p>
+                <group>
+                    <field name="konfirmasi_id" force_save="1"/>
+                    <field name="company_id" invisible="1"/>
+                    <field name="alasan_id" options="{'no_create': True}"/>
+                    <field name="perlu_catatan" invisible="1"/>
+                    <field name="catatan" required="perlu_catatan"
+                           placeholder="mis. nama pemilik rekening berbeda dengan yang dilaporkan"/>
+                </group>
+                <footer>
+                    <button string="Tolak" name="action_tolak" type="object" class="btn-primary"/>
+                    <button string="Batal" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

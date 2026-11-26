@@ -5,6 +5,7 @@ from psycopg2 import IntegrityError
 
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
+from odoo.tests.common import new_test_user
 
 from odoo.tools import mute_logger
 
@@ -80,6 +81,25 @@ class TestAkses(NtiEduCommon):
     def test_eksternal_tanpa_akses_rombel(self):
         with self.assertRaises(AccessError):
             self.env['nti_edu.rombel'].with_user(self.user_eksternal).search([])
+
+    def test_helper_termasuk_nonaktif(self):
+        # Wali portal dengan satu anak aktif, satu lulus, dan satu diarsipkan.
+        user = new_test_user(self.env, login='tes_wali_nonaktif', groups='base.group_portal')
+        lulus = self._buat_siswa('Siswa Lulus', self.unit_smp, 'A003')
+        arsip = self._buat_siswa('Siswa Arsip', self.unit_sma, 'A004')
+        Wali = self.env['nti_edu.siswa.wali']
+        for siswa in (self.siswa_smp, lulus, arsip):
+            Wali.create({'siswa_id': siswa.id, 'partner_id': user.partner_id.id, 'hubungan': 'ibu'})
+        lulus.nti_edu_status = 'lulus'
+        arsip.active = False
+        self.assertEqual(user._nti_edu_siswa_portal(), self.siswa_smp)
+        self.assertEqual(user._nti_edu_siswa_portal(termasuk_nonaktif=False), self.siswa_smp)
+        semua = user._nti_edu_siswa_portal(termasuk_nonaktif=True)
+        self.assertEqual(semua, self.siswa_smp | lulus | arsip)
+        self.assertTrue(semua.env.su)
+        # Tetap hanya anak yang terhubung lewat baris wali: siswa lain tidak ikut.
+        self.assertNotIn(self.siswa_sma, semua)
+        self.assertFalse(self.user_guru_smp._nti_edu_siswa_portal(termasuk_nonaktif=True))
 
     # --- Hak tulis data master bersama ---
     def _libur(self, unit, tanggal=date(2026, 12, 1)):

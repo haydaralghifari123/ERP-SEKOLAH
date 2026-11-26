@@ -9,3 +9,4 @@ from . import account_move
 from . import account_payment
 from . import mesin
 from . import res_partner
+from . import konfirmasi

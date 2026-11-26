@@ -5,6 +5,8 @@
 
     <menuitem id="menu_tagihan" name="Tagihan" parent="menu_tagihan_root"
               action="action_tagihan" sequence="10"/>
+    <menuitem id="menu_konfirmasi" name="Konfirmasi Transfer" parent="menu_tagihan_root"
+              action="action_konfirmasi" sequence="15"/>
     <menuitem id="menu_pembayaran" name="Pembayaran" parent="menu_tagihan_root"
               action="action_pembayaran" sequence="20"/>
     <menuitem id="menu_potongan" name="Potongan Siswa" parent="menu_tagihan_root"

@@ -26,6 +26,7 @@
                        decoration-success="payment_state in ('paid', 'in_payment')"
                        decoration-warning="payment_state == 'partial'"
                        decoration-danger="payment_state == 'not_paid'"/>
+                <field name="nti_edu_menunggu_verifikasi" optional="show"/>
                 <field name="state" widget="badge" optional="show"
                        decoration-success="state == 'posted'" decoration-muted="state == 'cancel'"/>
             </list>
@@ -56,6 +57,11 @@
                 <sheet>
                     <widget name="web_ribbon" title="Lunas" bg_color="text-bg-success" invisible="not nti_edu_lunas"/>
                     <widget name="web_ribbon" title="Dibatalkan" bg_color="text-bg-danger" invisible="state != 'cancel'"/>
+                    <field name="nti_edu_menunggu_verifikasi" invisible="1"/>
+                    <div class="alert alert-info" role="status"
+                         invisible="not nti_edu_menunggu_verifikasi or nti_edu_lunas or state != 'posted'">
+                        Menunggu verifikasi konfirmasi transfer dari wali; tagihan tetap dapat dibayar tunai.
+                    </div>
                     <div class="oe_title">
                         <h1><field name="name" readonly="1"/></h1>
                     </div>
@@ -113,6 +119,8 @@
                 <filter name="lewat_jatuh_tempo" string="Lewat Jatuh Tempo"
                         domain="[('state', '=', 'posted'), ('payment_state', 'in', ('not_paid', 'partial')), ('invoice_date_due', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
                 <filter name="lunas" string="Lunas" domain="[('payment_state', 'in', ('paid', 'in_payment'))]"/>
+                <filter name="menunggu_verifikasi" string="Menunggu Verifikasi"
+                        domain="[('nti_edu_menunggu_verifikasi', '=', True)]"/>
                 <separator/>
                 <filter name="aktif" string="Tidak Dibatalkan" domain="[('state', '!=', 'cancel')]"/>
                 <filter name="batal" string="Dibatalkan" domain="[('state', '=', 'cancel')]"/>

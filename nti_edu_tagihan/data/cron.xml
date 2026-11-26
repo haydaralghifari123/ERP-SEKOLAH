@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Jadwal harian pembuatan tagihan (spec §4.3): hanya unit dengan Tagihan Otomatis. -->
+    <record id="cron_buat_tagihan" model="ir.cron">
+        <field name="name">Keuangan Sekolah: Buat Tagihan Terjadwal</field>
+        <field name="model_id" ref="model_nti_edu_tagihan_mesin"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_buat_tagihan()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 01:00:00')"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

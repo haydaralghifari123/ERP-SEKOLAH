@@ -10,6 +10,11 @@
     <menuitem id="menu_potongan" name="Potongan Siswa" parent="menu_tagihan_root"
               action="action_potongan" sequence="30"/>
 
+    <menuitem id="menu_tagihan_proses" name="Proses" parent="menu_tagihan_root" sequence="40"
+              groups="nti_edu_tagihan.group_tagihan_bendahara"/>
+    <menuitem id="menu_buat_tagihan" name="Buat Tagihan" parent="menu_tagihan_proses"
+              action="action_buat_tagihan_wizard" sequence="10"/>
+
     <menuitem id="menu_tagihan_konfigurasi" name="Konfigurasi" parent="menu_tagihan_root" sequence="90"
               groups="nti_edu_tagihan.group_tagihan_admin"/>
     <menuitem id="menu_komponen" name="Komponen Biaya" parent="menu_tagihan_konfigurasi"

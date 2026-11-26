@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_buat_tagihan_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.buat.wizard.form</field>
+        <field name="model">nti_edu.tagihan.buat.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Buat Tagihan">
+                <group>
+                    <group>
+                        <field name="company_id" options="{'no_create': True, 'no_open': True}"/>
+                        <field name="komponen_id" options="{'no_create': True, 'no_open': True}"/>
+                        <field name="tahun_ajaran_id" options="{'no_create': True, 'no_open': True}"/>
+                        <field name="periode_dasar" invisible="1"/>
+                        <field name="periode" invisible="periode_dasar == 'sekali'"
+                               required="periode_dasar and periode_dasar != 'sekali'"/>
+                        <field name="daftar_periode" invisible="periode_dasar == 'sekali' or not daftar_periode"/>
+                    </group>
+                    <group>
+                        <field name="rombel_ids" widget="many2many_tags" placeholder="Semua rombel"
+                               options="{'no_create': True}"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="jumlah_siswa"/>
+                        <field name="total"/>
+                    </group>
+                </group>
+                <group string="Dilewati" invisible="not daftar_lewati">
+                    <field name="daftar_lewati" nolabel="1" colspan="2"/>
+                </group>
+                <footer>
+                    <button string="Terbitkan" name="action_terbitkan" type="object" class="btn-primary"
+                            confirm="Terbitkan tagihan untuk siswa dalam pratinjau? Tagihan langsung menjadi piutang."/>
+                    <button string="Batal" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_buat_tagihan_wizard" model="ir.actions.act_window">
+        <field name="name">Buat Tagihan</field>
+        <field name="res_model">nti_edu.tagihan.buat.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

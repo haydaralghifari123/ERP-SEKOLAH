@@ -52,7 +52,8 @@ class TagihanPeriodeJenis(models.Model):
         string='Tanggal Terbit', default=1, help='Tanggal terbit tagihan dalam bulan pertama periode (1-28).')
     hari_jatuh_tempo = fields.Integer(
         string='Tanggal Jatuh Tempo', default=10,
-        help='Tanggal jatuh tempo dalam bulan pertama periode; untuk dasar Sekali: jumlah hari setelah terbit.')
+        help='Tanggal jatuh tempo dalam bulan pertama periode (1-31, dipangkas ke akhir bulan); untuk dasar '
+             'Sekali: jumlah hari setelah terbit.')
     bulan_libur_ids = fields.Many2many(
         'nti_edu.tagihan.bulan', string='Bulan Tidak Ditagih',
         help='Untuk dasar kelipatan bulan: bulan yang tidak ditagih, mis. Juni.')
@@ -67,8 +68,8 @@ class TagihanPeriodeJenis(models.Model):
             if rec.dasar == 'sekali':
                 if rec.hari_jatuh_tempo < 0:
                     raise ValidationError(_('Jumlah hari jatuh tempo periode "%s" tidak boleh negatif.', rec.name))
-            elif not 1 <= rec.hari_jatuh_tempo <= 28:
-                raise ValidationError(_('Tanggal jatuh tempo periode "%s" harus 1 sampai 28.', rec.name))
+            elif not 1 <= rec.hari_jatuh_tempo <= 31:
+                raise ValidationError(_('Tanggal jatuh tempo periode "%s" harus 1 sampai 31.', rec.name))
 
 
 class TagihanAturanDenda(models.Model):

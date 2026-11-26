@@ -34,3 +34,4 @@ akses_account_full_reconcile_pemantau,account.full.reconcile pemantau keuangan,a
 akses_account_payment_term_pemantau,account.payment.term pemantau keuangan,account.model_account_payment_term,group_tagihan_pemantau,1,0,0,0
 akses_account_payment_term_line_pemantau,account.payment.term.line pemantau keuangan,account.model_account_payment_term_line,group_tagihan_pemantau,1,0,0,0
 akses_account_tax_pemantau,account.tax pemantau keuangan,account.model_account_tax,group_tagihan_pemantau,1,0,0,0
+akses_buat_tagihan_wizard_bendahara,nti_edu.tagihan.buat.wizard bendahara,model_nti_edu_tagihan_buat_wizard,group_tagihan_bendahara,1,1,1,1

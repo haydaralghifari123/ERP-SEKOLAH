@@ -157,6 +157,76 @@ class TestKonfirmasi(NtiTagihanCommon):
         self.siswa_a.invalidate_recordset(['nti_edu_saldo_kredit'])
         self.assertEqual(self.siswa_a.nti_edu_saldo_kredit, 50000)
 
+    def test_semua_tagihan_dibatalkan_jadi_kredit(self):
+        spp = self._terbitkan()
+        konf = self._kirim(spp)
+        spp.with_user(self.bendahara_smp)._nti_edu_batalkan('Salah terbit')
+        self.assertEqual(spp.state, 'cancel')
+        konf.with_user(self.bendahara_smp).action_terima()
+        self.assertEqual(konf.state, 'diterima')
+        self.assertEqual(konf.diverifikasi_oleh_id, self.bendahara_smp)
+        payment = konf.payment_ids
+        self.assertEqual(len(payment), 1)
+        self.assertEqual(payment.amount, 200000)
+        self.assertEqual(payment.partner_id, self.siswa_a)
+        self.assertEqual(payment.journal_id, self.rekening_smp.journal_id)
+        self.assertEqual(payment.memo, konf.name)
+        self.assertTrue(payment.nti_edu_dari_tagihan)
+        self.assertTrue(payment.move_id)
+        self.siswa_a.invalidate_recordset(['nti_edu_saldo_kredit'])
+        self.assertEqual(self.siswa_a.nti_edu_saldo_kredit, 200000)
+        self.assertEqual(len(self._email(konf, 'nti_edu_tagihan.mail_template_konfirmasi_diterima')), 1)
+
+    def test_bayar_sebagai_kredit_penjaga(self):
+        Mesin = self.Mesin
+        tanggal = date(2026, 8, 5)
+        with self.assertRaises(AccessError):
+            Mesin.with_user(self.bendahara_sma)._bayar_sebagai_kredit(
+                self.siswa_a, self.unit_smp, 1000, self.rekening_smp, tanggal, 'X')
+        with self.assertRaises(AccessError):
+            Mesin.with_user(self.pemantau_smp)._bayar_sebagai_kredit(
+                self.siswa_a, self.unit_smp, 1000, self.rekening_smp, tanggal, 'X')
+        Bendahara = Mesin.with_user(self.bendahara_smp)
+        with self.assertRaises(UserError):
+            Bendahara._bayar_sebagai_kredit(self.siswa_a, self.unit_smp, 1000, self.rekening_sma, tanggal, 'X')
+        with self.assertRaises(UserError):
+            Bendahara._bayar_sebagai_kredit(self.siswa_a, self.unit_smp, 0, self.rekening_smp, tanggal, 'X')
+        with self.assertRaises(UserError):
+            Bendahara._bayar_sebagai_kredit(self.wali_x, self.unit_smp, 1000, self.rekening_smp, tanggal, 'X')
+        payment = Bendahara._bayar_sebagai_kredit(self.siswa_a, self.unit_smp, 1000, self.rekening_smp, tanggal, 'X')
+        self.assertEqual(payment.sudo().amount, 1000)
+        self.assertTrue(payment.sudo().nti_edu_dari_tagihan)
+
+    def test_kelebihan_ke_anak_pertama_menurut_nama(self):
+        # Siswa A (pertama menurut nama) sudah lunas tunai sebelum verifikasi; siswa B masih terbuka.
+        self.env['nti_edu.siswa.wali'].create({
+            'siswa_id': self.siswa_b.id, 'partner_id': self.wali_x.id, 'hubungan': 'ayah'})
+        spp_a = self._terbitkan()
+        spp_b = self._terbitkan(siswa=self.siswa_b)
+        konf = self._kirim(spp_a | spp_b, nominal=400000)
+        self.Mesin._bayar(spp_a, 200000, self.rekening_smp, date(2026, 8, 6), 'Tunai')
+        konf.with_user(self.bendahara_smp).action_terima()
+        self.assertTrue(spp_b.nti_edu_lunas)
+        self.assertEqual(sum(konf.payment_ids.mapped('amount')), 400000)
+        self.assertEqual(konf.payment_ids.partner_id, self.siswa_a | self.siswa_b)
+        (self.siswa_a | self.siswa_b).invalidate_recordset(['nti_edu_saldo_kredit'])
+        self.assertEqual(self.siswa_a.nti_edu_saldo_kredit, 200000)
+        self.assertEqual(self.siswa_b.nti_edu_saldo_kredit, 0)
+
+    def test_kelebihan_anak_pertama_tagihannya_dibatalkan(self):
+        # Tagihan siswa A dibatalkan: kelebihan tetap menjadi kredit siswa A, bukan siswa B.
+        self.env['nti_edu.siswa.wali'].create({
+            'siswa_id': self.siswa_b.id, 'partner_id': self.wali_x.id, 'hubungan': 'ayah'})
+        spp_a = self._terbitkan()
+        spp_b = self._terbitkan(siswa=self.siswa_b)
+        konf = self._kirim(spp_a | spp_b, nominal=300000)
+        spp_a._nti_edu_batalkan('Salah terbit')
+        konf.with_user(self.bendahara_smp).action_terima()
+        self.assertTrue(spp_b.nti_edu_lunas)
+        (self.siswa_a | self.siswa_b).invalidate_recordset(['nti_edu_saldo_kredit'])
+        self.assertEqual(self.siswa_a.nti_edu_saldo_kredit, 100000)
+        self.assertEqual(self.siswa_b.nti_edu_saldo_kredit, 0)
+
     # --- tolak ---------------------------------------------------------------------------------
 
     def test_tolak(self):
@@ -266,6 +336,21 @@ class TestKonfirmasi(NtiTagihanCommon):
             self._kirim(spp_sep)
         with self.assertRaises(UserError):
             self.Konfirmasi._buat_dari_portal(self.user_wali_x, [], self._vals())
+
+    def test_portal_field_terlarang_dan_tagihan_tidak_ada(self):
+        spp = self._terbitkan()
+        # Field yang diisi server tidak boleh dikirim pemanggil.
+        for vals in ({'state': 'diterima'}, {'pengirim_id': self.siswa_b.id}, {'company_id': self.unit_sma.id},
+                     {'payment_ids': [(6, 0, [])]}):
+            with self.assertRaises(ValueError):
+                self.Konfirmasi._buat_dari_portal(self.user_wali_x, spp.ids, self._vals(**vals))
+        # Id tagihan yang tidak ada (sendiri atau bercampur dengan tagihan sah) ditolak.
+        tidak_ada = self.Move.search([], order='id desc', limit=1).id + 1000
+        with self.assertRaises(UserError):
+            self.Konfirmasi._buat_dari_portal(self.user_wali_x, [tidak_ada], self._vals())
+        with self.assertRaises(UserError):
+            self.Konfirmasi._buat_dari_portal(self.user_wali_x, [spp.id, tidak_ada], self._vals())
+        self.assertFalse(self.Konfirmasi.search([('tagihan_ids', 'in', spp.ids)]))
 
     def test_anak_nonaktif_tetap_bisa_konfirmasi(self):
         spp = self._terbitkan()

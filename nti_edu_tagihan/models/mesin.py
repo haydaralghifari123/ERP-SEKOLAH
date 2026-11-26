@@ -402,6 +402,35 @@ class TagihanMesin(models.AbstractModel):
         return wizard._create_payments()
 
     @api.model
+    def _bayar_sebagai_kredit(self, siswa, company, jumlah, rekening, tanggal, memo):
+        """Catat pembayaran `jumlah` untuk `siswa` di unit `company` tanpa tagihan: seluruhnya menjadi saldo kredit
+        siswa. Penjaga sama dengan `_bayar` (hak Bendahara unit, siswa unit itu, nominal > 0, rekening berlaku untuk
+        unit, payment harus punya entri jurnal). Mengembalikan payment (env pemanggil)."""
+        siswa = siswa.sudo()
+        company = company.sudo()
+        if len(siswa) != 1 or len(company) != 1:
+            raise UserError(_('Pilih satu siswa dan satu unit penerima kredit.'))
+        self.env['nti_edu.tagihan.akses']._nti_edu_cek_hak(GRUP_BENDAHARA, company)
+        if not siswa.nti_edu_is_siswa:
+            raise UserError(_('"%s" bukan siswa sehingga tidak dapat menerima kredit.', siswa.display_name))
+        mata_uang = company.currency_id
+        if mata_uang.compare_amounts(jumlah or 0.0, 0.0) <= 0:
+            raise UserError(_('Nominal pembayaran harus lebih dari nol.'))
+        rekening = rekening.sudo()
+        if not rekening:
+            raise UserError(_('Pilih rekening atau kas penerima pembayaran.'))
+        if rekening not in rekening._untuk_unit(company):
+            raise UserError(_('Rekening "%(rekening)s" tidak berlaku untuk unit %(unit)s.',
+                              rekening=rekening.name, unit=company.name))
+        payment = self._bayar_kredit(siswa, company, mata_uang.round(jumlah), rekening, tanggal, memo)
+        if not payment.move_id:
+            raise UserError(_(
+                'Pembayaran tidak dapat dicatat: metode pembayaran masuk jurnal "%s" belum punya akun penampung '
+                '(Outstanding Receipts). Hubungi bagian akuntansi untuk mengisinya.',
+                rekening.journal_id.name))
+        return payment.with_env(self.env)
+
+    @api.model
     def _bayar_kredit(self, siswa, company, nominal, rekening, tanggal, memo):
         """Payment `nominal` untuk `siswa` tanpa tagihan terbuka: seluruhnya menjadi kredit siswa."""
         payment = self.env['account.payment'].sudo().with_company(company).create({

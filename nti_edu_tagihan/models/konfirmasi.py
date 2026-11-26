@@ -229,27 +229,13 @@ class TagihanKonfirmasi(models.Model):
 
     def action_terima(self):
         """Terima transfer: catat pembayaran `nominal_diterima` (atau nominal laporan) ke tagihan konfirmasi yang
-        masih terbuka, jatuh tempo terlama lebih dahulu; kelebihan, atau seluruhnya bila semua tagihan sudah
-        lunas, menjadi saldo kredit siswa. Email "diterima" ke pengirim."""
+        masih terbuka, jatuh tempo terlama lebih dahulu. Kelebihan — atau seluruhnya bila tidak ada tagihan yang
+        masih terbuka (lunas tunai atau dibatalkan) — menjadi saldo kredit siswa pertama konfirmasi menurut nama.
+        Email "diterima" ke pengirim."""
         self._cek_verifikasi()
-        Mesin = self.env['nti_edu.tagihan.mesin']
         for konf in self.sudo():
             jumlah = konf.nominal_diterima or konf.nominal
-            terbit = konf.tagihan_ids.filtered(
-                lambda m: m.move_type == 'out_invoice' and m.nti_edu_is_tagihan and m.state == 'posted')
-            if not terbit:
-                raise UserError(_(
-                    'Tagihan pada konfirmasi %s tidak lagi berlaku sehingga transfer tidak dapat dicatat di sini; '
-                    'tolak konfirmasi ini atau catat lewat Terima Pembayaran.', konf.name))
-            terbuka = terbit.filtered(lambda m: m._nti_edu_terbuka())
-            if terbuka:
-                payments = Mesin._bayar(
-                    terbuka, jumlah, konf.rekening_id, konf.tanggal_transfer, konf.name)
-            else:
-                # Semua tagihan sudah lunas (mis. dibayar tunai sebelum verifikasi): seluruhnya menjadi kredit.
-                siswa = terbit.nti_edu_siswa_id.sorted(lambda s: (s.name or '', s.id))[:1]
-                payments = Mesin._bayar(
-                    terbit, jumlah, konf.rekening_id, konf.tanggal_transfer, konf.name, siswa_kelebihan=siswa)
+            payments = konf.with_env(self.env)._catat_pembayaran(jumlah)
             with _aksi_konfirmasi():
                 konf.write({
                     'state': 'diterima',
@@ -263,6 +249,32 @@ class TagihanKonfirmasi(models.Model):
                           payment=', '.join(payments.sudo().mapped('name'))))
             konf._kirim_email('nti_edu_tagihan.mail_template_konfirmasi_diterima')
         return True
+
+    def _catat_pembayaran(self, jumlah):
+        """Payment `jumlah` untuk konfirmasi ini, dicatat atas nama pemanggil (`self` dalam env pemanggil, bukan
+        sudo, agar mesin memeriksa hak Bendahara unit).
+
+        Bagian sebesar total sisa tagihan terbuka dibayarkan lewat `_bayar` (satu payment per siswa); kelebihan
+        menjadi kredit siswa pertama konfirmasi menurut nama. Bila siswa itu masih punya tagihan terbuka di sini,
+        kelebihan ikut payment-nya (`siswa_kelebihan`); bila tidak (tagihannya lunas tunai atau dibatalkan),
+        dicatat sebagai payment kredit tersendiri lewat `_bayar_sebagai_kredit`."""
+        self.ensure_one()
+        konf = self.sudo()
+        Mesin = self.env['nti_edu.tagihan.mesin']
+        mata_uang = konf.currency_id
+        siswa_kredit = konf.siswa_ids.sorted(lambda s: (s.name or '', s.id))[:1]
+        terbuka = konf.tagihan_ids.filtered(lambda m: m._nti_edu_terbuka())
+        rekening, tanggal, memo = konf.rekening_id, konf.tanggal_transfer, konf.name
+        if terbuka and siswa_kredit in terbuka.nti_edu_siswa_id:
+            return Mesin._bayar(terbuka, jumlah, rekening, tanggal, memo, siswa_kelebihan=siswa_kredit)
+        alokasi = min(jumlah, sum(terbuka.mapped('amount_residual')))
+        kelebihan = mata_uang.round(jumlah - alokasi)
+        payments = self.env['account.payment']
+        if mata_uang.compare_amounts(alokasi, 0.0) > 0:
+            payments |= Mesin._bayar(terbuka, alokasi, rekening, tanggal, memo)
+        if mata_uang.compare_amounts(kelebihan, 0.0) > 0:
+            payments |= Mesin._bayar_sebagai_kredit(siswa_kredit, konf.company_id, kelebihan, rekening, tanggal, memo)
+        return payments
 
     def action_tolak(self):
         """Buka wizard penolakan (alasan wajib)."""

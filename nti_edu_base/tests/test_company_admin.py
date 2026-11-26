@@ -53,7 +53,11 @@ class TestCompanyAdmin(NtiEduCommon):
             self._unit().write({'nti_edu_kode': 'smat'})
 
     def test_kode_duplikat_dengan_unit_arsip(self):
-        self.env['res.company'].create({'name': 'Unit Arsip', 'nti_edu_kode': 'arsp', 'active': False})
+        # Dibuat aktif lalu diarsipkan: membuat company langsung tidak aktif gagal di modul account
+        # (company.parent_ids kosong untuk company arsip).
+        arsip = self.env['res.company'].create({'name': 'Unit Arsip', 'nti_edu_kode': 'arsp'})
+        arsip.active = False
+        self.assertFalse(arsip.with_context(active_test=False).active)
         with self.assertRaises(ValidationError):
             self._unit().write({'nti_edu_kode': 'arsp'})
 

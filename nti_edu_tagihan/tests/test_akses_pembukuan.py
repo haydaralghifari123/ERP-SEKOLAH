@@ -118,6 +118,23 @@ class TestAksesPembukuan(NtiTagihanCommon):
         self.assertEqual(self._terlihat(self.pemantau_smp, semua_partial), semua_partial)
         self.assertEqual(self._terlihat(self.pemantau_smp, full), full)
 
+    def test_rekonsiliasi_unit_lain(self):
+        rek_sma = self._lunasi(self.tagihan_sma)
+        full_sma = rek_sma.full_reconcile_id
+        self.assertTrue(full_sma)
+        for mode in ('dokumen_sekolah', 'semua'):
+            self.unit_smp.nti_edu_akses_pembukuan = mode
+            for user in (self.bendahara_smp, self.pemantau_smp):
+                self.assertFalse(self._terlihat(user, rek_sma), '%s %s' % (mode, user.login))
+                self.assertFalse(self._terlihat(user, full_sma), '%s %s' % (mode, user.login))
+                with self.assertRaises(AccessError):
+                    rek_sma.with_user(user).read(['amount'])
+                with self.assertRaises(AccessError):
+                    full_sma.with_user(user).read(['partial_reconcile_ids'])
+        # Bendahara SMA melihat rekonsiliasi tagihan unitnya sendiri.
+        self.assertEqual(self._terlihat(self.bendahara_sma, rek_sma), rek_sma)
+        self.assertEqual(self._terlihat(self.bendahara_sma, full_sma), full_sma)
+
     def test_tampilan_pemantau(self):
         """View tagihan, pembayaran, dan pengaturan dapat dibuka pemantau/admin keuangan tanpa galat hak akses."""
         for record, view in (

@@ -58,7 +58,7 @@ class ResCompany(models.Model):
 
     @api.depends_context('uid')
     def _compute_nti_edu_boleh_atur_tagihan(self):
-        boleh = self.env.su or self.env.user.has_group('base.group_system')
+        boleh = self._nti_edu_boleh_ubah_pengaturan()
         for rec in self:
             rec.nti_edu_boleh_atur_tagihan = boleh
 
@@ -87,9 +87,22 @@ class ResCompany(models.Model):
                 raise ValidationError(_(
                     'Jurnal "%(jurnal)s" tidak bisa dipakai unit %(unit)s.', jurnal=jurnal.name, unit=rec.name))
 
+    def _nti_edu_boleh_ubah_pengaturan(self):
+        return self.env.su or self.env.user.has_group('base.group_system')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Unit baru boleh dibuat selain Admin Sistem, tetapi pengaturan kebijakan harus tetap bernilai bawaan.
+        if not self._nti_edu_boleh_ubah_pengaturan():
+            bawaan = self.default_get(list(FIELD_PENGATURAN_TAGIHAN))
+            for vals in vals_list:
+                if any((vals[f] or False) != (bawaan.get(f) or False)
+                       for f in FIELD_PENGATURAN_TAGIHAN if f in vals):
+                    raise AccessError(_('Pengaturan Keuangan Sekolah hanya dapat diubah Admin Sistem.'))
+        return super().create(vals_list)
+
     def write(self, vals):
-        if (not self.env.su and not self.env.user.has_group('base.group_system')
-                and any(f in vals for f in FIELD_PENGATURAN_TAGIHAN)):
+        if not self._nti_edu_boleh_ubah_pengaturan() and any(f in vals for f in FIELD_PENGATURAN_TAGIHAN):
             raise AccessError(_('Pengaturan Keuangan Sekolah hanya dapat diubah Admin Sistem.'))
         return super().write(vals)
 

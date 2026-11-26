@@ -44,6 +44,20 @@
         <field name="groups" eval="[(4, ref('group_tagihan_pemantau'))]"/>
         <field name="domain_force">['|', ('company_id.nti_edu_akses_pembukuan', '=', 'semua'), ('nti_edu_dari_tagihan', '=', True)]</field>
     </record>
+    <!-- Modul account tidak punya rule company untuk rekonsiliasi; tanpa rule global ini anggota grup yang
+         diberi ACL baca (pemantau) melihat rekonsiliasi unit lain. Akuntan tetap bekerja dalam company yang
+         diizinkan, sama seperti rule company account.move. -->
+    <record id="rule_account_partial_reconcile_multi_unit" model="ir.rule">
+        <field name="name">Rekonsiliasi sebagian: multi-unit</field>
+        <field name="model_id" ref="account.model_account_partial_reconcile"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_account_full_reconcile_multi_unit" model="ir.rule">
+        <field name="name">Rekonsiliasi penuh: multi-unit</field>
+        <field name="model_id" ref="account.model_account_full_reconcile"/>
+        <field name="domain_force">[('reconciled_line_ids.company_id', 'in', company_ids)]</field>
+    </record>
+
     <!-- Rekonsiliasi: terlihat bila salah satu sisinya dokumen yang terlihat menurut cakupan di atas. -->
     <record id="rule_account_partial_reconcile_pemantau" model="ir.rule">
         <field name="name">Keuangan Sekolah: cakupan pembukuan (rekonsiliasi sebagian)</field>

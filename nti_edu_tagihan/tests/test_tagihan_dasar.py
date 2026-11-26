@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 from datetime import date, timedelta
+from unittest.mock import patch
+
+from psycopg2.errors import UniqueViolation
 
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import freeze_time, tagged
 from odoo.tests.common import new_test_user
+from odoo.tools import mute_logger
 
 from .common import NtiTagihanCommon
 
@@ -84,6 +88,27 @@ class TestTagihanDasar(NtiTagihanCommon):
         with self.assertRaisesRegex(UserError, 'sudah ada'):
             self._terbitkan(komponen=self.pangkal, periode=False, nominal=1000000)
 
+    def test_galat_unik_lain_tidak_disebut_ganda(self):
+        """Pelanggaran indeks unik selain indeks tagihan diteruskan apa adanya, bukan "Tagihan ini sudah ada"."""
+        Move = self.Move
+        self.assertFalse(Move._nti_edu_pesan_ganda('account_move_unique_name', self.siswa_a, self.spp))
+        self.assertIn('sudah ada', Move._nti_edu_pesan_ganda(
+            'nti_edu_tagihan_unik_periode', self.siswa_a, self.spp))
+        lama = self._terbitkan()
+        post_asli = type(Move).action_post
+
+        def post_bentrok_nama(moves):
+            # Paksa bentrok indeks unik Odoo account_move_unique_name (nama + jurnal entri posted).
+            moves.env.cr.execute(
+                "UPDATE account_move SET name = %s, state = 'posted' WHERE id IN %s", [lama.name, tuple(moves.ids)])
+            return post_asli(moves)
+
+        with patch.object(type(Move), 'action_post', post_bentrok_nama), mute_logger('odoo.sql_db'):
+            with self.assertRaises(UniqueViolation):
+                self._terbitkan(periode=date(2026, 9, 1))
+        self.assertFalse(Move.search([
+            ('nti_edu_siswa_id', '=', self.siswa_a.id), ('nti_edu_periode', '=', date(2026, 9, 1))]))
+
     def test_nol_langsung_lunas(self):
         tagihan = self._terbitkan(potongan=[(self.saudara, 200000)])
         self.assertEqual(tagihan.state, 'posted')
@@ -155,6 +180,26 @@ class TestTagihanDasar(NtiTagihanCommon):
         self.unit_smp.with_user(self.sysadmin).write({
             'nti_edu_tagihan_otomatis': True, 'nti_edu_tagihan_mulai': date(2026, 7, 1)})
         self.assertTrue(self.unit_smp.nti_edu_tagihan_otomatis)
+
+    def test_pengaturan_saat_buat_unit(self):
+        """Pembuat company yang bukan Admin Sistem tidak bisa mengisi pengaturan kebijakan selain nilai bawaan."""
+        pengelola = new_test_user(
+            self.env, login='tg_erp_manager', groups='base.group_erp_manager,base.group_partner_manager',
+            company_id=self.yayasan.id, company_ids=[(6, 0, self.yayasan.ids)])
+        Company = self.env['res.company'].with_user(pengelola)
+        with self.assertRaises(AccessError):
+            Company.create({'name': 'Unit Baru Semua', 'nti_edu_akses_pembukuan': 'semua'})
+        with self.assertRaises(AccessError):
+            Company.create({'name': 'Unit Baru Pengingat', 'nti_edu_pengingat_hari': 9})
+        baru = Company.create({
+            'name': 'Unit Baru Bawaan', 'nti_edu_akses_pembukuan': 'dokumen_sekolah', 'nti_edu_pengingat_hari': 3,
+            'nti_edu_tagihan_otomatis': False})
+        self.assertEqual(baru.nti_edu_akses_pembukuan, 'dokumen_sekolah')
+        # Admin Sistem tes tidak punya hak kontak; pembuatan company membuat partner.
+        self.sysadmin.groups_id = [(4, self.env.ref('base.group_partner_manager').id)]
+        sistem = self.env['res.company'].with_user(self.sysadmin).create({
+            'name': 'Unit Baru Sistem', 'nti_edu_akses_pembukuan': 'semua'})
+        self.assertEqual(sistem.nti_edu_akses_pembukuan, 'semua')
 
     def test_cek_hak(self):
         Akses = self.env['nti_edu.tagihan.akses']

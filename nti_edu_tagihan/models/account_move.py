@@ -141,15 +141,24 @@ class AccountMove(models.Model):
 
         Move = self.sudo().with_company(company)
         try:
-            with mute_logger('odoo.sql_db'), self.env.cr.savepoint():
-                tagihan = Move.create(vals)
+            with self.env.cr.savepoint():
+                # Kolom indeks unik tagihan semuanya ditulis saat INSERT; log SQL hanya dibisukan di sini.
+                with mute_logger('odoo.sql_db'):
+                    tagihan = Move.create(vals)
                 tagihan.action_post()
         except errors.UniqueViolation as e:
-            raise UserError(self._nti_edu_pesan_ganda(e.diag.constraint_name, siswa, komponen)) from None
+            pesan = self._nti_edu_pesan_ganda(e.diag.constraint_name, siswa, komponen)
+            if not pesan:
+                raise
+            raise UserError(pesan) from None
         return tagihan.with_env(self.env)
 
     @api.model
     def _nti_edu_pesan_ganda(self, indeks, siswa, komponen):
+        """Pesan ramah untuk pelanggaran indeks unik tagihan; `False` bila `indeks` bukan indeks tagihan
+        (galat lain diteruskan apa adanya sehingga pemanggil tidak salah melaporkan "sudah ditagih")."""
+        if indeks not in INDEKS_UNIK:
+            return False
         if indeks == 'nti_edu_tagihan_unik_sumber':
             return _('Tagihan ini sudah ada untuk dokumen sumber yang sama.')
         if indeks == 'nti_edu_tagihan_unik_denda':

@@ -6,3 +6,4 @@ from . import test_mesin
 from . import test_koreksi
 from . import test_pembayaran
 from . import test_konfirmasi
+from . import test_cicilan

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_cicilan_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.cicilan.wizard.form</field>
+        <field name="model">nti_edu.tagihan.cicilan.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Atur Cicilan">
+                <p class="text-muted">
+                    Tagihan dipecah menjadi beberapa jatuh tempo menurut aturan cicilan komponennya. Hanya tagihan
+                    yang belum dibayar sama sekali yang dapat dicicil.
+                </p>
+                <group>
+                    <field name="tagihan_id"/>
+                    <field name="aturan_id"/>
+                    <field name="jumlah_kali"/>
+                </group>
+                <field name="pratinjau" readonly="1"/>
+                <footer>
+                    <button string="Atur Cicilan" name="action_atur" type="object" class="btn-primary"/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_cicilan_wizard" model="ir.actions.act_window">
+        <field name="name">Atur Cicilan</field>
+        <field name="res_model">nti_edu.tagihan.cicilan.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="groups_id" eval="[(4, ref('nti_edu_tagihan.group_tagihan_bendahara'))]"/>
+    </record>
+</odoo>

@@ -49,6 +49,10 @@
                             invisible="state != 'posted' or nti_edu_lunas or not nti_edu_ada_kredit"
                             confirm="Terapkan saldo kredit siswa ke tagihan ini?"/>
                     <field name="nti_edu_ada_kredit" invisible="1"/>
+                    <button name="%(nti_edu_tagihan.action_cicilan_wizard)d" type="action"
+                            string="Atur Cicilan" groups="nti_edu_tagihan.group_tagihan_bendahara"
+                            invisible="not nti_edu_boleh_cicil"/>
+                    <field name="nti_edu_boleh_cicil" invisible="1"/>
                     <button name="%(nti_edu_tagihan.action_batal_tagihan_wizard)d" type="action"
                             string="Batalkan" groups="nti_edu_tagihan.group_tagihan_bendahara"
                             invisible="state != 'posted' or amount_residual != amount_total"/>

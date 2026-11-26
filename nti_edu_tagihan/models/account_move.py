@@ -1,13 +1,23 @@
 # -*- coding: utf-8 -*-
 from datetime import timedelta
 
+from dateutil.relativedelta import relativedelta
+from markupsafe import Markup
 from psycopg2 import errors
 
 from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import format_amount, mute_logger
+from odoo.tools import format_amount, format_date, mute_logger
+
+from .mesin import _bulatkan_satuan
 
 GRUP_BENDAHARA = 'nti_edu_tagihan.group_tagihan_bendahara'
+
+
+def _format_nominal(nilai):
+    """Nominal untuk nama termin cicilan, tidak bergantung bahasa: 250.000 atau 250.000,50."""
+    teks = ('{:,.0f}' if float(nilai).is_integer() else '{:,.2f}').format(nilai)
+    return teks.translate(str.maketrans(',.', '.,'))
 
 # Nilai `**sekolah` yang boleh diberikan ke `_nti_edu_terbitkan`, dipetakan ke field `nti_edu_<nama>`.
 FIELD_SEKOLAH = (
@@ -74,6 +84,9 @@ class AccountMove(models.Model):
     nti_edu_ada_kredit = fields.Boolean(
         string='Ada Kredit Siswa', compute='_compute_nti_edu_ada_kredit',
         help='Siswa punya pembayaran atau nota kredit yang belum terpakai yang bisa diterapkan ke tagihan ini.')
+    nti_edu_boleh_cicil = fields.Boolean(
+        string='Boleh Dicicil', compute='_compute_nti_edu_boleh_cicil',
+        help='Tagihan terbit yang belum dibayar sama sekali dan komponennya punya aturan cicilan.')
     nti_edu_menunggu_verifikasi = fields.Boolean(
         string='Menunggu Verifikasi', compute='_compute_nti_edu_menunggu_verifikasi',
         search='_search_nti_edu_menunggu_verifikasi',
@@ -245,6 +258,131 @@ class AccountMove(models.Model):
         self.ensure_one()
         return self.move_type == 'out_invoice' and self.nti_edu_is_tagihan and self.state == 'posted' \
             and self.currency_id.compare_amounts(self.amount_residual, 0.0) > 0
+
+    # --- cicilan ----------------------------------------------------------------------------
+
+    @api.depends('state', 'move_type', 'amount_residual', 'amount_total', 'nti_edu_komponen_id',
+                 'nti_edu_tagihan_asal_id')
+    def _compute_nti_edu_boleh_cicil(self):
+        for move in self:
+            komponen = move.nti_edu_komponen_id.sudo()
+            move.nti_edu_boleh_cicil = bool(
+                move.move_type == 'out_invoice' and move.state == 'posted' and komponen.aturan_cicilan_id
+                and komponen.jenis != 'denda' and not move.nti_edu_tagihan_asal_id
+                and move.currency_id.compare_amounts(move.amount_total, 0.0) > 0
+                and move.currency_id.compare_amounts(move.amount_residual, move.amount_total) == 0)
+
+    def _nti_edu_jadwal_cicilan(self, jumlah_kali):
+        """Jadwal cicilan tagihan ini `[(jatuh_tempo, nominal), ...]` menurut aturan cicilan komponennya (spec §4.4).
+
+        Jatuh tempo ke-i = jatuh tempo awal + i × jarak aturan (i = 0..n−1); jatuh tempo awal = jatuh tempo piutang
+        paling awal (sama dengan `invoice_date_due` selama tagihan belum dicicil). Nominal: bila ada uang muka,
+        cicilan pertama = persen itu dari total dan sisanya dibagi rata, selain itu dibagi rata; dibulatkan ke
+        satuan utuh mata uang dengan selisih pembulatan di cicilan terakhir. Dibaca dengan hak pemanggil.
+        `UserError` bila komponen tidak boleh dicicil atau `jumlah_kali` di luar 2..maks.
+        """
+        self.ensure_one()
+        komponen = self.nti_edu_komponen_id
+        if komponen.jenis == 'denda' or self.nti_edu_tagihan_asal_id:
+            raise UserError(_('Tagihan denda %s tidak dapat dicicil.', self.name))
+        aturan = komponen.aturan_cicilan_id
+        if not aturan:
+            raise UserError(_('Komponen %s tidak boleh dicicil.', komponen.name or '-'))
+        if not 2 <= jumlah_kali <= aturan.maks_kali:
+            raise UserError(_('Jumlah cicilan harus 2 sampai %(maks)s kali menurut aturan "%(aturan)s".',
+                              maks=aturan.maks_kali, aturan=aturan.name))
+        mata_uang = self.currency_id
+        total = self.amount_total
+        if aturan.uang_muka_persen:
+            pertama = _bulatkan_satuan(mata_uang, total * aturan.uang_muka_persen / 100.0)
+            bagian = _bulatkan_satuan(mata_uang, (total - pertama) / (jumlah_kali - 1))
+            nominal = [pertama] + [bagian] * (jumlah_kali - 1)
+        else:
+            nominal = [_bulatkan_satuan(mata_uang, total / jumlah_kali)] * jumlah_kali
+        nominal[-1] = mata_uang.round(total - sum(nominal[:-1]))
+        if any(mata_uang.compare_amounts(n, 0.0) <= 0 for n in nominal):
+            raise UserError(_('Tagihan %(tagihan)s terlalu kecil untuk dicicil %(kali)s kali.',
+                              tagihan=self.name, kali=jumlah_kali))
+
+        piutang = self.line_ids.filtered(lambda b: b.account_id.account_type == 'asset_receivable')
+        awal = min(piutang.mapped('date_maturity') or [self.invoice_date_due])
+        if aturan.jarak_satuan == 'hari':
+            langkah = [relativedelta(days=aturan.jarak * i) for i in range(jumlah_kali)]
+        else:
+            langkah = [relativedelta(months=aturan.jarak * i) for i in range(jumlah_kali)]
+        return [(awal + d, n) for d, n in zip(langkah, nominal)]
+
+    @api.model
+    def _nti_edu_termin_cicilan(self, tanggal_invoice, jadwal):
+        """Termin pembayaran (tanpa unit, sehingga dipakai semua unit) yang dari `tanggal_invoice` menghasilkan
+        persis `jadwal`: baris nominal tetap untuk semua cicilan kecuali terakhir, cicilan terakhir = sisa (100%).
+        Termin dengan baris identik dipakai ulang. Dibuat sebagai superuser; hak diperiksa pemanggil."""
+        baris = []
+        for i, (tanggal, nominal) in enumerate(jadwal):
+            terakhir = i == len(jadwal) - 1
+            baris.append({
+                'value': 'percent' if terakhir else 'fixed',
+                'value_amount': 100.0 if terakhir else nominal,
+                'delay_type': 'days_after',
+                'nb_days': (tanggal - tanggal_invoice).days,
+            })
+        # Nama tidak diterjemahkan agar termin yang sama ditemukan lagi apa pun bahasa pemanggil.
+        bagian = ['+%s hari %s' % (b['nb_days'], 'sisa' if b['value'] == 'percent'
+                                   else _format_nominal(b['value_amount'])) for b in baris]
+        nama = 'Cicilan NTI %s× (%s)' % (len(baris), '; '.join(bagian))
+        tanda = [(b['value'], round(b['value_amount'], 6), b['delay_type'], b['nb_days']) for b in baris]
+
+        Termin = self.env['account.payment.term'].sudo()
+        for termin in Termin.search([('name', '=', nama), ('company_id', '=', False)]):
+            if not termin.early_discount and tanda == [
+                    (b.value, round(b.value_amount, 6), b.delay_type, b.nb_days) for b in termin.line_ids]:
+                return termin
+        return Termin.create({
+            'name': nama,
+            'company_id': False,
+            'early_discount': False,
+            'line_ids': [Command.create(b) for b in baris],
+        })
+
+    def _nti_edu_atur_cicilan(self, jumlah_kali):
+        """Pecah tagihan yang belum dibayar sama sekali menjadi `jumlah_kali` cicilan (spec §4.4): tagihan dikembalikan
+        ke draft, diberi termin cicilan, lalu di-post lagi; jadwal dicatat di chatter atas nama pemanggil.
+
+        Hanya Bendahara unit tagihan (atau Admin Keuangan); penulisan sebagai superuser.
+        """
+        semua = self.sudo()
+        self.env['nti_edu.tagihan.akses']._nti_edu_cek_hak(GRUP_BENDAHARA, semua.company_id)
+        bukan = semua.filtered(lambda m: m.move_type != 'out_invoice' or not m.nti_edu_is_tagihan)
+        if bukan:
+            raise UserError(_('%s bukan tagihan sekolah.', self._nti_edu_nama_terlihat(bukan)))
+        rencana = []
+        for tagihan in semua:
+            if tagihan.state != 'posted':
+                raise UserError(_('Tagihan %s tidak berstatus terbit sehingga tidak dapat dicicil.', tagihan.name))
+            if tagihan.currency_id.compare_amounts(tagihan.amount_residual, tagihan.amount_total) != 0:
+                raise UserError(_('Tagihan %s sudah dibayar atau dikoreksi sebagian sehingga tidak dapat dicicil.',
+                                  tagihan.name))
+            rencana.append((tagihan, tagihan._nti_edu_jadwal_cicilan(jumlah_kali)))
+
+        penulis = self.env.user.partner_id.id
+        for tagihan, jadwal in rencana:
+            termin = self._nti_edu_termin_cicilan(tagihan.invoice_date, jadwal)
+            tagihan.button_draft()
+            tagihan.invoice_payment_term_id = termin
+            tagihan.action_post()
+            piutang = tagihan.line_ids.filtered(lambda b: b.account_id.account_type == 'asset_receivable')
+            hasil = [(b.date_maturity, b.amount_currency) for b in piutang.sorted(lambda b: (b.date_maturity, b.id))]
+            mata_uang = tagihan.currency_id
+            if len(hasil) != len(jadwal) or any(
+                    h[0] != j[0] or mata_uang.compare_amounts(h[1], j[1]) != 0 for h, j in zip(hasil, jadwal)):
+                raise UserError(_('Jadwal cicilan tagihan %s tidak dapat diterapkan dengan termin pembayaran.',
+                                  tagihan.name))
+            rincian = Markup('').join(
+                Markup('<li>%s: %s</li>') % (format_date(self.env, tanggal), format_amount(self.env, nominal, mata_uang))
+                for tanggal, nominal in jadwal)
+            tagihan.message_post(
+                body=Markup('<p>%s</p><ul>%s</ul>') % (_('Tagihan dicicil %s kali:', jumlah_kali), rincian),
+                author_id=penulis)
 
     # --- kredit siswa -----------------------------------------------------------------------
 

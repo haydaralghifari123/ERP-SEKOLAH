@@ -6,10 +6,24 @@ from datetime import timedelta
 import psycopg2
 from dateutil.relativedelta import relativedelta
 
-from odoo import _, api, fields, models
+from odoo import _, api, fields, models, modules, tools
 from odoo.exceptions import UserError
+from odoo.tools import float_round
 
 _logger = logging.getLogger(__name__)
+
+
+def _bulatkan_satuan(mata_uang, nilai):
+    """Bulatkan ke satuan utuh mata uang (rupiah, spec §4.2); mata uang yang pembulatannya sudah ≥ 1 memakai
+    pembulatannya sendiri."""
+    if mata_uang.rounding >= 1:
+        return mata_uang.round(nilai)
+    return float_round(nilai, precision_digits=0)
+
+
+def _boleh_commit():
+    """Idiom Odoo 18 (`account.move._can_commit`): commit hanya di luar tes."""
+    return not tools.config['test_enable'] and not modules.module.current_test
 
 
 def _awal_bulan(tanggal):
@@ -171,8 +185,8 @@ class TagihanMesin(models.AbstractModel):
                     if cara_masuk == 'berikutnya':
                         continue
                     if cara_masuk == 'prorata':
-                        nominal = mata_uang.round(
-                            nominal * _jumlah_bulan(masuk, info['akhir']) / info['jumlah_bulan'])
+                        nominal = _bulatkan_satuan(
+                            mata_uang, nominal * _jumlah_bulan(masuk, info['akhir']) / info['jumlah_bulan'])
             else:
                 # Sekali: terbit pada tanggal terbit awal tahun ajaran, atau tanggal masuk bila lebih akhir.
                 terbit = max(info['terbit'], acuan)
@@ -216,10 +230,13 @@ class TagihanMesin(models.AbstractModel):
                 # Konflik transaksi/koneksi: batalkan seluruh proses, jangan dilaporkan sebagai lewati.
                 raise
             except Exception as e:  # noqa: BLE001 - galat satu siswa tidak boleh menghentikan yang lain
-                alasan = e.args[0] if isinstance(e, UserError) and e.args else str(e)
+                galat_pengguna = isinstance(e, UserError)
+                alasan = e.args[0] if galat_pengguna and e.args else str(e)
+                # Galat pemrograman dicatat lengkap dengan traceback; UserError cukup peringatan singkat.
                 _logger.warning(
                     'Tagihan %s periode %s untuk siswa %s (id %s) gagal diterbitkan: %s',
-                    komponen.sudo().name, info['periode'] or '-', siswa.sudo().name, siswa.id, alasan)
+                    komponen.sudo().name, info['periode'] or '-', siswa.sudo().name, siswa.id, alasan,
+                    exc_info=not galat_pengguna)
                 lewati.append((siswa, alasan))
         return {'buat': tagihan, 'lewati': lewati}
 
@@ -228,13 +245,17 @@ class TagihanMesin(models.AbstractModel):
     @api.model
     def _cron_buat_tagihan(self, hari_ini=None):
         """Jadwal harian: untuk unit dengan Tagihan Otomatis, terbitkan tagihan setiap komponen biaya pada skema
-        aktif tahun ajaran aktif untuk periode yang tanggal terbitnya sudah tiba. Aman dijalankan berulang."""
+        aktif tahun ajaran aktif untuk periode yang tanggal terbitnya sudah tiba. Aman dijalankan berulang.
+
+        Di jalur jadwal sungguhan, hasil tiap (unit, komponen, periode) di-commit agar penerbitan awal tahun ajaran
+        yang besar tidak hilang seluruhnya bila melewati batas waktu cron; di tes tidak pernah commit."""
         hari_ini = hari_ini or fields.Date.context_today(self)
         ta = self.env['nti_edu.tahun.ajaran'].sudo()._get_aktif()
         if not ta:
             return
         Skema = self.env['nti_edu.tagihan.skema'].sudo()
         units = self.env['res.company'].sudo().search([('nti_edu_tagihan_otomatis', '=', True)])
+        pekerjaan = []
         for company in units:
             skema = Skema._aktif_untuk(company, ta)
             daftar_komponen = skema.baris_ids.komponen_id.filtered(lambda k: k.active and k.jenis == 'biaya')
@@ -244,20 +265,24 @@ class TagihanMesin(models.AbstractModel):
                 except Exception:  # noqa: BLE001
                     _logger.exception('Periode komponen %s tidak dapat dihitung', komponen.name)
                     continue
-                for info in daftar_periode:
-                    if info['terbit'] > hari_ini:
-                        continue
-                    try:
-                        with self.env.cr.savepoint():
-                            hasil = self._terbitkan(company, komponen, info)
-                    except psycopg2.OperationalError:
-                        raise
-                    except Exception:  # noqa: BLE001 - satu komponen rusak tidak menghentikan yang lain
-                        _logger.exception(
-                            'Tagihan otomatis %s %s periode %s gagal', company.name, komponen.name,
-                            info['periode'] or '-')
-                        continue
-                    if hasil['buat']:
-                        _logger.info(
-                            'Tagihan otomatis %s %s periode %s: %s terbit, %s dilewati', company.name,
-                            komponen.name, info['periode'] or '-', len(hasil['buat']), len(hasil['lewati']))
+                pekerjaan += [(company, komponen, info) for info in daftar_periode if info['terbit'] <= hari_ini]
+
+        commit = _boleh_commit()
+        Cron = self.env['ir.cron']
+        for selesai, (company, komponen, info) in enumerate(pekerjaan, start=1):
+            try:
+                with self.env.cr.savepoint():
+                    hasil = self._terbitkan(company, komponen, info)
+            except psycopg2.OperationalError:
+                raise
+            except Exception:  # noqa: BLE001 - satu komponen rusak tidak menghentikan yang lain
+                _logger.exception(
+                    'Tagihan otomatis %s %s periode %s gagal', company.name, komponen.name, info['periode'] or '-')
+            else:
+                if hasil['buat']:
+                    _logger.info(
+                        'Tagihan otomatis %s %s periode %s: %s terbit, %s dilewati', company.name,
+                        komponen.name, info['periode'] or '-', len(hasil['buat']), len(hasil['lewati']))
+            if commit:
+                Cron._notify_progress(done=selesai, remaining=len(pekerjaan) - selesai)
+                self.env.cr.commit()

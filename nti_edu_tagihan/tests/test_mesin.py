@@ -164,6 +164,30 @@ class TestMesin(NtiTagihanCommon):
         self.assertEqual(tagihan.amount_total, 300000)
         self.assertEqual(tagihan.nti_edu_semester_id, self.semester_ganjil)
 
+    def test_prorata_dibulatkan_rupiah(self):
+        # Spec §4.2: prorata dibulatkan ke rupiah utuh, bukan ke sen. 500.000 × 4/6 = 333.333,33 → 333.333.
+        self.skema.baris_ids.filtered(lambda b: b.komponen_id == self.kegiatan).nominal = 500000
+        self.kegiatan.aturan_masuk_id = self.env.ref('nti_edu_tagihan.aturan_masuk_prorata')
+        siswa = self._siswa_baru('Siswa Masuk September Prorata', 'TGM04', date(2026, 9, 10))
+        ganjil = self._info(self.kegiatan, date(2026, 7, 1))
+        baris = [b for b in self.Mesin._rencana(self.unit_smp, self.kegiatan, ganjil)['buat'] if b['siswa'] == siswa]
+        self.assertEqual(baris[0]['nominal'], 333333)
+        self.Mesin._terbitkan(self.unit_smp, self.kegiatan, ganjil)
+        self.assertEqual(self._tagihan(siswa, self.kegiatan).amount_total, 333333)
+
+    def test_cron_commit_per_unit_kerja(self):
+        # Jalur cron sungguhan commit setelah tiap (unit, komponen, periode); di tes `_boleh_commit` palsu.
+        with patch('odoo.addons.nti_edu_tagihan.models.mesin._boleh_commit', return_value=True), \
+                patch.object(self.env.cr, 'commit') as commit:
+            self.Mesin._cron_buat_tagihan(hari_ini=date(2026, 8, 2))
+        # SPP Jul + Agu, kegiatan ganjil, pangkal sekali = 4 unit kerja untuk unit SMP.
+        self.assertEqual(commit.call_count, 4)
+        self.assertEqual(len(self._tagihan(self.siswa_a, self.spp)), 2)
+        # Tanpa tambalan, tes tidak pernah commit.
+        with patch.object(self.env.cr, 'commit') as commit:
+            self.Mesin._cron_buat_tagihan(hari_ini=date(2026, 9, 2))
+        commit.assert_not_called()
+
     def test_tagihan_mulai(self):
         self.unit_smp.nti_edu_tagihan_mulai = date(2026, 11, 1)
         baru = self._siswa_baru('Siswa Masuk November', 'TGM03', date(2026, 11, 5))

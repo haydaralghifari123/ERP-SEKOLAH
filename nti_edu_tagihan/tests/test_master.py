@@ -120,6 +120,42 @@ class TestMaster(NtiTagihanCommon):
         self.env['nti_edu.tagihan.aturan.cicilan'].with_user(self.admin_keu).create(
             {'name': 'Cicil Admin', 'maks_kali': 3, 'jarak': 1, 'jarak_satuan': 'bulan'})
 
+    def test_admin_keu_akun_pendapatan(self):
+        # Admin Keuangan bukan akuntan: memilih dan membaca akun pendapatan tanpa AccessError.
+        akun = self.env['account.account'].search([
+            ('company_ids', 'in', self.yayasan.id), ('account_type', '=', 'income')], limit=1)
+        Akun = self.env['account.account'].with_user(self.admin_keu)
+        hasil = Akun.name_search(akun.code, args=[('account_type', 'in', ('income', 'income_other'))])
+        self.assertIn(akun.id, [r[0] for r in hasil])
+        komponen = self.env['nti_edu.tagihan.komponen'].with_user(self.admin_keu).create({
+            'name': 'SPP Akun Admin', 'periode_jenis_id': self.env.ref('nti_edu_tagihan.periode_bulanan').id,
+            'akun_pendapatan_id': akun.id})
+        self.assertEqual(komponen.akun_pendapatan_id, akun)
+        self.assertIn(akun.sudo().name, komponen.akun_pendapatan_id.display_name)
+        akun_lain = Akun.search([('account_type', '=', 'income_other')], limit=1) or akun
+        komponen.write({'akun_pendapatan_id': akun_lain.id})
+        komponen.invalidate_recordset()
+        self.assertEqual(komponen.read(['akun_pendapatan_id'])[0]['akun_pendapatan_id'][0], akun_lain.id)
+        self.assertEqual(komponen.sudo().product_id.with_company(self.unit_smp).property_account_income_id,
+                         akun_lain)
+
+    def test_aturan_multi_unit(self):
+        komponen_sma = self._buat_komponen('SPP SMA Saja', 'periode_bulanan', company_id=self.unit_sma.id)
+        komponen_umum = self._buat_komponen('SPP Semua Unit', 'periode_bulanan')
+        alasan_sma = self.env['nti_edu.tagihan.alasan.tolak'].create(
+            {'name': 'Alasan SMA Saja', 'company_id': self.unit_sma.id})
+        alasan_umum = self.env['nti_edu.tagihan.alasan.tolak'].create({'name': 'Alasan Semua Unit'})
+        for model, khusus, umum in (('nti_edu.tagihan.komponen', komponen_sma, komponen_umum),
+                                    ('nti_edu.tagihan.alasan.tolak', alasan_sma, alasan_umum)):
+            lihat_smp = self.env[model].with_user(self.bendahara_smp).search([])
+            lihat_sma = self.env[model].with_user(self.bendahara_sma).search([])
+            self.assertNotIn(khusus, lihat_smp, model)
+            self.assertIn(khusus, lihat_sma, model)
+            self.assertIn(umum, lihat_smp, model)
+            self.assertIn(umum, lihat_sma, model)
+        with self.assertRaises(AccessError):
+            komponen_sma.with_user(self.bendahara_smp).read(['name'])
+
     def test_rekening_untuk_unit(self):
         jurnal = self.env['account.journal'].search([
             ('company_id', '=', self.yayasan.id), ('type', '=', 'bank')], limit=1)

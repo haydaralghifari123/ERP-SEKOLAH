@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_hapus_denda_wizard_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.hapus.denda.wizard.form</field>
+        <field name="model">nti_edu.tagihan.hapus.denda.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Hapus Denda">
+                <p class="text-muted">
+                    Hanya denda yang belum dibayar sama sekali yang dapat dihapus. Bila pengaturan unit mewajibkan,
+                    penghapusan hanya dapat dilakukan Admin Keuangan.
+                </p>
+                <group>
+                    <field name="tagihan_ids" widget="many2many_tags"/>
+                    <field name="alasan_id" options="{'no_create': True}"/>
+                    <field name="perlu_catatan" invisible="1"/>
+                    <field name="catatan" required="perlu_catatan"
+                           placeholder="mis. keringanan hasil rapat komite"/>
+                </group>
+                <footer>
+                    <button string="Hapus Denda" name="action_hapus" type="object" class="btn-primary"/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hapus_denda_wizard" model="ir.actions.act_window">
+        <field name="name">Hapus Denda</field>
+        <field name="res_model">nti_edu.tagihan.hapus.denda.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="groups_id" eval="[(4, ref('nti_edu_tagihan.group_tagihan_bendahara'))]"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_view_types">list</field>
+    </record>
+</odoo>

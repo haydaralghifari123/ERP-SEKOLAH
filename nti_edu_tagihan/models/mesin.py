@@ -289,6 +289,93 @@ class TagihanMesin(models.AbstractModel):
                 Cron._notify_progress(done=selesai, remaining=len(pekerjaan) - selesai)
                 self.env.cr.commit()
 
+    # --- denda -------------------------------------------------------------------------------
+
+    @api.model
+    def _cron_denda(self, hari_ini=None):
+        """Jadwal harian denda keterlambatan (spec §4.5). Aman dijalankan berulang dan mengejar hari yang terlewat.
+
+        Untuk tagihan biaya terbit yang komponennya punya aturan denda aktif (tunggakan awal hanya bila pengaturan
+        unit `nti_edu_denda_saldo_awal`), tiap baris piutang (cicilan) yang masih bersisa dan jatuh temponya tidak
+        sebelum Tagihan Mulai unit dinilai sendiri: batas ke-n = jatuh tempo + tenggang + (n − 1) bulan; denda ke-n
+        terbit bila batasnya sudah lewat (`sekali` hanya n = 1) dan belum pernah ada (denda yang dihapus tidak
+        diterbitkan lagi). Di jalur jadwal sungguhan hasil tiap tagihan asal di-commit; di tes tidak pernah commit.
+        """
+        hari_ini = hari_ini or fields.Date.context_today(self)
+        Move = self.env['account.move'].sudo()
+        daftar_komponen = self.env['nti_edu.tagihan.komponen'].sudo().with_context(active_test=False).search([
+            ('jenis', '=', 'biaya'), ('aturan_denda_id', '!=', False)]).filtered('aturan_denda_id.active')
+        if not daftar_komponen:
+            return
+        kandidat = Move.search([
+            ('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('nti_edu_is_tagihan', '=', True),
+            ('nti_edu_komponen_id', 'in', daftar_komponen.ids), ('nti_edu_tagihan_asal_id', '=', False),
+            ('amount_residual', '>', 0),
+        ], order='company_id, id')
+        kandidat = kandidat.filtered(lambda m: not m.nti_edu_saldo_awal or m.company_id.nti_edu_denda_saldo_awal)
+
+        commit = _boleh_commit()
+        Cron = self.env['ir.cron']
+        for selesai, asal in enumerate(kandidat, start=1):
+            try:
+                with self.env.cr.savepoint():
+                    self._denda_tagihan(asal, hari_ini)
+            except psycopg2.OperationalError:
+                raise
+            except Exception as e:  # noqa: BLE001 - satu tagihan rusak tidak menghentikan yang lain
+                galat_pengguna = isinstance(e, UserError)
+                _logger.warning(
+                    'Denda tagihan %s (id %s) gagal diterbitkan: %s', asal.name, asal.id,
+                    e.args[0] if galat_pengguna and e.args else e, exc_info=not galat_pengguna)
+            if commit:
+                Cron._notify_progress(done=selesai, remaining=len(kandidat) - selesai)
+                self.env.cr.commit()
+
+    @api.model
+    def _denda_tagihan(self, asal, hari_ini):
+        """Terbitkan semua denda `asal` (sudo) yang sudah jatuh pada `hari_ini` dan belum ada; urut jatuh tempo
+        cicilan lalu bulan ke-n, masing-masing dipangkas ke sisa batas maksimum aturan. Mengembalikan denda baru."""
+        aturan = asal.nti_edu_komponen_id.aturan_denda_id
+        company = asal.company_id
+        mata_uang = asal.currency_id
+        Move = self.env['account.move'].sudo()
+        hasil = Move.browse()
+        mulai = company.nti_edu_tagihan_mulai
+        piutang = asal.line_ids.filtered(
+            lambda b: b.account_id.account_type == 'asset_receivable' and b.date_maturity
+            and mata_uang.compare_amounts(b.amount_residual_currency, 0.0) > 0
+            and (not mulai or b.date_maturity >= mulai))
+        if not piutang:
+            return hasil
+        # Semua denda yang pernah ada, termasuk yang dibatalkan (dihapus), tidak diterbitkan ulang.
+        lama = Move.search([('move_type', '=', 'out_invoice'), ('nti_edu_tagihan_asal_id', '=', asal.id)])
+        sudah = {(d.nti_edu_denda_jatuh_tempo, d.nti_edu_denda_bulan_ke) for d in lama}
+        total = sum(lama.filtered(lambda d: d.state != 'cancel').mapped('amount_total'))
+        kali = 1 if aturan.berulang == 'sekali' else None
+        for baris in piutang.sorted(lambda b: (b.date_maturity, b.id)):
+            jatuh_tempo = baris.date_maturity
+            batas_awal = jatuh_tempo + timedelta(days=aturan.tenggang_hari)
+            n = 1
+            while (kali is None or n <= kali) and batas_awal + relativedelta(months=n - 1) < hari_ini:
+                if (jatuh_tempo, n) not in sudah:
+                    if aturan.tipe == 'persen':
+                        jumlah = _bulatkan_satuan(mata_uang, baris.amount_residual_currency * aturan.nilai / 100.0)
+                    else:
+                        jumlah = mata_uang.round(aturan.nilai)
+                    if aturan.maks:
+                        sisa_maks = mata_uang.round(aturan.maks - total)
+                        if mata_uang.compare_amounts(sisa_maks, 0.0) <= 0:
+                            return hasil
+                        jumlah = min(jumlah, sisa_maks)
+                    if mata_uang.compare_amounts(jumlah, 0.0) > 0:
+                        denda = Move._nti_edu_terbitkan(
+                            asal.nti_edu_siswa_id, aturan.komponen_denda_id, jumlah, hari_ini, hari_ini,
+                            tagihan_asal_id=asal, denda_jatuh_tempo=jatuh_tempo, denda_bulan_ke=n)
+                        hasil |= denda
+                        total += denda.amount_total
+                n += 1
+        return hasil
+
     # --- pembayaran --------------------------------------------------------------------------
 
     @api.model

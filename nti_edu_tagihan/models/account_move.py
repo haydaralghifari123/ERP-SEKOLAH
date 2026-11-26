@@ -12,6 +12,7 @@ from odoo.tools import format_amount, format_date, mute_logger
 from .mesin import _bulatkan_satuan
 
 GRUP_BENDAHARA = 'nti_edu_tagihan.group_tagihan_bendahara'
+GRUP_ADMIN = 'nti_edu_tagihan.group_tagihan_admin'
 
 
 def _format_nominal(nilai):
@@ -80,6 +81,7 @@ class AccountMove(models.Model):
         ondelete='restrict', help='Potongan siswa yang diterapkan lewat nota kredit ini.')
     nti_edu_is_tagihan = fields.Boolean(
         string='Tagihan Sekolah', compute='_compute_nti_edu_is_tagihan', store=True, index=True)
+    nti_edu_komponen_jenis = fields.Selection(related='nti_edu_komponen_id.jenis', string='Jenis Komponen')
     nti_edu_lunas = fields.Boolean(string='Lunas', compute='_compute_nti_edu_lunas')
     nti_edu_ada_kredit = fields.Boolean(
         string='Ada Kredit Siswa', compute='_compute_nti_edu_ada_kredit',
@@ -227,6 +229,10 @@ class AccountMove(models.Model):
         bukan = semua.filtered(lambda m: m.move_type != 'out_invoice' or not m.nti_edu_is_tagihan)
         if bukan:
             raise UserError(_('%s bukan tagihan sekolah.', self._nti_edu_nama_terlihat(bukan)))
+        denda = semua.filtered(lambda m: m.nti_edu_komponen_id.jenis == 'denda')
+        if denda:
+            # Denda hanya dibatalkan lewat Hapus Denda (alasan master, hak menurut pengaturan unit).
+            raise UserError(_('%s adalah tagihan denda; gunakan Hapus Denda.', self._nti_edu_nama_terlihat(denda)))
         for tagihan in semua:
             if tagihan.state != 'posted':
                 raise UserError(_('Tagihan %s tidak berstatus terbit sehingga tidak dapat dibatalkan.',
@@ -240,6 +246,52 @@ class AccountMove(models.Model):
             tagihan.button_draft()
             tagihan.button_cancel()
             tagihan.message_post(body=_('Tagihan dibatalkan. Alasan: %s', alasan), author_id=penulis)
+        return True
+
+    def _nti_edu_hapus_denda(self, alasan, catatan=False):
+        """Hapus (batalkan) tagihan denda yang belum dibayar sama sekali dengan `alasan` dari master alasan
+        penghapusan denda (spec §4.5); `catatan` wajib bila alasan mewajibkannya. Dicatat di chatter atas nama
+        pemanggil.
+
+        Hak: Admin Keuangan bila unit denda mengaktifkan `nti_edu_denda_hapus_perlu_admin`, selain itu Bendahara
+        unit itu. Penulisan sebagai superuser.
+        """
+        semua = self.sudo()
+        if not semua:
+            raise UserError(_('Pilih minimal satu tagihan denda yang dihapus.'))
+        # Hak lebih dahulu, agar pemanggil tanpa hak tidak mendapat informasi apa pun tentang dokumennya.
+        Akses = self.env['nti_edu.tagihan.akses']
+        perlu_admin = semua.company_id.filtered('nti_edu_denda_hapus_perlu_admin')
+        if perlu_admin:
+            Akses._nti_edu_cek_hak(GRUP_ADMIN, perlu_admin)
+        if semua.company_id - perlu_admin:
+            Akses._nti_edu_cek_hak(GRUP_BENDAHARA, semua.company_id - perlu_admin)
+        alasan = alasan.sudo()
+        catatan = (catatan or '').strip()
+        if not alasan:
+            raise UserError(_('Alasan penghapusan denda wajib dipilih.'))
+        if alasan.perlu_catatan and not catatan:
+            raise UserError(_('Alasan "%s" mewajibkan catatan.', alasan.name))
+        bukan = semua.filtered(lambda m: m.move_type != 'out_invoice' or not m.nti_edu_is_tagihan
+                               or m.nti_edu_komponen_id.jenis != 'denda')
+        if bukan:
+            raise UserError(_('%s bukan tagihan denda.', self._nti_edu_nama_terlihat(bukan)))
+        for denda in semua:
+            if not alasan.filtered_domain(alasan._check_company_domain(denda.company_id)):
+                raise UserError(_('Alasan "%(alasan)s" tidak berlaku untuk unit %(unit)s.',
+                                  alasan=alasan.name, unit=denda.company_id.name))
+            if denda.state != 'posted':
+                raise UserError(_('Denda %s tidak berstatus terbit sehingga tidak dapat dihapus.', denda.name))
+            if denda.currency_id.compare_amounts(denda.amount_residual, denda.amount_total) != 0:
+                raise UserError(_('Denda %s sudah dibayar atau dikoreksi sebagian sehingga tidak dapat dihapus.',
+                                  denda.name))
+        penulis = self.env.user.partner_id.id
+        teks = _('Denda dihapus: %(alasan)s%(catatan)s',
+                 alasan=alasan.name, catatan=(' — %s' % catatan) if catatan else '')
+        for denda in semua:
+            denda.button_draft()
+            denda.button_cancel()
+            denda.message_post(body=teks, author_id=penulis)
         return True
 
     @api.model

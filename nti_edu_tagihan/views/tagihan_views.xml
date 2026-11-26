@@ -55,7 +55,13 @@
                     <field name="nti_edu_boleh_cicil" invisible="1"/>
                     <button name="%(nti_edu_tagihan.action_batal_tagihan_wizard)d" type="action"
                             string="Batalkan" groups="nti_edu_tagihan.group_tagihan_bendahara"
-                            invisible="state != 'posted' or amount_residual != amount_total"/>
+                            invisible="state != 'posted' or amount_residual != amount_total
+                                       or nti_edu_komponen_jenis == 'denda'"/>
+                    <button name="%(nti_edu_tagihan.action_hapus_denda_wizard)d" type="action"
+                            string="Hapus Denda" groups="nti_edu_tagihan.group_tagihan_bendahara"
+                            invisible="state != 'posted' or amount_residual != amount_total
+                                       or nti_edu_komponen_jenis != 'denda'"/>
+                    <field name="nti_edu_komponen_jenis" invisible="1"/>
                     <field name="state" widget="statusbar" statusbar_visible="posted,cancel"/>
                 </header>
                 <sheet>
@@ -82,6 +88,8 @@
                             <field name="nti_edu_tahun_ajaran_id" invisible="not nti_edu_tahun_ajaran_id"/>
                             <field name="nti_edu_semester_id" invisible="not nti_edu_semester_id"/>
                             <field name="nti_edu_tagihan_asal_id" invisible="not nti_edu_tagihan_asal_id"/>
+                            <field name="nti_edu_denda_jatuh_tempo" invisible="not nti_edu_tagihan_asal_id"/>
+                            <field name="nti_edu_denda_bulan_ke" invisible="not nti_edu_tagihan_asal_id"/>
                             <field name="invoice_date" string="Tanggal Terbit"/>
                             <field name="invoice_date_due" string="Jatuh Tempo"/>
                         </group>
@@ -125,6 +133,7 @@
                 <filter name="lunas" string="Lunas" domain="[('payment_state', 'in', ('paid', 'in_payment'))]"/>
                 <filter name="menunggu_verifikasi" string="Menunggu Verifikasi"
                         domain="[('nti_edu_menunggu_verifikasi', '=', True)]"/>
+                <filter name="denda" string="Denda" domain="[('nti_edu_komponen_id.jenis', '=', 'denda')]"/>
                 <separator/>
                 <filter name="aktif" string="Tidak Dibatalkan" domain="[('state', '!=', 'cancel')]"/>
                 <filter name="batal" string="Dibatalkan" domain="[('state', '=', 'cancel')]"/>

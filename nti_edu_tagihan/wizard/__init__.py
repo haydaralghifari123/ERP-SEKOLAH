@@ -5,3 +5,4 @@ from . import saldo_awal
 from . import terima_pembayaran
 from . import tolak_konfirmasi
 from . import cicilan
+from . import hapus_denda

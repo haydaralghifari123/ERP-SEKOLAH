@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Portal tagihan wali/siswa (spec §4.8). Data disiapkan controllers/portal.py lewat sudo setelah pemeriksaan
+         anak; templat hanya menampilkan. -->
+
+    <template id="portal_my_home_tagihan" name="Portal Beranda: Tagihan" inherit_id="portal.portal_my_home" priority="40">
+        <xpath expr="//div[hasclass('o_portal_docs')]" position="before">
+            <t t-set="portal_client_category_enable" t-value="True"/>
+        </xpath>
+        <div id="portal_client_category" position="inside">
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/account/static/src/img/Bill.svg'"/>
+                <t t-set="title">Tagihan</t>
+                <t t-set="url" t-value="'/my/tagihan'"/>
+                <t t-set="text">Tagihan sekolah, konfirmasi transfer, dan Kartu SPP</t>
+                <t t-set="placeholder_count" t-value="'nti_edu_tagihan_count'"/>
+                <!-- Selalu tampil bagi wali/siswa dengan anak aktif, juga saat semua tagihan lunas. -->
+                <t t-set="config_card" t-value="bool(request.env.user._nti_edu_siswa_portal())"/>
+            </t>
+        </div>
+    </template>
+
+    <template id="portal_breadcrumbs_tagihan" name="Portal Breadcrumbs: Tagihan" inherit_id="portal.portal_breadcrumbs" priority="40">
+        <xpath expr="//ol[hasclass('o_portal_submenu')]" position="inside">
+            <li t-if="page_name == 'nti_edu_tagihan'" class="breadcrumb-item active">Tagihan</li>
+            <t t-if="page_name == 'nti_edu_tagihan_konfirmasi'">
+                <li class="breadcrumb-item"><a href="/my/tagihan">Tagihan</a></li>
+                <li class="breadcrumb-item active">Konfirmasi Transfer</li>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- Daftar konfirmasi transfer yang dikirim user ini: `konfirmasi_list`. -->
+    <template id="portal_tagihan_daftar_konfirmasi" name="Portal: Daftar Konfirmasi Transfer">
+        <h5 class="mt-4">Konfirmasi Transfer Saya</h5>
+        <p t-if="not konfirmasi_list" class="text-muted">Belum ada konfirmasi transfer.</p>
+        <div t-else="" class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Nomor</th>
+                        <th>Tanggal Transfer</th>
+                        <th>Siswa</th>
+                        <th class="text-end">Nominal</th>
+                        <th>Status</th>
+                        <th>Keterangan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="konfirmasi_list" t-as="k" t-att-data-konfirmasi-id="k.id">
+                        <td t-out="k.name"/>
+                        <td t-out="k.tanggal_transfer" t-options="{'widget': 'date'}"/>
+                        <td t-out="', '.join(k.siswa_ids.mapped('name'))"/>
+                        <td class="text-end" t-out="k.nominal" t-options="{'widget': 'monetary', 'display_currency': k.currency_id}"/>
+                        <td>
+                            <span t-if="k.state == 'menunggu'" class="badge text-bg-warning">Menunggu Verifikasi</span>
+                            <span t-elif="k.state == 'diterima'" class="badge text-bg-success">Diterima</span>
+                            <span t-else="" class="badge text-bg-danger">Ditolak</span>
+                        </td>
+                        <td>
+                            <t t-if="k.state == 'diterima'">
+                                Diterima <span t-out="k.nominal_diterima" t-options="{'widget': 'monetary', 'display_currency': k.currency_id}"/>
+                            </t>
+                            <t t-if="k.state == 'ditolak'">
+                                <strong t-out="k.alasan_tolak_id.name"/>
+                                <div t-if="k.catatan_tolak" class="small text-muted" t-out="k.catatan_tolak"/>
+                                <div class="small">Silakan kirim konfirmasi baru.</div>
+                            </t>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Halaman tagihan satu anak (anak aktif dari session, ?siswa= untuk pindah). -->
+    <template id="portal_my_tagihan" name="Portal: Tagihan">
+        <t t-call="portal.portal_layout">
+            <t t-set="my_details" t-value="True"/>
+            <div class="o_portal_my_home">
+                <h3>Tagihan</h3>
+                <p t-if="not anak" class="text-muted">Belum ada tagihan sekolah untuk siswa yang terhubung dengan akun ini.</p>
+                <t t-if="anak">
+                    <ul t-if="len(anak_list) &gt; 1" class="nav nav-pills mb-3">
+                        <li t-foreach="anak_list" t-as="a" class="nav-item">
+                            <a t-attf-href="/my/tagihan?siswa=#{a.id}" t-attf-class="nav-link #{'active' if a == anak else ''}"
+                               t-att-data-anak-id="a.id">
+                                <t t-out="a.name"/>
+                                <small t-if="not a.active or a.nti_edu_status != 'aktif'">(tidak aktif)</small>
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="mb-3" t-att-data-anak-aktif="anak.id">
+                        <strong t-out="anak.name"/>
+                        <span class="text-muted">
+                            <t t-if="anak.nti_edu_nis"> - NIS <t t-out="anak.nti_edu_nis"/></t>
+                            - <t t-out="anak.company_id.name"/>
+                            <t t-if="anak.nti_edu_rombel_aktif_id"> - <t t-out="anak.nti_edu_rombel_aktif_id.name"/></t>
+                        </span>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Sisa Tagihan</div>
+                                <div class="fs-5" t-out="sisa_tagihan" t-options="{'widget': 'monetary', 'display_currency': mata_uang}"/>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Tunggakan (lewat jatuh tempo)</div>
+                                <div t-attf-class="fs-5 #{'text-danger' if tunggakan else ''}" t-out="tunggakan" t-options="{'widget': 'monetary', 'display_currency': mata_uang}"/>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Saldo Kredit</div>
+                                <div class="fs-5" t-out="saldo_kredit" t-options="{'widget': 'monetary', 'display_currency': mata_uang}"/>
+                                <div t-if="saldo_kredit" class="small text-muted">Kelebihan bayar; diterapkan Bendahara ke tagihan berikutnya.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <a t-if="tagihan_terbuka" href="/my/tagihan/konfirmasi" class="btn btn-primary">Konfirmasi Transfer</a>
+                        <a t-foreach="tahun_list" t-as="ta" class="btn btn-outline-secondary" target="_blank"
+                           t-attf-href="/my/tagihan/kartu/#{anak.id}?tahun=#{ta.id}">
+                            <i class="fa fa-download"/> Kartu SPP <t t-out="ta.name"/>
+                        </a>
+                    </div>
+
+                    <h5>Tagihan Belum Lunas</h5>
+                    <p t-if="not tagihan_terbuka" class="text-muted">Tidak ada tagihan yang belum lunas.</p>
+                    <div t-else="" class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Tagihan</th>
+                                    <th>Jatuh Tempo</th>
+                                    <th class="text-end">Nominal</th>
+                                    <th class="text-end">Sisa</th>
+                                    <th>Status</th>
+                                    <th/>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="tagihan_terbuka" t-as="t">
+                                    <t t-set="r" t-value="rincian[t.id]"/>
+                                    <t t-set="jt" t-value="t.nti_edu_jatuh_tempo_terbuka or t.invoice_date_due"/>
+                                    <tr t-att-data-tagihan-id="t.id">
+                                        <td>
+                                            <div t-out="r['nama']"/>
+                                            <div class="small text-muted">
+                                                <t t-out="t.name"/> - <t t-out="t.company_id.name"/>
+                                                <t t-if="r['potongan']"> - potongan
+                                                    <t t-out="r['potongan']" t-options="{'widget': 'monetary', 'display_currency': t.currency_id}"/>
+                                                </t>
+                                            </div>
+                                            <ul t-if="r['cicilan']" class="small list-unstyled mb-0 mt-1">
+                                                <li t-foreach="r['cicilan']" t-as="c">
+                                                    Cicilan <t t-out="c_index + 1"/>: jatuh tempo
+                                                    <t t-out="c['jatuh_tempo']" t-options="{'widget': 'date'}"/>,
+                                                    <t t-out="c['nominal']" t-options="{'widget': 'monetary', 'display_currency': t.currency_id}"/>
+                                                    <span t-if="not c['sisa']" class="text-success">(lunas)</span>
+                                                    <span t-else="" t-attf-class="#{'text-danger' if c['jatuh_tempo'] and c['jatuh_tempo'] &lt; hari_ini else ''}">
+                                                        (sisa <t t-out="c['sisa']" t-options="{'widget': 'monetary', 'display_currency': t.currency_id}"/>)
+                                                    </span>
+                                                </li>
+                                            </ul>
+                                        </td>
+                                        <td t-attf-class="#{'text-danger' if jt and jt &lt; hari_ini else ''}">
+                                            <t t-out="jt" t-options="{'widget': 'date'}"/>
+                                        </td>
+                                        <td class="text-end" t-out="r['nominal'] - r['potongan']" t-options="{'widget': 'monetary', 'display_currency': t.currency_id}"/>
+                                        <td class="text-end" t-out="t.amount_residual" t-options="{'widget': 'monetary', 'display_currency': t.currency_id}"/>
+                                        <td>
+                                            <span t-if="t.nti_edu_menunggu_verifikasi" class="badge text-bg-warning"
+                                                  t-att-data-menunggu-id="t.id">Menunggu Verifikasi</span>
+                                            <span t-if="jt and jt &lt; hari_ini" class="badge text-bg-danger">Terlambat</span>
+                                            <span t-if="r['status'] == 'sebagian'" class="badge text-bg-info">Dibayar sebagian</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <a t-attf-href="/my/tagihan/invoice/#{t.id}" target="_blank" title="Unduh invoice">
+                                                <i class="fa fa-download"/> PDF
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <t t-if="rekening_per_unit">
+                        <h5 class="mt-4">Rekening Pembayaran</h5>
+                        <div t-foreach="rekening_per_unit" t-as="baris" class="mb-3">
+                            <t t-set="unit_rek" t-value="baris[0]"/>
+                            <t t-set="rekening_unit" t-value="baris[1]"/>
+                            <div class="fw-bold" t-out="unit_rek.name"/>
+                            <p t-if="not rekening_unit" class="text-muted">Hubungi Bendahara sekolah untuk rekening pembayaran.</p>
+                            <div t-foreach="rekening_unit" t-as="rek" class="border rounded p-2 mb-2">
+                                <div><t t-out="rek.bank"/> <strong t-out="rek.nomor"/> a.n. <t t-out="rek.atas_nama"/></div>
+                                <div t-if="rek.instruksi" class="small" t-out="rek.instruksi"/>
+                            </div>
+                        </div>
+                    </t>
+
+                    <h5 class="mt-4">Riwayat Lunas</h5>
+                    <p t-if="not tagihan_riwayat" class="text-muted">Belum ada tagihan yang lunas.</p>
+                    <div t-else="" class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Tagihan</th>
+                                    <th>Tanggal Lunas</th>
+                                    <th class="text-end">Nominal</th>
+                                    <th/>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="tagihan_riwayat" t-as="t" t-att-data-riwayat-id="t.id">
+                                    <t t-set="r" t-value="rincian[t.id]"/>
+                                    <td>
+                                        <div t-out="r['nama']"/>
+                                        <div class="small text-muted"><t t-out="t.name"/> - <t t-out="t.company_id.name"/></div>
+                                    </td>
+                                    <td t-out="r['tanggal_lunas']" t-options="{'widget': 'date'}"/>
+                                    <td class="text-end" t-out="r['nominal'] - r['potongan']" t-options="{'widget': 'monetary', 'display_currency': t.currency_id}"/>
+                                    <td class="text-end">
+                                        <a t-attf-href="/my/tagihan/invoice/#{t.id}" target="_blank" title="Unduh invoice">
+                                            <i class="fa fa-download"/> PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <t t-call="nti_edu_tagihan.portal_tagihan_daftar_konfirmasi"/>
+                </t>
+            </div>
+        </t>
+    </template>
+
+    <!-- Form konfirmasi transfer per unit; isian sebelumnya dan galat ditampilkan ulang saat gagal. -->
+    <template id="portal_my_tagihan_konfirmasi" name="Portal: Konfirmasi Transfer">
+        <t t-call="portal.portal_layout">
+            <t t-set="my_details" t-value="True"/>
+            <div class="o_portal_my_home">
+                <h3>Konfirmasi Transfer</h3>
+                <div t-if="konfirmasi_baru" class="alert alert-success" role="status">
+                    Konfirmasi <strong t-out="konfirmasi_baru.name"/> terkirim dan menunggu verifikasi Bendahara.
+                </div>
+                <div t-if="galat" class="alert alert-danger" role="alert" t-out="galat"/>
+                <p t-if="not unit" class="text-muted">Tidak ada tagihan yang belum lunas untuk dikonfirmasi.</p>
+                <t t-if="unit">
+                    <t t-if="len(unit_list) &gt; 1">
+                        <ul class="nav nav-tabs mb-2">
+                            <li t-foreach="unit_list" t-as="u" class="nav-item">
+                                <a t-attf-href="/my/tagihan/konfirmasi?unit=#{u.id}"
+                                   t-attf-class="nav-link #{'active' if u == unit else ''}" t-out="u.name"/>
+                            </li>
+                        </ul>
+                        <p class="small text-muted">Satu konfirmasi hanya untuk tagihan satu unit sekolah; kirim konfirmasi
+                            terpisah untuk unit lain (berkas bukti boleh sama).</p>
+                    </t>
+                    <form method="post" action="/my/tagihan/konfirmasi" enctype="multipart/form-data" class="mb-4">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <h5>Tagihan <t t-out="unit.name"/></h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th/>
+                                        <th>Siswa</th>
+                                        <th>Tagihan</th>
+                                        <th>Jatuh Tempo</th>
+                                        <th class="text-end">Sisa</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="tagihan_unit" t-as="t">
+                                        <td>
+                                            <input class="form-check-input" type="checkbox" name="tagihan_ids" t-att-value="t.id"
+                                                   t-att-id="'tagihan_%d' % t.id" t-att-checked="'checked' if t.id in dipilih_ids else None"/>
+                                        </td>
+                                        <td t-out="t.nti_edu_siswa_id.name"/>
+                                        <td>
+                                            <label t-att-for="'tagihan_%d' % t.id" t-out="rincian[t.id]['nama']"/>
+                                            <span t-if="t.nti_edu_menunggu_verifikasi" class="badge text-bg-warning ms-1">Menunggu Verifikasi</span>
+                                        </td>
+                                        <td t-out="t.nti_edu_jatuh_tempo_terbuka or t.invoice_date_due" t-options="{'widget': 'date'}"/>
+                                        <td class="text-end" t-out="t.amount_residual" t-options="{'widget': 'monetary', 'display_currency': t.currency_id}"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="nominal">Nominal Transfer</label>
+                                <input type="number" step="any" min="0" class="form-control" id="nominal" name="nominal" required="required"
+                                       t-att-value="isian.get('nominal')"/>
+                                <div class="form-text">Bawaan: jumlah sisa tagihan terpilih. Kelebihan bayar menjadi saldo kredit.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="tanggal_transfer">Tanggal Transfer</label>
+                                <input type="date" class="form-control" id="tanggal_transfer" name="tanggal_transfer" required="required"
+                                       t-att-value="isian.get('tanggal_transfer')"/>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="rekening_id">Rekening Tujuan</label>
+                                <select class="form-select" id="rekening_id" name="rekening_id" required="required">
+                                    <option t-if="len(rekening_list) != 1" value="">Pilih rekening...</option>
+                                    <t t-foreach="rekening_list" t-as="rek">
+                                        <option t-att-value="rek.id" t-att-selected="'selected' if str(rek.id) == isian.get('rekening_id') or len(rekening_list) == 1 else None">
+                                            <t t-out="rek.bank"/> <t t-out="rek.nomor"/> a.n. <t t-out="rek.atas_nama"/>
+                                        </option>
+                                    </t>
+                                </select>
+                                <div t-foreach="rekening_list.filtered('instruksi')" t-as="rek" class="form-text">
+                                    <strong t-out="rek.bank"/>: <t t-out="rek.instruksi"/>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="nama_rekening_pengirim">Nama Pemilik Rekening Pengirim</label>
+                                <input type="text" class="form-control" id="nama_rekening_pengirim" name="nama_rekening_pengirim"
+                                       required="required" t-att-value="isian.get('nama_rekening_pengirim')"/>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="bukti">Bukti Transfer</label>
+                                <input type="file" class="form-control" id="bukti" name="bukti" required="required"
+                                       accept=".jpg,.jpeg,.png,.pdf"/>
+                                <div class="form-text">JPG, PNG, atau PDF; maksimal <t t-out="maks_mb"/> MB.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="catatan">Catatan</label>
+                                <textarea class="form-control" id="catatan" name="catatan" rows="2" t-out="isian.get('catatan')"/>
+                            </div>
+                        </div>
+                        <div class="mt-3 d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Kirim Konfirmasi</button>
+                            <a href="/my/tagihan" class="btn btn-secondary">Kembali</a>
+                        </div>
+                    </form>
+                </t>
+                <t t-call="nti_edu_tagihan.portal_tagihan_daftar_konfirmasi"/>
+            </div>
+        </t>
+    </template>
+</odoo>

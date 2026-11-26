@@ -17,3 +17,12 @@ akses_alasan_hapus_admin,nti_edu.tagihan.alasan.hapus admin,model_nti_edu_tagiha
 akses_komponen_pemantau,nti_edu.tagihan.komponen pemantau,model_nti_edu_tagihan_komponen,group_tagihan_pemantau,1,0,0,0
 akses_komponen_admin,nti_edu.tagihan.komponen admin,model_nti_edu_tagihan_komponen,group_tagihan_admin,1,1,1,1
 akses_account_journal_pemantau,account.journal pemantau keuangan,account.model_account_journal,group_tagihan_pemantau,1,0,0,0
+akses_skema_pemantau,nti_edu.tagihan.skema pemantau,model_nti_edu_tagihan_skema,group_tagihan_pemantau,1,0,0,0
+akses_skema_admin,nti_edu.tagihan.skema admin,model_nti_edu_tagihan_skema,group_tagihan_admin,1,1,1,1
+akses_skema_baris_pemantau,nti_edu.tagihan.skema.baris pemantau,model_nti_edu_tagihan_skema_baris,group_tagihan_pemantau,1,0,0,0
+akses_skema_baris_admin,nti_edu.tagihan.skema.baris admin,model_nti_edu_tagihan_skema_baris,group_tagihan_admin,1,1,1,1
+akses_potongan_jenis_pemantau,nti_edu.tagihan.potongan.jenis pemantau,model_nti_edu_tagihan_potongan_jenis,group_tagihan_pemantau,1,0,0,0
+akses_potongan_jenis_admin,nti_edu.tagihan.potongan.jenis admin,model_nti_edu_tagihan_potongan_jenis,group_tagihan_admin,1,1,1,1
+akses_potongan_pemantau,nti_edu.tagihan.potongan pemantau,model_nti_edu_tagihan_potongan,group_tagihan_pemantau,1,0,0,0
+akses_potongan_bendahara,nti_edu.tagihan.potongan bendahara,model_nti_edu_tagihan_potongan,group_tagihan_bendahara,1,1,1,1
+akses_potongan_admin,nti_edu.tagihan.potongan admin,model_nti_edu_tagihan_potongan,group_tagihan_admin,1,1,1,1

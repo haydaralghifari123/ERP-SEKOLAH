@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Jenis potongan -->
+    <record id="view_potongan_jenis_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.potongan.jenis.list</field>
+        <field name="model">nti_edu.tagihan.potongan.jenis</field>
+        <field name="arch" type="xml">
+            <list string="Jenis Potongan">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="tipe"/>
+                <field name="nilai_bawaan"/>
+                <field name="dapat_digabung"/>
+                <field name="perlu_persetujuan"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_potongan_jenis_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.potongan.jenis.form</field>
+        <field name="model">nti_edu.tagihan.potongan.jenis</field>
+        <field name="arch" type="xml">
+            <form string="Jenis Potongan">
+                <sheet>
+                    <widget name="web_ribbon" title="Diarsipkan" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="mis. Saudara Kandung"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="tipe"/>
+                            <field name="nilai_bawaan"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="dapat_digabung"/>
+                            <field name="perlu_persetujuan"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="komponen_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_potongan_jenis" model="ir.actions.act_window">
+        <field name="name">Jenis Potongan</field>
+        <field name="res_model">nti_edu.tagihan.potongan.jenis</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Potongan siswa -->
+    <record id="view_potongan_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.potongan.list</field>
+        <field name="model">nti_edu.tagihan.potongan</field>
+        <field name="arch" type="xml">
+            <list string="Potongan Siswa" decoration-muted="state in ('berakhir', 'ditolak')"
+                  decoration-info="state == 'menunggu'">
+                <field name="siswa_id"/>
+                <field name="jenis_id"/>
+                <field name="nilai"/>
+                <field name="tanggal_mulai"/>
+                <field name="tanggal_selesai"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_potongan_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.potongan.form</field>
+        <field name="model">nti_edu.tagihan.potongan</field>
+        <field name="arch" type="xml">
+            <form string="Potongan Siswa">
+                <header>
+                    <button name="action_ajukan" type="object" string="Ajukan" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_setujui" type="object" string="Setujui" class="btn-primary"
+                            invisible="state != 'menunggu'" groups="nti_edu_tagihan.group_tagihan_admin"/>
+                    <button name="action_tolak" type="object" string="Tolak" invisible="state != 'menunggu'"
+                            groups="nti_edu_tagihan.group_tagihan_admin"/>
+                    <button name="action_akhiri" type="object" string="Akhiri" invisible="state != 'aktif'"
+                            groups="nti_edu_tagihan.group_tagihan_bendahara"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,menunggu,aktif,berakhir"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="siswa_id" options="{'no_create': True}" readonly="state != 'draft'"/>
+                            <field name="jenis_id" options="{'no_create': True}" readonly="state != 'draft'"/>
+                            <field name="tipe" invisible="1"/>
+                            <field name="nilai" readonly="state != 'draft'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="tanggal_mulai" readonly="state != 'draft'"/>
+                            <field name="tanggal_selesai" readonly="state != 'draft'"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="alasan"/>
+                        <field name="lampiran" filename="lampiran_nama"/>
+                        <field name="lampiran_nama" invisible="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_potongan_search" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.potongan.search</field>
+        <field name="model">nti_edu.tagihan.potongan</field>
+        <field name="arch" type="xml">
+            <search string="Potongan Siswa">
+                <field name="siswa_id"/>
+                <field name="jenis_id"/>
+                <filter name="menunggu" string="Menunggu Persetujuan" domain="[('state', '=', 'menunggu')]"/>
+                <filter name="aktif" string="Aktif" domain="[('state', '=', 'aktif')]"/>
+                <filter name="berakhir" string="Berakhir" domain="[('state', '=', 'berakhir')]"/>
+                <group expand="0" string="Kelompokkan">
+                    <filter name="per_jenis" string="Jenis" context="{'group_by': 'jenis_id'}"/>
+                    <filter name="per_status" string="Status" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_potongan" model="ir.actions.act_window">
+        <field name="name">Potongan Siswa</field>
+        <field name="res_model">nti_edu.tagihan.potongan</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

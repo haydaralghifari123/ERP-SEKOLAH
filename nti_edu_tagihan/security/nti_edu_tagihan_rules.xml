@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Isolasi unit: dokumen skema dan potongan hanya terlihat di unit yang diizinkan (spec §4.11). -->
+    <record id="rule_skema_multi_unit" model="ir.rule">
+        <field name="name">Skema biaya: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_tagihan_skema"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_skema_baris_multi_unit" model="ir.rule">
+        <field name="name">Baris skema biaya: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_tagihan_skema_baris"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_potongan_multi_unit" model="ir.rule">
+        <field name="name">Potongan siswa: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_tagihan_potongan"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- Jenis potongan: master konfigurasi, tanpa unit / milik yayasan induk / milik unit yang diizinkan. -->
+    <record id="rule_potongan_jenis_multi_unit" model="ir.rule">
+        <field name="name">Jenis potongan: multi-unit</field>
+        <field name="model_id" ref="model_nti_edu_tagihan_potongan_jenis"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'parent_of', company_ids)]</field>
+    </record>
+</odoo>

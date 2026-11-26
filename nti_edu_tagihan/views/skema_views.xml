@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_skema_list" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.skema.list</field>
+        <field name="model">nti_edu.tagihan.skema</field>
+        <field name="arch" type="xml">
+            <list string="Skema Biaya" decoration-muted="state == 'arsip'" decoration-success="state == 'aktif'">
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="tahun_ajaran_id"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_skema_form" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.skema.form</field>
+        <field name="model">nti_edu.tagihan.skema</field>
+        <field name="arch" type="xml">
+            <form string="Skema Biaya">
+                <header>
+                    <button name="action_aktifkan" type="object" string="Aktifkan" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_arsipkan" type="object" string="Arsipkan" invisible="state != 'aktif'"/>
+                    <button name="action_salin_tahun_berikut" type="object" string="Salin ke Tahun Ajaran Berikutnya"
+                            invisible="state == 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,aktif,arsip"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="company_id" options="{'no_create': True}"/>
+                            <field name="tahun_ajaran_id" options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="status" invisible="state != 'aktif'">
+                        Perubahan skema aktif hanya berlaku untuk tagihan yang terbit sesudahnya.
+                    </div>
+                    <field name="baris_ids">
+                        <list editable="bottom">
+                            <field name="komponen_id" options="{'no_create': True}"/>
+                            <field name="tingkat_id" options="{'no_create': True}"/>
+                            <field name="jurusan_id" options="{'no_create': True}"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="nominal"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_skema_search" model="ir.ui.view">
+        <field name="name">nti_edu.tagihan.skema.search</field>
+        <field name="model">nti_edu.tagihan.skema</field>
+        <field name="arch" type="xml">
+            <search string="Skema Biaya">
+                <field name="name"/>
+                <field name="tahun_ajaran_id"/>
+                <filter name="aktif" string="Aktif" domain="[('state', '=', 'aktif')]"/>
+                <filter name="draft" string="Draf" domain="[('state', '=', 'draft')]"/>
+                <filter name="arsip" string="Arsip" domain="[('state', '=', 'arsip')]"/>
+                <group expand="0" string="Kelompokkan">
+                    <filter name="per_unit" string="Unit" context="{'group_by': 'company_id'}"/>
+                    <filter name="per_ta" string="Tahun Ajaran" context="{'group_by': 'tahun_ajaran_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_skema" model="ir.actions.act_window">
+        <field name="name">Skema Biaya</field>
+        <field name="res_model">nti_edu.tagihan.skema</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

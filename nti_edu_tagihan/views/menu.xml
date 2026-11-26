@@ -3,10 +3,17 @@
     <menuitem id="menu_tagihan_root" name="Keuangan Sekolah" sequence="45"
               groups="nti_edu_tagihan.group_tagihan_pemantau"/>
 
+    <menuitem id="menu_potongan" name="Potongan Siswa" parent="menu_tagihan_root"
+              action="action_potongan" sequence="30"/>
+
     <menuitem id="menu_tagihan_konfigurasi" name="Konfigurasi" parent="menu_tagihan_root" sequence="90"
               groups="nti_edu_tagihan.group_tagihan_admin"/>
     <menuitem id="menu_komponen" name="Komponen Biaya" parent="menu_tagihan_konfigurasi"
               action="action_komponen" sequence="10"/>
+    <menuitem id="menu_skema" name="Skema Biaya" parent="menu_tagihan_konfigurasi"
+              action="action_skema" sequence="20"/>
+    <menuitem id="menu_potongan_jenis" name="Jenis Potongan" parent="menu_tagihan_konfigurasi"
+              action="action_potongan_jenis" sequence="30"/>
     <menuitem id="menu_periode_jenis" name="Periode Tagihan" parent="menu_tagihan_konfigurasi"
               action="action_periode_jenis" sequence="40"/>
     <menuitem id="menu_aturan_denda" name="Aturan Denda" parent="menu_tagihan_konfigurasi"

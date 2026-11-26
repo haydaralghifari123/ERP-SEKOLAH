@@ -340,7 +340,8 @@ class TagihanMesin(models.AbstractModel):
         mata_uang = asal.currency_id
         Move = self.env['account.move'].sudo()
         hasil = Move.browse()
-        mulai = company.nti_edu_tagihan_mulai
+        # Tunggakan awal memang berjatuh tempo sebelum Tagihan Mulai; ia hanya dibatasi pengaturan denda saldo awal.
+        mulai = not asal.nti_edu_saldo_awal and company.nti_edu_tagihan_mulai
         piutang = asal.line_ids.filtered(
             lambda b: b.account_id.account_type == 'asset_receivable' and b.date_maturity
             and mata_uang.compare_amounts(b.amount_residual_currency, 0.0) > 0
@@ -370,7 +371,7 @@ class TagihanMesin(models.AbstractModel):
                     if mata_uang.compare_amounts(jumlah, 0.0) > 0:
                         denda = Move._nti_edu_terbitkan(
                             asal.nti_edu_siswa_id, aturan.komponen_denda_id, jumlah, hari_ini, hari_ini,
-                            tagihan_asal_id=asal, denda_jatuh_tempo=jatuh_tempo, denda_bulan_ke=n)
+                            company=company, tagihan_asal_id=asal, denda_jatuh_tempo=jatuh_tempo, denda_bulan_ke=n)
                         hasil |= denda
                         total += denda.amount_total
                 n += 1

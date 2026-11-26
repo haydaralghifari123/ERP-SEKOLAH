@@ -157,15 +157,9 @@ class TestDenda(NtiTagihanCommon):
         self.assertEqual(self._denda(asal).mapped('nti_edu_denda_jatuh_tempo'),
                          [date(2026, 7, 10), date(2026, 8, 10), date(2026, 9, 10)])
 
-    def test_tidak_denda(self):
-        # Lunas.
+    def test_tidak_denda_lunas_dan_nol(self):
         lunas = self._terbitkan(periode=date(2026, 7, 1), jatuh_tempo=date(2026, 7, 10))
         self.Mesin._bayar(lunas, 150000, self.rekening_smp, date(2026, 7, 5), 'Lunas')
-        # Tagihan denda itu sendiri, walaupun komponen dendanya diberi aturan denda.
-        self.komponen_denda.aturan_denda_id = self.aturan_bulan
-        denda_manual = self._terbitkan(
-            komponen=self.komponen_denda, siswa=self.siswa_b, nominal=10000)
-        # Tagihan nol (beasiswa 100%).
         jenis = self.env['nti_edu.tagihan.potongan.jenis'].create({
             'name': 'Beasiswa Penuh Denda', 'tipe': 'persen', 'nilai_bawaan': 100,
             'komponen_ids': [(6, 0, self.spp.ids)]})
@@ -173,25 +167,66 @@ class TestDenda(NtiTagihanCommon):
             self.siswa_a, self.spp, 150000, date(2026, 8, 1), date(2026, 8, 10), potongan=[(jenis, 150000)],
             periode=date(2026, 8, 1))
         self.assertEqual(nol.amount_total, 0)
-        # Saldo awal dengan pengaturan denda saldo awal mati (bawaan).
+        pembanding = self._terbitkan(siswa=self.siswa_b)
+        self.assertFalse(self.unit_smp.nti_edu_tagihan_mulai)
+
+        self._cron('2026-12-20')
+        self.assertFalse(self._denda(lunas, semua=True))
+        self.assertFalse(self._denda(nol, semua=True))
+        self.assertEqual(len(self._denda(pembanding)), 5)
+
+    def test_tidak_denda_atas_denda(self):
+        # Komponen denda diberi aturan denda pun, tagihan denda tidak pernah didenda.
+        self.komponen_denda.aturan_denda_id = self.aturan_bulan
+        self.assertFalse(self.unit_smp.nti_edu_tagihan_mulai)
+        denda_manual = self._terbitkan(komponen=self.komponen_denda, siswa=self.siswa_b, nominal=10000)
+        asal = self._terbitkan()
+        self._cron('2026-08-18')
+        denda_cron = self._denda(asal)
+        self.assertEqual(len(denda_cron), 1)
+
+        self._cron('2026-12-20')
+        self.assertEqual(len(self._denda(asal)), 5)
+        semua_denda = denda_manual | self._denda(asal)
+        self.assertFalse(self.Move.search([('nti_edu_tagihan_asal_id', 'in', semua_denda.ids)]))
+
+    def test_saldo_awal(self):
+        # Tunggakan awal selalu berjatuh tempo sebelum Tagihan Mulai; hanya pengaturan unit yang menentukan.
+        self.unit_smp.nti_edu_tagihan_mulai = date(2026, 7, 1)
+        self.assertFalse(self.unit_smp.nti_edu_denda_saldo_awal)
         saldo_awal = self._terbitkan(periode=date(2026, 6, 1), jatuh_tempo=date(2026, 6, 10), saldo_awal=True)
-        # Jatuh tempo sebelum Tagihan Mulai.
+        biasa_lama = self._terbitkan(siswa=self.siswa_b, periode=date(2026, 6, 1), jatuh_tempo=date(2026, 6, 10))
+
+        self._cron('2026-08-20')
+        self.assertFalse(self._denda(saldo_awal, semua=True))
+        self.assertFalse(self._denda(biasa_lama, semua=True))
+
+        self.unit_smp.nti_edu_denda_saldo_awal = True
+        self._cron('2026-08-20')
+        # Batas 06-17, 07-17, 08-17.
+        self.assertEqual(self._denda(saldo_awal).mapped('nti_edu_denda_bulan_ke'), [1, 2, 3])
+        # Tagihan biasa sebelum Tagihan Mulai tetap tidak didenda.
+        self.assertFalse(self._denda(biasa_lama, semua=True))
+
+    def test_sebelum_tagihan_mulai(self):
         self.unit_smp.nti_edu_tagihan_mulai = date(2026, 9, 1)
         sebelum_mulai = self._terbitkan(siswa=self.siswa_b, periode=date(2026, 8, 1), jatuh_tempo=date(2026, 8, 31))
         sesudah_mulai = self._terbitkan(siswa=self.siswa_b, periode=date(2026, 9, 1), jatuh_tempo=date(2026, 9, 1))
-
         self._cron('2026-12-20')
-        for tagihan in (lunas, denda_manual, nol, saldo_awal, sebelum_mulai):
-            self.assertFalse(self._denda(tagihan, semua=True), tagihan.name)
-        self.assertFalse(self.Move.search([('nti_edu_tagihan_asal_id', '=', denda_manual.id)]))
-        # Pembanding: tagihan sesudah Tagihan Mulai didenda.
+        self.assertFalse(self._denda(sebelum_mulai, semua=True))
         self.assertEqual(len(self._denda(sesudah_mulai)), 4)
 
-        # Saldo awal didenda bila pengaturan unit menyala.
-        self.unit_smp.nti_edu_denda_saldo_awal = True
-        self.unit_smp.nti_edu_tagihan_mulai = False
-        self._cron('2026-12-20')
-        self.assertEqual(len(self._denda(saldo_awal)), 7)
+    def test_denda_di_unit_tagihan_asal(self):
+        asal = self._terbitkan()
+        # Siswa pindah ke SMA sesudah tagihan SMP terbit.
+        anggota = self.env['nti_edu.rombel.anggota'].search([('siswa_id', '=', self.siswa_a.id)])
+        anggota.tanggal_keluar = date(2026, 8, 15)
+        self.siswa_a.company_id = self.unit_sma
+        self._cron('2026-08-18')
+        denda = self._denda(asal)
+        self.assertEqual(len(denda), 1)
+        self.assertEqual(denda.company_id, self.unit_smp)
+        self.assertEqual(denda.nti_edu_siswa_id, self.siswa_a)
 
     def test_cron_terdaftar_dan_commit(self):
         cron = self.env.ref('nti_edu_tagihan.cron_denda')
@@ -237,6 +272,11 @@ class TestDenda(NtiTagihanCommon):
         denda_1 = self._denda(asal)
         self.assertEqual(len(denda_1), 1)
 
+        # Tombol Hapus Denda hanya tampil bagi yang berhak.
+        self.assertFalse(denda_1.with_user(self.bendahara_smp).nti_edu_boleh_hapus_denda)
+        self.assertTrue(denda_1.with_user(self.admin_keu).nti_edu_boleh_hapus_denda)
+        self.assertFalse(asal.with_user(self.admin_keu).nti_edu_boleh_hapus_denda)
+
         # Bawaan: hanya Admin Keuangan.
         with self.assertRaises(AccessError):
             self._hapus(self.bendahara_smp, denda_1)
@@ -271,6 +311,9 @@ class TestDenda(NtiTagihanCommon):
         self._cron('2026-09-18')
         denda_2 = self._denda(asal)
         self.assertEqual(denda_2.nti_edu_denda_bulan_ke, 2)
+        self.assertTrue(denda_2.with_user(self.bendahara_smp).nti_edu_boleh_hapus_denda)
+        self.assertFalse(denda_2.with_user(self.pemantau_smp).nti_edu_boleh_hapus_denda)
+        self.assertFalse(denda_1.with_user(self.admin_keu).nti_edu_boleh_hapus_denda)
         with self.assertRaises(AccessError):
             self._hapus(self.bendahara_sma, denda_2)
         with self.assertRaises(AccessError):
@@ -284,6 +327,7 @@ class TestDenda(NtiTagihanCommon):
         denda_3 = self._denda(asal)
         self.assertEqual(denda_3.nti_edu_denda_bulan_ke, 3)
         self.Mesin._bayar(denda_3, 4000, self.rekening_smp, date(2026, 10, 18), 'Sebagian denda')
+        self.assertFalse(denda_3.with_user(self.admin_keu).nti_edu_boleh_hapus_denda)
         with self.assertRaises(UserError):
             self._hapus(self.admin_keu, denda_3)
         self.assertEqual(denda_3.state, 'posted')

@@ -26,6 +26,10 @@ FIELD_SEKOLAH = (
     'denda_bulan_ke', 'saldo_awal', 'sumber',
 )
 
+# Field partner tagihan yang boleh beda unit dengan tagihannya: siswa yang pindah unit tetap ditagih denda di unit
+# tagihan asal (lihat `_nti_edu_terbitkan(company=...)`).
+FIELD_PARTNER_SISWA = ('partner_id', 'commercial_partner_id', 'partner_shipping_id')
+
 # Indeks unik parsial pencegah tagihan ganda (spec §4.3); tagihan yang dibatalkan tidak dihitung.
 INDEKS_UNIK = {
     'nti_edu_tagihan_unik_periode': (
@@ -82,6 +86,9 @@ class AccountMove(models.Model):
     nti_edu_is_tagihan = fields.Boolean(
         string='Tagihan Sekolah', compute='_compute_nti_edu_is_tagihan', store=True, index=True)
     nti_edu_komponen_jenis = fields.Selection(related='nti_edu_komponen_id.jenis', string='Jenis Komponen')
+    nti_edu_boleh_hapus_denda = fields.Boolean(
+        string='Boleh Hapus Denda', compute='_compute_nti_edu_boleh_hapus_denda',
+        help='Hanya untuk tampilan tombol Hapus Denda; penjaga sebenarnya ada di _nti_edu_hapus_denda.')
     nti_edu_lunas = fields.Boolean(string='Lunas', compute='_compute_nti_edu_lunas')
     nti_edu_ada_kredit = fields.Boolean(
         string='Ada Kredit Siswa', compute='_compute_nti_edu_ada_kredit',
@@ -100,6 +107,21 @@ class AccountMove(models.Model):
             self.env.cr.execute(
                 f"CREATE UNIQUE INDEX IF NOT EXISTS {nama} ON account_move {kolom} "
                 f"WHERE state != 'cancel' AND {syarat}")
+
+    def _check_company(self, fnames=None):
+        """Hanya saat `_nti_edu_terbitkan` menerbitkan tagihan di unit selain unit siswa saat ini (konteks
+        `nti_edu_partner_lintas_unit`): partner siswa tagihan sekolah tidak diperiksa unitnya; field lain tetap."""
+        if not self.env.context.get('nti_edu_partner_lintas_unit'):
+            return super()._check_company(fnames)
+        lintas = self.filtered(lambda m: m.nti_edu_is_tagihan and m.partner_id == m.nti_edu_siswa_id)
+        if self - lintas:
+            super(AccountMove, self - lintas)._check_company(fnames)
+        if lintas:
+            if fnames is None or {'company_id', 'company_ids'} & set(fnames):
+                fnames = list(self._fields)
+            sisa = [f for f in fnames if f not in FIELD_PARTNER_SISWA + ('company_id', 'company_ids')]
+            if sisa:
+                super(AccountMove, lintas)._check_company(sisa)
 
     @api.depends('nti_edu_komponen_id')
     def _compute_nti_edu_is_tagihan(self):
@@ -135,18 +157,19 @@ class AccountMove(models.Model):
 
     @api.model
     def _nti_edu_terbitkan(self, siswa, komponen, nominal, tanggal, jatuh_tempo, potongan=(), keterangan=None,
-                           **sekolah):
+                           company=None, **sekolah):
         """Terbitkan satu tagihan (invoice posted) untuk `siswa` atas `komponen` sebesar `nominal`.
 
         `potongan`: daftar `(jenis_potongan, jumlah)` yang menjadi baris minus "Potongan <jenis>".
         `sekolah`: nilai field `nti_edu_<nama>` (lihat FIELD_SEKOLAH); record boleh diberikan langsung.
         Hak pemanggil diperiksa oleh pemanggil (`nti_edu.tagihan.akses`); penulisan dilakukan sebagai superuser
         dengan uid pemanggil tetap tercatat. Tagihan ganda → `UserError`.
+        `company`: unit tagihan bila bukan unit siswa saat ini (mis. denda mengikuti unit tagihan asal).
         """
         siswa.ensure_one()
         if not siswa.sudo().nti_edu_is_siswa:
             raise UserError(_('"%s" bukan siswa sehingga tidak dapat ditagih.', siswa.sudo().display_name))
-        company = siswa.sudo().company_id
+        company = company.sudo() if company else siswa.sudo().company_id
         if not company:
             raise UserError(_('Siswa "%s" belum memiliki unit sekolah.', siswa.display_name))
         if nominal < 0:
@@ -185,6 +208,8 @@ class AccountMove(models.Model):
             vals['nti_edu_' + nama] = nilai.id if isinstance(nilai, models.BaseModel) else nilai
 
         Move = self.sudo().with_company(company)
+        if company != siswa.sudo().company_id:
+            Move = Move.with_context(nti_edu_partner_lintas_unit=True)
         try:
             with self.env.cr.savepoint():
                 # Kolom indeks unik tagihan semuanya ditulis saat INSERT; log SQL hanya dibisukan di sini.
@@ -247,6 +272,28 @@ class AccountMove(models.Model):
             tagihan.button_cancel()
             tagihan.message_post(body=_('Tagihan dibatalkan. Alasan: %s', alasan), author_id=penulis)
         return True
+
+    @api.depends('state', 'move_type', 'amount_residual', 'amount_total', 'nti_edu_komponen_id', 'company_id',
+                 'company_id.nti_edu_denda_hapus_perlu_admin')
+    @api.depends_context('uid')
+    def _compute_nti_edu_boleh_hapus_denda(self):
+        user = self.env.user
+        su = self.env.su
+        unit_user = user.sudo().company_ids
+        admin = user.has_group(GRUP_ADMIN)
+        bendahara = user.has_group(GRUP_BENDAHARA)
+        for move in self:
+            company = move.sudo().company_id
+            if su:
+                berhak = True
+            elif company.nti_edu_denda_hapus_perlu_admin:
+                berhak = admin and company in unit_user
+            else:
+                berhak = bendahara and company in unit_user
+            move.nti_edu_boleh_hapus_denda = bool(
+                berhak and move.move_type == 'out_invoice' and move.state == 'posted'
+                and move.nti_edu_komponen_id.sudo().jenis == 'denda'
+                and move.currency_id.compare_amounts(move.amount_residual, move.amount_total) == 0)
 
     def _nti_edu_hapus_denda(self, alasan, catatan=False):
         """Hapus (batalkan) tagihan denda yang belum dibayar sama sekali dengan `alasan` dari master alasan

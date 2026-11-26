@@ -59,8 +59,8 @@
                                        or nti_edu_komponen_jenis == 'denda'"/>
                     <button name="%(nti_edu_tagihan.action_hapus_denda_wizard)d" type="action"
                             string="Hapus Denda" groups="nti_edu_tagihan.group_tagihan_bendahara"
-                            invisible="state != 'posted' or amount_residual != amount_total
-                                       or nti_edu_komponen_jenis != 'denda'"/>
+                            invisible="not nti_edu_boleh_hapus_denda"/>
+                    <field name="nti_edu_boleh_hapus_denda" invisible="1"/>
                     <field name="nti_edu_komponen_jenis" invisible="1"/>
                     <field name="state" widget="statusbar" statusbar_visible="posted,cancel"/>
                 </header>
